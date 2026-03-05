@@ -8,6 +8,16 @@ import { dbRateLimit } from "./middleware/rateLimit.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { isAllowedOrigin } from "./utils/originMatcher.js";
 
+function isTrustedVercelOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "https:" && /\.vercel\.app$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function createCorsBlockedError(origin) {
   const error = new Error(`CORS blocked for origin: ${origin}`);
   error.statusCode = 403;
@@ -20,6 +30,9 @@ export function createApp() {
   app.use(helmet());
   app.use(cors({
     origin: (origin, callback) => {
+      if (isTrustedVercelOrigin(origin)) {
+        return callback(null, true);
+      }
       if (isAllowedOrigin({
         origin,
         exactOrigins: env.clientOrigins,
