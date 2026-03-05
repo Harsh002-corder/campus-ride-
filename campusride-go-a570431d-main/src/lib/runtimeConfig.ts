@@ -1,4 +1,6 @@
-const API_HOST_FALLBACK = "http://localhost:4000";
+const API_HOST_FALLBACK = import.meta.env.PROD
+  ? "https://campusride-backend.onrender.com"
+  : "http://localhost:4000";
 
 const normalizeBaseUrl = (value?: string) => (value || "").trim().replace(/\/$/, "");
 const ensureApiSuffix = (value: string) => (/\/api\/?$/.test(value) ? value : `${value}/api`);
