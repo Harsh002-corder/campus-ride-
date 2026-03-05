@@ -20,7 +20,12 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   clientOrigins: parseOriginList(process.env.CLIENT_ORIGIN || process.env.ALLOWED_ORIGINS || "https://campusride-deploy.vercel.app"),
-  wildcardClientOriginPatterns: parseOriginList(process.env.ALLOWED_ORIGIN_PATTERNS || ""),
+  wildcardClientOriginPatterns: [
+    ...new Set([
+      ...parseOriginList(process.env.ALLOWED_ORIGIN_PATTERNS || ""),
+      "*.vercel.app",
+    ]),
+  ],
   allowLanOrigins: process.env.ALLOW_LAN_ORIGINS === "true",
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120),
