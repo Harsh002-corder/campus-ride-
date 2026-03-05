@@ -1,6 +1,10 @@
 import { getAuthToken } from "@/lib/apiClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://campusride-backend.onrender.com/api";
+const normalizeBaseUrl = (value: string) => value.trim().replace(/\/$/, "");
+const ensureApiSuffix = (value: string) => (/\/api\/?$/.test(value) ? value : `${value}/api`);
+const API_BASE_URL = ensureApiSuffix(
+  normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"),
+);
 
 async function getHeaders() {
   const token = getAuthToken();

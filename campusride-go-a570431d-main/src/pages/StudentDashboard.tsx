@@ -631,7 +631,7 @@ const StudentDashboard = () => {
                       minChars={2}
                       maxResults={8}
                       debounceMs={300}
-                      remoteEndpoint={import.meta.env.VITE_USE_REMOTE_STOP_SUGGEST === "true" ? `${import.meta.env.VITE_API_BASE_URL || "https://campusride-backend.onrender.com/api"}/stops/suggest` : undefined}
+                      remoteEndpoint={import.meta.env.VITE_USE_REMOTE_STOP_SUGGEST === "true" ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api"}/stops/suggest` : undefined}
                       icon={<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
                     />
                     {/* Swap button */}
@@ -659,7 +659,7 @@ const StudentDashboard = () => {
                       minChars={2}
                       maxResults={8}
                       debounceMs={300}
-                      remoteEndpoint={import.meta.env.VITE_USE_REMOTE_STOP_SUGGEST === "true" ? `${import.meta.env.VITE_API_BASE_URL || "https://campusride-backend.onrender.com/api"}/stops/suggest` : undefined}
+                      remoteEndpoint={import.meta.env.VITE_USE_REMOTE_STOP_SUGGEST === "true" ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api"}/stops/suggest` : undefined}
                       icon={<Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
                     />
                   </div>
