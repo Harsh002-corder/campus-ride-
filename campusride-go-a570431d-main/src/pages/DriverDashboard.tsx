@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
@@ -31,6 +31,10 @@ const toNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toIncomingRequestRides = (rides: RideDto[]) => rides
+  .filter((ride) => ride.status === "requested" && !ride.driverId)
+  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
 const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
@@ -52,6 +56,8 @@ const DriverDashboard = () => {
   const [verificationUploadBusy, setVerificationUploadBusy] = useState(false);
   const [cancelReasonKey, setCancelReasonKey] = useState("driver_delayed");
   const [cancelCustomReason, setCancelCustomReason] = useState("");
+  const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
+  const newRequestPopupTimerRef = useRef<number | null>(null);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -61,6 +67,52 @@ const DriverDashboard = () => {
     { key: "personal_reason", label: "Personal reason" },
     { key: "other", label: "Other" },
   ];
+
+  const playRequestAlertTone = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gainNode.gain.value = 0.0001;
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const now = audioContext.currentTime;
+      gainNode.gain.exponentialRampToValueAtTime(0.08, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.2);
+
+      oscillator.onended = () => {
+        void audioContext.close();
+      };
+    } catch {
+      // Ignore browser autoplay/context restrictions silently.
+    }
+  }, []);
+
+  const showNewRequestPopup = useCallback((ride: RideDto) => {
+    setNewRequestPopupRide(ride);
+
+    if (newRequestPopupTimerRef.current) {
+      window.clearTimeout(newRequestPopupTimerRef.current);
+    }
+
+    newRequestPopupTimerRef.current = window.setTimeout(() => {
+      setNewRequestPopupRide((current) => (current?.id === ride.id ? null : current));
+      newRequestPopupTimerRef.current = null;
+    }, 5000);
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -74,7 +126,7 @@ const DriverDashboard = () => {
 
       setIsOnline(Boolean(profile.user?.isOnline));
       setMyRides(mine.rides || []);
-      setAvailableRides(available.rides || []);
+      setAvailableRides(toIncomingRequestRides(available.rides || []));
       setVerificationStatus(profile.user?.driverVerificationStatus || verification.verification?.status || "not_submitted");
       setVerificationNotes(verification.verification?.reviewNotes || "");
 
@@ -112,6 +164,12 @@ const DriverDashboard = () => {
     };
   }, [loadData]);
 
+  useEffect(() => () => {
+    if (newRequestPopupTimerRef.current) {
+      window.clearTimeout(newRequestPopupTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     const socket = getSocketClient();
 
@@ -125,12 +183,20 @@ const DriverDashboard = () => {
         return;
       }
 
+      let isNewRequest = false;
       setAvailableRides((prev) => {
         const exists = prev.some((ride) => ride.id === incomingRide.id);
-        return exists
+        isNewRequest = !exists;
+        const next = exists
           ? prev.map((ride) => (ride.id === incomingRide.id ? incomingRide : ride))
           : [incomingRide, ...prev];
+        return toIncomingRequestRides(next);
       });
+
+      if (isNewRequest) {
+        playRequestAlertTone();
+        showNewRequestPopup(incomingRide);
+      }
     };
 
     const onRideUpdated = (updatedRide: RideDto) => {
@@ -142,9 +208,16 @@ const DriverDashboard = () => {
       setAvailableRides((prev) => {
         if (updatedRide.status === "requested" && !updatedRide.driverId) {
           const exists = prev.some((ride) => ride.id === updatedRide.id);
-          return exists
+          const next = exists
             ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
             : [updatedRide, ...prev];
+
+          if (!exists) {
+            playRequestAlertTone();
+            showNewRequestPopup(updatedRide);
+          }
+
+          return toIncomingRequestRides(next);
         }
 
         return prev.filter((ride) => ride.id !== updatedRide.id);
@@ -175,7 +248,9 @@ const DriverDashboard = () => {
       socket.off("ride:requested", onRideRequested);
       socket.off("ride:updated", onRideUpdated);
     };
-  }, [loadData, user?.id]);
+  }, [loadData, playRequestAlertTone, showNewRequestPopup, user?.id]);
+
+  const incomingRequests = useMemo(() => toIncomingRequestRides(availableRides), [availableRides]);
 
   const activeRide = useMemo(
     () => myRides.find((ride) => ["accepted", "ongoing"].includes(ride.status)) || null,
@@ -280,6 +355,7 @@ const DriverDashboard = () => {
     setBusy(true);
     try {
       await apiClient.rides.accept(rideId);
+      setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
       await loadData();
       toast.success("Ride request accepted", "Student has been notified.");
     } catch (error) {
@@ -293,6 +369,7 @@ const DriverDashboard = () => {
     setBusy(true);
     try {
       await apiClient.rides.reject(rideId);
+      setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
       await loadData();
     } catch (error) {
       toast.error("Could not decline ride", error);
@@ -389,6 +466,53 @@ const DriverDashboard = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-background relative overflow-hidden">
+        <AnimatePresence>
+          {newRequestPopupRide && (
+            <motion.div
+              initial={{ opacity: 0, y: -14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-20 right-4 md:right-6 z-50 w-[min(92vw,360px)] card-glass border border-primary/40"
+            >
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary font-semibold">New Ride Request</p>
+                  <p className="text-sm font-medium">Student #{newRequestPopupRide.studentId?.slice(-6)}</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setNewRequestPopupRide(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                {newRequestPopupRide.pickup?.label || "-"}{" -> "}{newRequestPopupRide.drop?.label || "-"}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => acceptRide(newRequestPopupRide.id)}
+                  className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => declineRide(newRequestPopupRide.id)}
+                  className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
+                >
+                  Decline
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
 
@@ -578,11 +702,11 @@ const DriverDashboard = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold font-display">Incoming Requests</h2>
-                  <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">{availableRides.length} pending</span>
+                  <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">{incomingRequests.length} pending</span>
                 </div>
                 <div className="space-y-3">
-                  {availableRides.length === 0 && <div className="card-glass text-sm text-muted-foreground">No incoming requests</div>}
-                  {availableRides.map((req, i) => (
+                  {incomingRequests.length === 0 && <div className="card-glass text-sm text-muted-foreground">No incoming requests</div>}
+                  {incomingRequests.map((req, i) => (
                     <motion.div key={req.id} {...card(i + 5)} className="card-glass">
                       <div className="flex items-center justify-between mb-3">
                         <div>

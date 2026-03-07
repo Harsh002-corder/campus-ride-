@@ -118,6 +118,7 @@ const StudentDashboard = () => {
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
   const bookingMapRef = useRef<google.maps.Map | null>(null);
+  const rideStatusByIdRef = useRef<Record<string, RideDto["status"]>>({});
 
   const { isLoaded: isBookingMapLoaded } = useJsApiLoader({
     id: "student-booking-map",
@@ -191,6 +192,7 @@ const StudentDashboard = () => {
       const response = await apiClient.rides.my();
       const allRides = response.rides || [];
       setRides(allRides);
+      rideStatusByIdRef.current = Object.fromEntries(allRides.map((ride) => [ride.id, ride.status]));
       const active = allRides.find((ride) => ["scheduled", "accepted", "ongoing", "requested"].includes(ride.status));
       setActiveRide(active || null);
 
@@ -241,6 +243,13 @@ const StudentDashboard = () => {
 
       if (!user?.id || updatedRide.studentId !== user.id) {
         return;
+      }
+
+      const previousStatus = rideStatusByIdRef.current[updatedRide.id];
+      rideStatusByIdRef.current[updatedRide.id] = updatedRide.status;
+
+      if (updatedRide.status === "accepted" && previousStatus !== "accepted") {
+        toast.success("Driver accepted your request", "Your ride has been accepted. You can start tracking it now.");
       }
 
       setRides((prev) => {
