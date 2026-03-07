@@ -34,7 +34,8 @@ describe("IncomingRequestsList", () => {
     render(
       <IncomingRequestsList
         rides={[]}
-        busy={false}
+        isRideBusy={() => false}
+        getRideActionLabel={() => undefined}
         card={card}
         onAccept={() => {}}
         onDecline={() => {}}
@@ -52,7 +53,8 @@ describe("IncomingRequestsList", () => {
     render(
       <IncomingRequestsList
         rides={rides}
-        busy={false}
+        isRideBusy={() => false}
+        getRideActionLabel={() => undefined}
         card={card}
         onAccept={onAccept}
         onDecline={onDecline}

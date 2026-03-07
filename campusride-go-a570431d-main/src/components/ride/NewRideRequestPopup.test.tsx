@@ -29,6 +29,7 @@ describe("NewRideRequestPopup", () => {
       <NewRideRequestPopup
         ride={baseRide}
         busy={false}
+        busyLabel={undefined}
         onAccept={() => {}}
         onIgnore={() => {}}
       />,
@@ -51,6 +52,7 @@ describe("NewRideRequestPopup", () => {
       <NewRideRequestPopup
         ride={baseRide}
         busy={false}
+        busyLabel={undefined}
         onAccept={onAccept}
         onIgnore={onIgnore}
       />,

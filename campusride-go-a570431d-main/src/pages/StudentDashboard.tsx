@@ -1093,6 +1093,7 @@ const StudentDashboard = () => {
       {/* Ride Completion Popup */}
       <RideCompletionPopup
         open={showCompletionPopup}
+        allowClose={false}
         onClose={() => {
           setShowCompletionPopup(false);
           setFeedbackRide(null);

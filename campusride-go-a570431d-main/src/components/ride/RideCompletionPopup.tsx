@@ -7,6 +7,7 @@ interface RideCompletionPopupProps {
   onClose: () => void;
   onSubmit: (rating: number, message: string) => Promise<void>;
   submitting?: boolean;
+  allowClose?: boolean;
   ride: {
     from: string;
     to: string;
@@ -19,7 +20,7 @@ interface RideCompletionPopupProps {
   };
 }
 
-const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, ride }: RideCompletionPopupProps) => {
+const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, allowClose = true, ride }: RideCompletionPopupProps) => {
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [message, setMessage] = useState("");
@@ -54,14 +55,16 @@ const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, ride
             className="card-glass border border-border w-full max-w-md relative overflow-hidden"
           >
             {/* Close button */}
-            <button
-              onClick={onClose}
-              title="Close"
-              aria-label="Close"
-              className="absolute top-4 right-4 p-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {allowClose && (
+              <button
+                onClick={onClose}
+                title="Close"
+                aria-label="Close"
+                className="absolute top-4 right-4 p-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
 
             {submitted ? (
               <motion.div
@@ -84,6 +87,7 @@ const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, ride
                   </div>
                   <h3 className="text-xl font-bold font-display">Ride Completed! 🎉</h3>
                   <p className="text-sm text-muted-foreground mt-1">How was your experience?</p>
+                  {!allowClose && <p className="text-xs text-primary mt-1">Rating is required to close this popup.</p>}
                 </div>
 
                 {/* Ride Info */}

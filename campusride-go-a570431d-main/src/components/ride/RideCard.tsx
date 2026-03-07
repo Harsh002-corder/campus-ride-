@@ -11,6 +11,10 @@ type RideCardProps = {
   ride: RideDto;
   busy: boolean;
   isActive: boolean;
+  queuePosition: number;
+  canStart: boolean;
+  isLatest?: boolean;
+  actionLabel?: string;
   cancelReasonKey: string;
   cancelCustomReason: string;
   cancellationReasons: CancellationReason[];
@@ -28,6 +32,10 @@ export default function RideCard({
   ride,
   busy,
   isActive,
+  queuePosition,
+  canStart,
+  isLatest,
+  actionLabel,
   cancelReasonKey,
   cancelCustomReason,
   cancellationReasons,
@@ -48,6 +56,10 @@ export default function RideCard({
     : undefined;
 
   const isInProgress = ["in_progress", "ongoing"].includes(ride.status);
+  const isStarting = actionLabel === "Starting...";
+  const isCompleting = actionLabel === "Completing...";
+  const isCancelling = actionLabel === "Cancelling...";
+  const createdAtText = new Date(ride.createdAt).toLocaleString();
 
   return (
     <motion.div className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}>
@@ -58,19 +70,16 @@ export default function RideCard({
           </div>
           <div>
             <p className="font-semibold text-sm">
-              {isActive ? "Active" : "Upcoming"} - {ride.pickup?.label || "-"} {"->"} {ride.drop?.label || "-"}
+              {isActive ? `Active #${queuePosition}` : `Queued #${queuePosition}`} - {ride.pickup?.label || "-"} {"->"} {ride.drop?.label || "-"}
             </p>
+            {isLatest && <p className="text-[11px] text-primary font-semibold">Latest ride</p>}
             <p className="text-xs text-muted-foreground">Status: {ride.status}</p>
             <p className="text-xs text-muted-foreground">Student: {activeContactName}</p>
+            <p className="text-xs text-muted-foreground">Requested: {createdAtText}</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {ride.passengers || 1}</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          {ride.status !== "cancelled" && Boolean(ride.verificationCode) && (
-            <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
-              Code: {ride.verificationCode}
-            </span>
-          )}
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => onTrack(ride.id)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track</motion.button>
         </div>
       </div>
@@ -123,15 +132,16 @@ export default function RideCard({
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => onStart(ride.id)}
-          disabled={busy || ride.status !== "accepted"}
+          disabled={busy || ride.status !== "accepted" || !canStart}
+          title={!canStart && ride.status === "accepted" ? "Start is available only for the first queued ride" : undefined}
           className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
-          <Play className="w-3.5 h-3.5" /> Start Ride
+          <Play className="w-3.5 h-3.5" /> {isStarting ? "Starting..." : "Start Ride"}
         </motion.button>
 
         {isInProgress && (
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => onComplete(ride.id)} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-            <CheckCircle className="w-3.5 h-3.5" /> Complete Ride
+            <CheckCircle className="w-3.5 h-3.5" /> {isCompleting ? "Completing..." : "Complete Ride"}
           </motion.button>
         )}
 
@@ -141,7 +151,7 @@ export default function RideCard({
           disabled={busy || !["accepted", "in_progress", "ongoing"].includes(ride.status)}
           className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
-          <XCircle className="w-3.5 h-3.5" /> Cancel Ride
+          <XCircle className="w-3.5 h-3.5" /> {isCancelling ? "Cancelling..." : "Cancel Ride"}
         </motion.button>
       </div>
     </motion.div>

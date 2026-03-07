@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 type NewRideRequestPopupProps = {
   ride: RideDto | null;
   busy: boolean;
+  busyLabel?: string;
   onAccept: (rideId: string) => void;
   onIgnore: () => void;
 };
@@ -12,6 +13,7 @@ type NewRideRequestPopupProps = {
 export default function NewRideRequestPopup({
   ride,
   busy,
+  busyLabel,
   onAccept,
   onIgnore,
 }: NewRideRequestPopupProps) {
@@ -59,7 +61,7 @@ export default function NewRideRequestPopup({
                 onClick={() => onAccept(ride.id)}
                 className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
               >
-                Accept
+                {busyLabel === "Accepting..." ? "Accepting..." : "Accept"}
               </button>
               <button
                 type="button"
@@ -67,7 +69,7 @@ export default function NewRideRequestPopup({
                 onClick={onIgnore}
                 className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
               >
-                Deny
+                {busyLabel === "Denying..." ? "Denying..." : "Deny"}
               </button>
             </div>
           )}

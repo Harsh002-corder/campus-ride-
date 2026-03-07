@@ -4,7 +4,8 @@ import { type RideDto } from "@/lib/apiClient";
 
 type IncomingRequestsListProps = {
   rides: RideDto[];
-  busy: boolean;
+  isRideBusy: (rideId: string) => boolean;
+  getRideActionLabel: (rideId: string) => string | undefined;
   card: (index: number) => {
     initial: { opacity: number; y: number };
     animate: { opacity: number; y: number };
@@ -16,7 +17,8 @@ type IncomingRequestsListProps = {
 
 export default function IncomingRequestsList({
   rides,
-  busy,
+  isRideBusy,
+  getRideActionLabel,
   card,
   onAccept,
   onDecline,
@@ -25,6 +27,7 @@ export default function IncomingRequestsList({
     <div className="space-y-3">
       {rides.length === 0 && <div className="card-glass text-sm text-muted-foreground">No incoming requests</div>}
       {rides.map((req, i) => (
+        
         <motion.div key={req.id} {...card(i + 5)} className="card-glass">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -45,8 +48,8 @@ export default function IncomingRequestsList({
           </div>
           {["pending", "requested"].includes(req.status) && (
             <div className="flex gap-2">
-              <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onAccept(req.id)} className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold">Accept</motion.button>
-              <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onDecline(req.id)} className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors">Deny</motion.button>
+              <motion.button whileTap={{ scale: 0.97 }} disabled={isRideBusy(req.id)} onClick={() => onAccept(req.id)} className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold">{getRideActionLabel(req.id) === "Accepting..." ? "Accepting..." : "Accept"}</motion.button>
+              <motion.button whileTap={{ scale: 0.97 }} disabled={isRideBusy(req.id)} onClick={() => onDecline(req.id)} className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors">{getRideActionLabel(req.id) === "Denying..." ? "Denying..." : "Deny"}</motion.button>
             </div>
           )}
         </motion.div>

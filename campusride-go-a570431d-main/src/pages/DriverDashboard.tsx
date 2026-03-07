@@ -32,7 +32,9 @@ const toIncomingRequestRides = (rides: RideDto[]) => rides
 
 const toQueueRides = (rides: RideDto[]) => rides
   .slice()
-  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+type RideActionType = "accept" | "decline" | "start" | "complete" | "cancel";
 
 const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
@@ -41,7 +43,9 @@ const DriverDashboard = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [availableRides, setAvailableRides] = useState<RideDto[]>([]);
   const [myRides, setMyRides] = useState<RideDto[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [onlineBusy, setOnlineBusy] = useState(false);
+  const [rideActionBusyByRide, setRideActionBusyByRide] = useState<Record<string, boolean>>({});
+  const [rideActionTypeByRide, setRideActionTypeByRide] = useState<Record<string, RideActionType>>({});
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [rideBookingEnabled, setRideBookingEnabled] = useState(true);
   const [locationSyncIntervalSeconds, setLocationSyncIntervalSeconds] = useState(5);
@@ -53,7 +57,12 @@ const DriverDashboard = () => {
   const [verificationUploadBusy, setVerificationUploadBusy] = useState(false);
   const [cancelReasonByRide, setCancelReasonByRide] = useState<Record<string, string>>({});
   const [cancelCustomReasonByRide, setCancelCustomReasonByRide] = useState<Record<string, string>>({});
+  const [verificationCodeByRide, setVerificationCodeByRide] = useState<Record<string, string>>({});
+  const [verificationModalRideId, setVerificationModalRideId] = useState<string | null>(null);
+  const [verificationModalCode, setVerificationModalCode] = useState("");
   const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
+  const [queueSearch, setQueueSearch] = useState("");
+  const [queueStatusFilter, setQueueStatusFilter] = useState<"all" | "accepted" | "in_progress">("all");
   const newRequestPopupTimerRef = useRef<number | null>(null);
 
   const cancellationReasons = [
@@ -64,6 +73,73 @@ const DriverDashboard = () => {
     { key: "personal_reason", label: "Personal reason" },
     { key: "other", label: "Other" },
   ];
+
+  const setRideActionBusy = useCallback((rideId: string, isBusy: boolean) => {
+    setRideActionBusyByRide((prev) => {
+      if (isBusy) {
+        return { ...prev, [rideId]: true };
+      }
+
+      if (!prev[rideId]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[rideId];
+      return next;
+    });
+  }, []);
+
+  const isRideBusy = useCallback((rideId: string) => Boolean(rideActionBusyByRide[rideId]), [rideActionBusyByRide]);
+
+  const setRideActionType = useCallback((rideId: string, actionType: RideActionType | null) => {
+    setRideActionTypeByRide((prev) => {
+      if (!actionType) {
+        if (!prev[rideId]) return prev;
+        const next = { ...prev };
+        delete next[rideId];
+        return next;
+      }
+
+      return { ...prev, [rideId]: actionType };
+    });
+  }, []);
+
+  const getRideActionLabel = useCallback((rideId: string): string | undefined => {
+    switch (rideActionTypeByRide[rideId]) {
+      case "accept":
+        return "Accepting...";
+      case "decline":
+        return "Denying...";
+      case "start":
+        return "Starting...";
+      case "complete":
+        return "Completing...";
+      case "cancel":
+        return "Cancelling...";
+      default:
+        return undefined;
+    }
+  }, [rideActionTypeByRide]);
+
+  const upsertMyRide = useCallback((ride: RideDto) => {
+    setMyRides((prev) => {
+      const exists = prev.some((item) => item.id === ride.id);
+      return toQueueRides(exists ? prev.map((item) => (item.id === ride.id ? ride : item)) : [...prev, ride]);
+    });
+  }, []);
+
+  const patchMyRide = useCallback((rideId: string, patcher: (ride: RideDto) => RideDto) => {
+    setMyRides((prev) => {
+      let found = false;
+      const next = prev.map((ride) => {
+        if (ride.id !== rideId) return ride;
+        found = true;
+        return patcher(ride);
+      });
+      return found ? toQueueRides(next) : prev;
+    });
+  }, []);
 
   const playRequestAlertTone = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -153,11 +229,21 @@ const DriverDashboard = () => {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
+      const socket = getSocketClient();
+      if (!socket.connected) {
+        void loadData();
+      }
+    }, 20000);
+
+    const socket = getSocketClient();
+    const onSocketReconnect = () => {
       void loadData();
-    }, 5000);
+    };
+    socket.on("connect", onSocketReconnect);
 
     return () => {
       window.clearInterval(intervalId);
+      socket.off("connect", onSocketReconnect);
     };
   }, [loadData]);
 
@@ -254,11 +340,25 @@ const DriverDashboard = () => {
   const incomingRequests = useMemo(() => toIncomingRequestRides(availableRides), [availableRides]);
 
   const assignedRides = useMemo(
-    () => myRides
-      .filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    () => toQueueRides(myRides.filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status))),
     [myRides],
   );
+
+  const visibleAssignedRides = useMemo(() => {
+    const searchTerm = queueSearch.trim().toLowerCase();
+
+    return assignedRides.filter((ride) => {
+      if (queueStatusFilter === "accepted" && ride.status !== "accepted") return false;
+      if (queueStatusFilter === "in_progress" && !["in_progress", "ongoing"].includes(ride.status)) return false;
+
+      if (!searchTerm) return true;
+
+      const student = (ride.student?.name || "").toLowerCase();
+      const pickup = (ride.pickup?.label || "").toLowerCase();
+      const drop = (ride.drop?.label || "").toLowerCase();
+      return student.includes(searchTerm) || pickup.includes(searchTerm) || drop.includes(searchTerm);
+    });
+  }, [assignedRides, queueSearch, queueStatusFilter]);
 
   const activeRide = assignedRides[0] || null;
 
@@ -336,7 +436,7 @@ const DriverDashboard = () => {
   };
 
   const toggleOnline = async () => {
-    setBusy(true);
+    setOnlineBusy(true);
     try {
       await apiClient.drivers.setOnline(!isOnline);
       setIsOnline(!isOnline);
@@ -344,60 +444,119 @@ const DriverDashboard = () => {
     } catch (error) {
       toast.error("Could not update online status", error);
     } finally {
-      setBusy(false);
+      setOnlineBusy(false);
     }
   };
 
   const acceptRide = async (rideId: string) => {
-    setBusy(true);
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "accept");
+    const nowIso = new Date().toISOString();
+    const sourceRide = availableRides.find((ride) => ride.id === rideId)
+      || (newRequestPopupRide?.id === rideId ? newRequestPopupRide : null);
+
+    setAvailableRides((prev) => prev.filter((ride) => ride.id !== rideId));
+    setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
+
+    if (sourceRide) {
+      upsertMyRide({
+        ...sourceRide,
+        status: "accepted",
+        driverId: user?.id || sourceRide.driverId,
+        acceptedAt: sourceRide.acceptedAt || nowIso,
+        updatedAt: nowIso,
+      });
+    }
+
     try {
       await apiClient.rides.accept(rideId);
-      setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
-      await loadData();
       toast.success("Ride request accepted", "Student has been notified.");
     } catch (error) {
+      await loadData();
       toast.error("Could not accept ride", error);
     } finally {
-      setBusy(false);
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
     }
   };
 
   const declineRide = async (rideId: string) => {
-    setBusy(true);
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "decline");
+    setAvailableRides((prev) => prev.filter((ride) => ride.id !== rideId));
+    setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
+
     try {
       await apiClient.rides.deny(rideId);
-      setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
-      await loadData();
     } catch (error) {
+      await loadData();
       toast.error("Could not decline ride", error);
     } finally {
-      setBusy(false);
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
     }
   };
 
-  const startRide = async (rideId: string) => {
-    setBusy(true);
+  const startRide = (rideId: string) => {
+    setVerificationModalRideId(rideId);
+    setVerificationModalCode(verificationCodeByRide[rideId] || "");
+  };
+
+  const submitVerificationAndStart = async () => {
+    const rideId = verificationModalRideId;
+    if (!rideId) return;
+
+    const verificationCode = verificationModalCode.trim();
+    if (!verificationCode) {
+      toast.error("Verification code required", "Enter the student code before starting the ride.");
+      return;
+    }
+
+    setVerificationCodeByRide((prev) => ({ ...prev, [rideId]: verificationCode }));
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "start");
+    const nowIso = new Date().toISOString();
+    patchMyRide(rideId, (ride) => ({
+      ...ride,
+      status: "in_progress",
+      ongoingAt: ride.ongoingAt || nowIso,
+      updatedAt: nowIso,
+    }));
+
     try {
-      await apiClient.rides.start(rideId);
-      await loadData();
+      await apiClient.rides.verify(rideId, verificationCode);
+      setVerificationModalRideId(null);
+      setVerificationModalCode("");
       toast.success("Ride started", "Trip status is now marked as in progress.");
     } catch (error) {
+      await loadData();
       toast.error("Could not start ride", error);
     } finally {
-      setBusy(false);
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
     }
   };
 
   const completeRide = async (rideId: string) => {
-    setBusy(true);
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "complete");
+    const nowIso = new Date().toISOString();
+    patchMyRide(rideId, (ride) => ({
+      ...ride,
+      status: "completed",
+      completedAt: ride.completedAt || nowIso,
+      updatedAt: nowIso,
+    }));
+
     try {
       await apiClient.rides.complete(rideId);
-      await loadData();
       toast.success("Ride completed", "Student can now submit rating and feedback.");
     } catch (error) {
+      await loadData();
       toast.error("Could not complete ride", error);
     } finally {
-      setBusy(false);
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
     }
   };
 
@@ -405,18 +564,29 @@ const DriverDashboard = () => {
     const reasonKey = cancelReasonByRide[rideId] || "driver_delayed";
     const customReason = cancelCustomReasonByRide[rideId] || "";
 
-    setBusy(true);
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "cancel");
+    const nowIso = new Date().toISOString();
+    patchMyRide(rideId, (ride) => ({
+      ...ride,
+      status: "cancelled",
+      cancelReason: reasonKey === "other" && customReason.trim() ? customReason.trim() : reasonKey,
+      cancelledAt: ride.cancelledAt || nowIso,
+      updatedAt: nowIso,
+    }));
+
     try {
       await apiClient.rides.cancel(rideId, {
         reasonKey,
         customReason: reasonKey === "other" ? customReason : undefined,
       });
-      await loadData();
       toast.success("Ride cancelled", "The cancellation was saved successfully.");
     } catch (error) {
+      await loadData();
       toast.error("Could not cancel ride", error);
     } finally {
-      setBusy(false);
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
     }
   };
 
@@ -466,10 +636,49 @@ const DriverDashboard = () => {
       <div className="min-h-screen bg-background relative overflow-hidden">
         <NewRideRequestPopup
           ride={newRequestPopupRide}
-          busy={busy}
+          busy={Boolean(newRequestPopupRide && isRideBusy(newRequestPopupRide.id))}
+          busyLabel={newRequestPopupRide ? getRideActionLabel(newRequestPopupRide.id) : undefined}
           onAccept={acceptRide}
           onIgnore={() => setNewRequestPopupRide(null)}
         />
+
+        {verificationModalRideId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="card-glass border border-primary/40 w-full max-w-sm">
+              <h3 className="text-base font-semibold font-display mb-1">Enter Verification Code</h3>
+              <p className="text-xs text-muted-foreground mb-3">Ask student for the ride code before starting.</p>
+              <input
+                value={verificationModalCode}
+                onChange={(event) => setVerificationModalCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                placeholder="Enter code"
+                className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-3 text-sm"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerificationModalRideId(null);
+                    setVerificationModalCode("");
+                  }}
+                  className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isRideBusy(verificationModalRideId)}
+                  onClick={() => void submitVerificationAndStart()}
+                  className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
+                >
+                  {isRideBusy(verificationModalRideId) ? "Starting..." : "Verify & Start"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
@@ -487,7 +696,7 @@ const DriverDashboard = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={toggleOnline}
-                  disabled={busy}
+                  disabled={onlineBusy}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     isOnline ? "btn-primary-gradient text-primary-foreground" : "bg-muted/50 text-muted-foreground"
                   }`}
@@ -668,7 +877,8 @@ const DriverDashboard = () => {
                 </div>
                 <IncomingRequestsList
                   rides={incomingRequests}
-                  busy={busy}
+                  isRideBusy={isRideBusy}
+                  getRideActionLabel={getRideActionLabel}
                   card={card}
                   onAccept={acceptRide}
                   onDecline={declineRide}
@@ -680,20 +890,53 @@ const DriverDashboard = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold font-display text-sm">Assigned Ride Queue</h3>
                     <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">
-                      {assignedRides.length} active
+                      {visibleAssignedRides.length} showing • latest first
                     </span>
                   </div>
 
-                  {assignedRides.length === 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      value={queueSearch}
+                      onChange={(event) => setQueueSearch(event.target.value)}
+                      placeholder="Search by student, pickup, drop"
+                      className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+                    />
+                    <div className="flex gap-1">
+                      {[
+                        { key: "all", label: "All" },
+                        { key: "accepted", label: "Accepted" },
+                        { key: "in_progress", label: "In progress" },
+                      ].map((filter) => (
+                        <button
+                          key={filter.key}
+                          type="button"
+                          onClick={() => setQueueStatusFilter(filter.key as "all" | "accepted" | "in_progress")}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                            queueStatusFilter === filter.key
+                              ? "bg-primary/20 border-primary/40 text-primary"
+                              : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {visibleAssignedRides.length === 0 && (
                     <div className="card-glass text-sm text-muted-foreground">No accepted or in-progress rides.</div>
                   )}
 
-                  {assignedRides.map((ride, index) => (
+                  {visibleAssignedRides.map((ride, index) => (
                     <RideCard
                       key={ride.id}
                       ride={ride}
-                      busy={busy}
-                      isActive={index === 0}
+                      busy={isRideBusy(ride.id)}
+                      isActive={assignedRides[0]?.id === ride.id}
+                      queuePosition={index + 1}
+                      canStart={assignedRides[0]?.id === ride.id}
+                      isLatest={assignedRides[0]?.id === ride.id}
+                      actionLabel={getRideActionLabel(ride.id)}
                       cancelReasonKey={cancelReasonByRide[ride.id] || "driver_delayed"}
                       cancelCustomReason={cancelCustomReasonByRide[ride.id] || ""}
                       cancellationReasons={cancellationReasons}
