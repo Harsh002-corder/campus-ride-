@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
+import IncomingRequestsList from "@/components/ride/IncomingRequestsList";
+import NewRideRequestPopup from "@/components/ride/NewRideRequestPopup";
 import {
   Dialog,
   DialogContent,
@@ -241,10 +243,12 @@ const DriverDashboard = () => {
       });
     };
 
+    socket.on("newRideRequest", onRideRequested);
     socket.on("ride:requested", onRideRequested);
     socket.on("ride:updated", onRideUpdated);
 
     return () => {
+      socket.off("newRideRequest", onRideRequested);
       socket.off("ride:requested", onRideRequested);
       socket.off("ride:updated", onRideUpdated);
     };
@@ -466,52 +470,12 @@ const DriverDashboard = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-background relative overflow-hidden">
-        <AnimatePresence>
-          {newRequestPopupRide && (
-            <motion.div
-              initial={{ opacity: 0, y: -14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
-              transition={{ duration: 0.2 }}
-              className="fixed top-20 right-4 md:right-6 z-50 w-[min(92vw,360px)] card-glass border border-primary/40"
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-primary font-semibold">New Ride Request</p>
-                  <p className="text-sm font-medium">Student #{newRequestPopupRide.studentId?.slice(-6)}</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setNewRequestPopupRide(null)}
-                >
-                  Dismiss
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                {newRequestPopupRide.pickup?.label || "-"}{" -> "}{newRequestPopupRide.drop?.label || "-"}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => acceptRide(newRequestPopupRide.id)}
-                  className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
-                >
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => declineRide(newRequestPopupRide.id)}
-                  className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
-                >
-                  Decline
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <NewRideRequestPopup
+          ride={newRequestPopupRide}
+          busy={busy}
+          onAccept={acceptRide}
+          onIgnore={() => setNewRequestPopupRide(null)}
+        />
 
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
@@ -681,18 +645,22 @@ const DriverDashboard = () => {
                     <span className="text-muted-foreground">Completion Rate</span>
                     <span className="font-semibold text-foreground">{stats.completionRate}%</span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: `${stats.completionRate}%` }} />
-                  </div>
+                  <progress
+                    max={100}
+                    value={stats.completionRate}
+                    className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
+                  />
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-muted-foreground">Cancellation Rate</span>
                     <span className="font-semibold text-foreground">{stats.cancellationRate}%</span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                    <div className="h-full bg-destructive/80" style={{ width: `${stats.cancellationRate}%` }} />
-                  </div>
+                  <progress
+                    max={100}
+                    value={stats.cancellationRate}
+                    className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
+                  />
                   <p className="text-[11px] text-muted-foreground mt-1">Cancelled rides: {stats.cancelled}</p>
                 </div>
               </div>
@@ -704,32 +672,13 @@ const DriverDashboard = () => {
                   <h2 className="text-lg font-bold font-display">Incoming Requests</h2>
                   <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">{incomingRequests.length} pending</span>
                 </div>
-                <div className="space-y-3">
-                  {incomingRequests.length === 0 && <div className="card-glass text-sm text-muted-foreground">No incoming requests</div>}
-                  {incomingRequests.map((req, i) => (
-                    <motion.div key={req.id} {...card(i + 5)} className="card-glass">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-medium text-sm">Student #{req.studentId?.slice(-6)}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {req.passengers || 1}</p>
-                        </div>
-                        <p className="font-bold text-sm">—</p>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                        <MapPin className="w-3 h-3 text-green-400" />
-                        <span>{req.pickup?.label || "—"}</span>
-                        <span>→</span>
-                        <MapPin className="w-3 h-3 text-primary" />
-                        <span>{req.drop?.label || "—"}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => acceptRide(req.id)} className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold">Accept</motion.button>
-                        <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => declineRide(req.id)} className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors">Decline</motion.button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                <IncomingRequestsList
+                  rides={incomingRequests}
+                  busy={busy}
+                  card={card}
+                  onAccept={acceptRide}
+                  onDecline={declineRide}
+                />
               </div>
 
               <div>

@@ -1,0 +1,76 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { type RideDto } from "@/lib/apiClient";
+import { Users } from "lucide-react";
+
+type NewRideRequestPopupProps = {
+  ride: RideDto | null;
+  busy: boolean;
+  onAccept: (rideId: string) => void;
+  onIgnore: () => void;
+};
+
+export default function NewRideRequestPopup({
+  ride,
+  busy,
+  onAccept,
+  onIgnore,
+}: NewRideRequestPopupProps) {
+  const studentName = ride?.student?.name || `Student #${ride?.studentId?.slice(-6) || "N/A"}`;
+
+  return (
+    <AnimatePresence>
+      {ride && (
+        <motion.div
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -14 }}
+          transition={{ duration: 0.2 }}
+          className="fixed top-20 right-4 md:right-6 z-50 w-[min(92vw,380px)] card-glass border border-primary/40"
+        >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-primary font-semibold">New Ride Request</p>
+              <p className="text-sm font-medium">{studentName}</p>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={onIgnore}
+            >
+              Ignore
+            </button>
+          </div>
+
+          <p className="text-xs text-muted-foreground mb-1">
+            Pickup: {ride.pickup?.label || "-"}
+          </p>
+          <p className="text-xs text-muted-foreground mb-1">
+            Destination: {ride.drop?.label || "-"}
+          </p>
+          <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" /> {ride.passengers || 1} passenger(s)
+          </p>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAccept(ride.id)}
+              className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
+            >
+              Accept Ride
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onIgnore}
+              className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
+            >
+              Ignore
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
