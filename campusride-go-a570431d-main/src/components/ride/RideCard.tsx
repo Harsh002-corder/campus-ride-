@@ -1,0 +1,149 @@
+import { motion } from "framer-motion";
+import { CheckCircle, Map, MessageCircle, Phone, Play, Users, XCircle } from "lucide-react";
+import type { RideDto } from "@/lib/apiClient";
+
+type CancellationReason = {
+  key: string;
+  label: string;
+};
+
+type RideCardProps = {
+  ride: RideDto;
+  busy: boolean;
+  isActive: boolean;
+  cancelReasonKey: string;
+  cancelCustomReason: string;
+  cancellationReasons: CancellationReason[];
+  onCancelReasonKeyChange: (rideId: string, reasonKey: string) => void;
+  onCancelCustomReasonChange: (rideId: string, customReason: string) => void;
+  onStart: (rideId: string) => void;
+  onCancel: (rideId: string) => void;
+  onComplete: (rideId: string) => void;
+  onTrack: (rideId: string) => void;
+};
+
+const toPhoneDigits = (value?: string | null) => (value || "").replace(/\D/g, "");
+
+export default function RideCard({
+  ride,
+  busy,
+  isActive,
+  cancelReasonKey,
+  cancelCustomReason,
+  cancellationReasons,
+  onCancelReasonKeyChange,
+  onCancelCustomReasonChange,
+  onStart,
+  onCancel,
+  onComplete,
+  onTrack,
+}: RideCardProps) {
+  const activeContactName = ride?.student?.name || "Student";
+  const activeContactPhoneRaw = ride?.student?.phone || "+91 90000 00000";
+  const activeContactPhoneDigits = toPhoneDigits(activeContactPhoneRaw);
+  const canContactActiveStudent = activeContactPhoneDigits.length >= 10;
+  const activeCallHref = canContactActiveStudent ? `tel:${activeContactPhoneDigits}` : undefined;
+  const activeChatHref = canContactActiveStudent
+    ? `sms:${activeContactPhoneDigits}?body=${encodeURIComponent(`Hi ${activeContactName}, I am your driver for this ride.`)}`
+    : undefined;
+
+  const isInProgress = ["in_progress", "ongoing"].includes(ride.status);
+
+  return (
+    <motion.div className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
+            <Map className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">
+              {isActive ? "Active" : "Upcoming"} - {ride.pickup?.label || "-"} {"->"} {ride.drop?.label || "-"}
+            </p>
+            <p className="text-xs text-muted-foreground">Status: {ride.status}</p>
+            <p className="text-xs text-muted-foreground">Student: {activeContactName}</p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {ride.passengers || 1}</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          {ride.status !== "cancelled" && Boolean(ride.verificationCode) && (
+            <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
+              Code: {ride.verificationCode}
+            </span>
+          )}
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onTrack(ride.id)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track</motion.button>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-2">
+        {activeCallHref ? (
+          <a href={activeCallHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <Phone className="w-3.5 h-3.5" /> Call Student
+          </a>
+        ) : (
+          <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
+            <Phone className="w-3.5 h-3.5" /> Call Student
+          </button>
+        )}
+
+        {activeChatHref ? (
+          <a href={activeChatHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <MessageCircle className="w-3.5 h-3.5" /> Chat Student
+          </a>
+        ) : (
+          <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
+            <MessageCircle className="w-3.5 h-3.5" /> Chat Student
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 mb-2">
+        <select
+          title="Cancellation reason"
+          value={cancelReasonKey}
+          onChange={(event) => onCancelReasonKeyChange(ride.id, event.target.value)}
+          className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
+        >
+          {cancellationReasons.map((item) => (
+            <option key={item.key} value={item.key}>{item.label}</option>
+          ))}
+        </select>
+
+        {cancelReasonKey === "other" && (
+          <input
+            value={cancelCustomReason}
+            onChange={(event) => onCancelCustomReasonChange(ride.id, event.target.value)}
+            placeholder="Custom reason"
+            className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
+          />
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onStart(ride.id)}
+          disabled={busy || ride.status !== "accepted"}
+          className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+        >
+          <Play className="w-3.5 h-3.5" /> Start Ride
+        </motion.button>
+
+        {isInProgress && (
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onComplete(ride.id)} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <CheckCircle className="w-3.5 h-3.5" /> Complete Ride
+          </motion.button>
+        )}
+
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onCancel(ride.id)}
+          disabled={busy || !["accepted", "in_progress", "ongoing"].includes(ride.status)}
+          className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+        >
+          <XCircle className="w-3.5 h-3.5" /> Cancel Ride
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}

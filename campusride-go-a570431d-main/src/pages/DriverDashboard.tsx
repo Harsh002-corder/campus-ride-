@@ -6,6 +6,7 @@ import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import IncomingRequestsList from "@/components/ride/IncomingRequestsList";
 import NewRideRequestPopup from "@/components/ride/NewRideRequestPopup";
+import RideCard from "@/components/ride/RideCard";
 import { useAppToast } from "@/hooks/use-app-toast";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
@@ -14,8 +15,8 @@ import { apiClient, type AuthUser, type RideDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
 import {
   Navigation, Wallet, Users, LogOut, Power,
-  MapPin, TrendingUp, ChevronRight, Star, Map,
-  Play, XCircle, CheckCircle, Phone, MessageCircle, UserCircle2,
+  TrendingUp, ChevronRight, Star,
+  UserCircle2,
 } from "lucide-react";
 
 const toPhoneDigits = (value?: string | null) => (value || "").replace(/\D/g, "");
@@ -28,6 +29,10 @@ const toNumber = (value: unknown, fallback: number) => {
 const toIncomingRequestRides = (rides: RideDto[]) => rides
   .filter((ride) => ["pending", "requested"].includes(ride.status) && !ride.driverId)
   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+const toQueueRides = (rides: RideDto[]) => rides
+  .slice()
+  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
 const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
@@ -46,8 +51,8 @@ const DriverDashboard = () => {
   const [verificationStatus, setVerificationStatus] = useState<"pending" | "approved" | "rejected" | "not_submitted">("not_submitted");
   const [verificationNotes, setVerificationNotes] = useState("");
   const [verificationUploadBusy, setVerificationUploadBusy] = useState(false);
-  const [cancelReasonKey, setCancelReasonKey] = useState("driver_delayed");
-  const [cancelCustomReason, setCancelCustomReason] = useState("");
+  const [cancelReasonByRide, setCancelReasonByRide] = useState<Record<string, string>>({});
+  const [cancelCustomReasonByRide, setCancelCustomReasonByRide] = useState<Record<string, string>>({});
   const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
   const newRequestPopupTimerRef = useRef<number | null>(null);
 
@@ -117,7 +122,7 @@ const DriverDashboard = () => {
       ]);
 
       setIsOnline(Boolean(profile.user?.isOnline));
-      setMyRides(mine.rides || []);
+      setMyRides(toQueueRides(mine.rides || []));
       setAvailableRides(toIncomingRequestRides(available.rides || []));
       setVerificationStatus(profile.user?.driverVerificationStatus || verification.verification?.status || "not_submitted");
       setVerificationNotes(verification.verification?.reviewNotes || "");
@@ -224,12 +229,14 @@ const DriverDashboard = () => {
         const exists = prev.some((ride) => ride.id === updatedRide.id);
 
         if (!belongsToMe) {
-          return prev.filter((ride) => ride.id !== updatedRide.id);
+          return toQueueRides(prev.filter((ride) => ride.id !== updatedRide.id));
         }
 
-        return exists
+        const next = exists
           ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
-          : [updatedRide, ...prev];
+          : [...prev, updatedRide];
+
+        return toQueueRides(next);
       });
     };
 
@@ -246,19 +253,15 @@ const DriverDashboard = () => {
 
   const incomingRequests = useMemo(() => toIncomingRequestRides(availableRides), [availableRides]);
 
-  const activeRide = useMemo(
-    () => myRides.find((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status)) || null,
+  const assignedRides = useMemo(
+    () => myRides
+      .filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [myRides],
   );
 
-  const activeContactName = activeRide?.student?.name || "Student";
-  const activeContactPhoneRaw = activeRide?.student?.phone || "+91 90000 00000";
-  const activeContactPhoneDigits = toPhoneDigits(activeContactPhoneRaw);
-  const canContactActiveStudent = activeContactPhoneDigits.length >= 10;
-  const activeCallHref = canContactActiveStudent ? `tel:${activeContactPhoneDigits}` : undefined;
-  const activeChatHref = canContactActiveStudent
-    ? `sms:${activeContactPhoneDigits}?body=${encodeURIComponent(`Hi ${activeContactName}, I am your driver for the current ride.`)}`
-    : undefined;
+  const activeRide = assignedRides[0] || null;
+
   const supportDigits = toPhoneDigits(rideSupportPhone);
   const supportCallHref = supportDigits.length >= 10 ? `tel:${supportDigits}` : undefined;
   const securityDigits = toPhoneDigits(rideSecurityPhone);
@@ -276,7 +279,7 @@ const DriverDashboard = () => {
     const total = myRides.length;
     const completed = myRides.filter((ride) => ride.status === "completed").length;
     const cancelled = myRides.filter((ride) => ride.status === "cancelled").length;
-    const active = myRides.filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status)).length;
+    const active = assignedRides.length;
 
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
@@ -299,7 +302,7 @@ const DriverDashboard = () => {
       completionRate,
       cancellationRate,
     };
-  }, [myRides]);
+  }, [assignedRides, myRides]);
 
   const estimatedEarnings = useMemo(() => {
     const ratePerCompletedRide = 50;
@@ -372,11 +375,10 @@ const DriverDashboard = () => {
     }
   };
 
-  const startRide = async () => {
-    if (!activeRide) return;
+  const startRide = async (rideId: string) => {
     setBusy(true);
     try {
-      await apiClient.rides.start(activeRide.id);
+      await apiClient.rides.start(rideId);
       await loadData();
       toast.success("Ride started", "Trip status is now marked as in progress.");
     } catch (error) {
@@ -386,11 +388,10 @@ const DriverDashboard = () => {
     }
   };
 
-  const completeRide = async () => {
-    if (!activeRide) return;
+  const completeRide = async (rideId: string) => {
     setBusy(true);
     try {
-      await apiClient.rides.complete(activeRide.id);
+      await apiClient.rides.complete(rideId);
       await loadData();
       toast.success("Ride completed", "Student can now submit rating and feedback.");
     } catch (error) {
@@ -400,13 +401,15 @@ const DriverDashboard = () => {
     }
   };
 
-  const cancelRide = async () => {
-    if (!activeRide) return;
+  const cancelRide = async (rideId: string) => {
+    const reasonKey = cancelReasonByRide[rideId] || "driver_delayed";
+    const customReason = cancelCustomReasonByRide[rideId] || "";
+
     setBusy(true);
     try {
-      await apiClient.rides.cancel(activeRide.id, {
-        reasonKey: cancelReasonKey,
-        customReason: cancelReasonKey === "other" ? cancelCustomReason : undefined,
+      await apiClient.rides.cancel(rideId, {
+        reasonKey,
+        customReason: reasonKey === "other" ? customReason : undefined,
       });
       await loadData();
       toast.success("Ride cancelled", "The cancellation was saved successfully.");
@@ -415,6 +418,14 @@ const DriverDashboard = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleCancelReasonKeyChange = (rideId: string, reasonKey: string) => {
+    setCancelReasonByRide((prev) => ({ ...prev, [rideId]: reasonKey }));
+  };
+
+  const handleCancelCustomReasonChange = (rideId: string, reasonText: string) => {
+    setCancelCustomReasonByRide((prev) => ({ ...prev, [rideId]: reasonText }));
   };
 
   const card = (i: number) => ({
@@ -665,83 +676,36 @@ const DriverDashboard = () => {
               </div>
 
               <div>
-                {activeRide && (
-                  <motion.div {...card(8)} className="card-glass border border-primary/30 mb-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
-                          <Map className="w-5 h-5 text-primary-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm">Active — {activeRide.pickup?.label || "—"} → {activeRide.drop?.label || "—"}</p>
-                          <p className="text-xs text-muted-foreground">Status: {activeRide.status}</p>
-                          <p className="text-xs text-muted-foreground">Student: {activeContactName}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {activeRide.passengers || 1}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {activeRide.status !== "cancelled" && Boolean(activeRide.verificationCode) && (
-                          <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
-                            Code: {activeRide.verificationCode}
-                          </span>
-                        )}
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate(`/ride-tracking/${activeRide.id}`)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track</motion.button>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mb-2">
-                      {activeCallHref ? (
-                        <a href={activeCallHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                          <Phone className="w-3.5 h-3.5" /> Call Student
-                        </a>
-                      ) : (
-                        <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
-                          <Phone className="w-3.5 h-3.5" /> Call Student
-                        </button>
-                      )}
-                      {activeChatHref ? (
-                        <a href={activeChatHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                          <MessageCircle className="w-3.5 h-3.5" /> Chat Student
-                        </a>
-                      ) : (
-                        <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
-                          <MessageCircle className="w-3.5 h-3.5" /> Chat Student
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <select title="Cancellation reason" value={cancelReasonKey} onChange={(event) => setCancelReasonKey(event.target.value)} className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs">
-                        {cancellationReasons.map((item) => (
-                          <option key={item.key} value={item.key}>{item.label}</option>
-                        ))}
-                      </select>
-                      {cancelReasonKey === "other" && (
-                        <input
-                          value={cancelCustomReason}
-                          onChange={(event) => setCancelCustomReason(event.target.value)}
-                          placeholder="Custom reason"
-                          className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
-                        />
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {activeRide.status === "accepted" && (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={startRide} disabled={busy} className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                          <Play className="w-3.5 h-3.5" /> Start Ride
-                        </motion.button>
-                      )}
-                      {["in_progress", "ongoing"].includes(activeRide.status) && (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={completeRide} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                          <CheckCircle className="w-3.5 h-3.5" /> Complete Ride
-                        </motion.button>
-                      )}
-                      {activeRide.status === "accepted" && (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={cancelRide} disabled={busy} className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                          <XCircle className="w-3.5 h-3.5" /> Cancel Ride
-                        </motion.button>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold font-display text-sm">Assigned Ride Queue</h3>
+                    <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">
+                      {assignedRides.length} active
+                    </span>
+                  </div>
+
+                  {assignedRides.length === 0 && (
+                    <div className="card-glass text-sm text-muted-foreground">No accepted or in-progress rides.</div>
+                  )}
+
+                  {assignedRides.map((ride, index) => (
+                    <RideCard
+                      key={ride.id}
+                      ride={ride}
+                      busy={busy}
+                      isActive={index === 0}
+                      cancelReasonKey={cancelReasonByRide[ride.id] || "driver_delayed"}
+                      cancelCustomReason={cancelCustomReasonByRide[ride.id] || ""}
+                      cancellationReasons={cancellationReasons}
+                      onCancelReasonKeyChange={handleCancelReasonKeyChange}
+                      onCancelCustomReasonChange={handleCancelCustomReasonChange}
+                      onStart={startRide}
+                      onCancel={cancelRide}
+                      onComplete={completeRide}
+                      onTrack={(rideId) => navigate(`/ride-tracking/${rideId}`)}
+                    />
+                  ))}
+                </div>
 
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold font-display">My Rides</h2>
