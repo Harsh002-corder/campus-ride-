@@ -44,7 +44,7 @@ export interface RideDto {
   pickup: { lat: number; lng: number; label?: string };
   drop: { lat: number; lng: number; label?: string };
   passengers?: number;
-  status: "scheduled" | "requested" | "accepted" | "ongoing" | "completed" | "cancelled";
+  status: "scheduled" | "pending" | "accepted" | "in_progress" | "completed" | "cancelled" | "requested" | "ongoing";
   timeline?: Array<{ key: string; label: string; reached: boolean; timestamp?: string | null }>;
   verificationCode: string;
   passengerNames?: string[];
@@ -273,6 +273,12 @@ export const apiClient = {
     },
     reject(rideId: string) {
       return request(`/rides/${rideId}/reject`, { method: "POST" });
+    },
+    deny(rideId: string) {
+      return request(`/rides/${rideId}/deny`, { method: "POST" });
+    },
+    start(rideId: string) {
+      return request(`/rides/${rideId}/start`, { method: "POST" });
     },
     verify(rideId: string, code: string) {
       return request(`/rides/${rideId}/verify`, { method: "POST", body: JSON.stringify({ code }) });

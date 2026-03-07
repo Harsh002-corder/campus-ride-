@@ -6,14 +6,6 @@ import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import IncomingRequestsList from "@/components/ride/IncomingRequestsList";
 import NewRideRequestPopup from "@/components/ride/NewRideRequestPopup";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAppToast } from "@/hooks/use-app-toast";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
@@ -34,7 +26,7 @@ const toNumber = (value: unknown, fallback: number) => {
 };
 
 const toIncomingRequestRides = (rides: RideDto[]) => rides
-  .filter((ride) => ride.status === "requested" && !ride.driverId)
+  .filter((ride) => ["pending", "requested"].includes(ride.status) && !ride.driverId)
   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 const DriverDashboard = () => {
@@ -45,8 +37,6 @@ const DriverDashboard = () => {
   const [availableRides, setAvailableRides] = useState<RideDto[]>([]);
   const [myRides, setMyRides] = useState<RideDto[]>([]);
   const [busy, setBusy] = useState(false);
-  const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
-  const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [rideBookingEnabled, setRideBookingEnabled] = useState(true);
   const [locationSyncIntervalSeconds, setLocationSyncIntervalSeconds] = useState(5);
@@ -181,7 +171,7 @@ const DriverDashboard = () => {
         return;
       }
 
-      if (incomingRide.status !== "requested" || incomingRide.driverId) {
+      if (!["pending", "requested"].includes(incomingRide.status) || incomingRide.driverId) {
         return;
       }
 
@@ -208,7 +198,7 @@ const DriverDashboard = () => {
       }
 
       setAvailableRides((prev) => {
-        if (updatedRide.status === "requested" && !updatedRide.driverId) {
+        if (["pending", "requested"].includes(updatedRide.status) && !updatedRide.driverId) {
           const exists = prev.some((ride) => ride.id === updatedRide.id);
           const next = exists
             ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
@@ -257,7 +247,7 @@ const DriverDashboard = () => {
   const incomingRequests = useMemo(() => toIncomingRequestRides(availableRides), [availableRides]);
 
   const activeRide = useMemo(
-    () => myRides.find((ride) => ["accepted", "ongoing"].includes(ride.status)) || null,
+    () => myRides.find((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status)) || null,
     [myRides],
   );
 
@@ -286,7 +276,7 @@ const DriverDashboard = () => {
     const total = myRides.length;
     const completed = myRides.filter((ride) => ride.status === "completed").length;
     const cancelled = myRides.filter((ride) => ride.status === "cancelled").length;
-    const active = myRides.filter((ride) => ["accepted", "ongoing"].includes(ride.status)).length;
+    const active = myRides.filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status)).length;
 
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
@@ -372,7 +362,7 @@ const DriverDashboard = () => {
   const declineRide = async (rideId: string) => {
     setBusy(true);
     try {
-      await apiClient.rides.reject(rideId);
+      await apiClient.rides.deny(rideId);
       setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
       await loadData();
     } catch (error) {
@@ -382,20 +372,13 @@ const DriverDashboard = () => {
     }
   };
 
-  const startRide = async (code: string) => {
+  const startRide = async () => {
     if (!activeRide) return;
     setBusy(true);
     try {
-      if (!/^\d{2}$/.test(code)) {
-        toast.info("Invalid verification code", "Enter the exact 2-digit code shown to the student.");
-        return;
-      }
-
-      await apiClient.rides.verify(activeRide.id, code);
-      setVerifyDialogOpen(false);
-      setVerificationCodeInput("");
+      await apiClient.rides.start(activeRide.id);
       await loadData();
-      toast.success("Ride started", "Trip status is now marked as ongoing.");
+      toast.success("Ride started", "Trip status is now marked as in progress.");
     } catch (error) {
       toast.error("Could not start ride", error);
     } finally {
@@ -742,18 +725,20 @@ const DriverDashboard = () => {
                     </div>
                     <div className="flex gap-2">
                       {activeRide.status === "accepted" && (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVerifyDialogOpen(true)} disabled={busy} className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={startRide} disabled={busy} className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
                           <Play className="w-3.5 h-3.5" /> Start Ride
                         </motion.button>
                       )}
-                      {activeRide.status === "ongoing" && (
+                      {["in_progress", "ongoing"].includes(activeRide.status) && (
                         <motion.button whileTap={{ scale: 0.95 }} onClick={completeRide} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
                           <CheckCircle className="w-3.5 h-3.5" /> Complete Ride
                         </motion.button>
                       )}
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={cancelRide} disabled={busy} className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                        <XCircle className="w-3.5 h-3.5" /> Cancel Ride
-                      </motion.button>
+                      {activeRide.status === "accepted" && (
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={cancelRide} disabled={busy} className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                          <XCircle className="w-3.5 h-3.5" /> Cancel Ride
+                        </motion.button>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -771,44 +756,6 @@ const DriverDashboard = () => {
         </div>
       </div>
 
-      <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Enter Verification Code</DialogTitle>
-            <DialogDescription>
-              Ask the student for their 2-digit code to start this ride.
-            </DialogDescription>
-          </DialogHeader>
-          <input
-            type="text"
-            value={verificationCodeInput}
-            onChange={(event) => setVerificationCodeInput(event.target.value.replace(/\D/g, "").slice(0, 2))}
-            placeholder="2-digit code"
-            maxLength={2}
-            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-          />
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={() => {
-                setVerifyDialogOpen(false);
-                setVerificationCodeInput("");
-              }}
-              className="px-4 py-2 rounded-xl text-sm bg-muted/50 hover:bg-muted text-muted-foreground transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => startRide(verificationCodeInput.trim())}
-              disabled={busy || verificationCodeInput.trim().length !== 2}
-              className="btn-primary-gradient px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
-            >
-              {busy ? "Starting..." : "Start Ride"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <ProfileDialog
         open={profileDialogOpen}
         onOpenChange={setProfileDialogOpen}

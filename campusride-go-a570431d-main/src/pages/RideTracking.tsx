@@ -32,7 +32,7 @@ const campusBoundaryOptions: google.maps.PolygonOptions = {
   zIndex: 1,
 };
 
-const activeStatuses: RideDto["status"][] = ["scheduled", "requested", "accepted", "ongoing"];
+const activeStatuses: RideDto["status"][] = ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"];
 
 const isValidLatLng = (value: unknown): value is { lat: number; lng: number } => {
   if (!value || typeof value !== "object") return false;
@@ -80,14 +80,14 @@ const RideTracking = () => {
     : undefined;
   const rideEtaText = typeof ride?.etaMinutes === "number"
     ? `${ride.etaMinutes} min${ride.etaMinutes === 1 ? "" : "s"}`
-    : ride?.status === "ongoing"
+    : ride?.status === "in_progress" || ride?.status === "ongoing"
       ? "Arriving soon"
       : "Calculating...";
-  const statusText = ride?.status === "ongoing"
+  const statusText = ride?.status === "in_progress" || ride?.status === "ongoing"
     ? "Ride Ongoing"
     : ride?.status === "accepted"
       ? "Driver Arriving"
-      : ride?.status === "requested"
+      : ride?.status === "pending" || ride?.status === "requested"
         ? "Booked"
         : ride?.status === "scheduled"
           ? "Scheduled"
@@ -272,7 +272,7 @@ const RideTracking = () => {
 
         const shouldSyncRideGps = Boolean(
           ride?.id
-            && (ride.status === "accepted" || ride.status === "ongoing")
+            && (ride.status === "accepted" || ride.status === "in_progress" || ride.status === "ongoing")
             && (user?.role === "driver" || user?.role === "student"),
         );
 
@@ -479,7 +479,7 @@ const RideTracking = () => {
           >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold uppercase tracking-widest ${ride?.status === "ongoing" ? "text-green-400" : "text-blue-400"}`}>
+              <span className={`text-xs font-bold uppercase tracking-widest ${(ride?.status === "in_progress" || ride?.status === "ongoing") ? "text-green-400" : "text-blue-400"}`}>
                 ● {statusText}
               </span>
             </div>

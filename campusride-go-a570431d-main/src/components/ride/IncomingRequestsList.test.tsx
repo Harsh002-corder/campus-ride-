@@ -14,7 +14,7 @@ const makeRide = (id: string): RideDto => ({
   driverId: null,
   pickup: { lat: 12.9, lng: 77.5, label: "Main Gate" },
   drop: { lat: 12.91, lng: 77.52, label: "Science Block" },
-  status: "requested",
+  status: "pending",
   verificationCode: "12",
   cancelReason: null,
   cancelledBy: null,
@@ -62,8 +62,8 @@ describe("IncomingRequestsList", () => {
     expect(screen.getByText("Student 1")).toBeInTheDocument();
     expect(screen.getByText("Student 2")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Accept Ride" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Ignore" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Accept" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Deny" })[1]);
 
     expect(onAccept).toHaveBeenCalledWith("1");
     expect(onDecline).toHaveBeenCalledWith("2");

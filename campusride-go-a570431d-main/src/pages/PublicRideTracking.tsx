@@ -144,7 +144,7 @@ const PublicRideTracking = () => {
               <p className="text-xs text-muted-foreground">Public secure link</p>
             </div>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full ${ride?.status === "ongoing" ? "bg-green-500/20 text-green-400" : "bg-primary/20 text-primary"}`}>
+          <span className={`text-xs px-2 py-1 rounded-full ${(ride?.status === "in_progress" || ride?.status === "ongoing") ? "bg-green-500/20 text-green-400" : "bg-primary/20 text-primary"}`}>
             {ride?.status || "pending"}
           </span>
         </div>

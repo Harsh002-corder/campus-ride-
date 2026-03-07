@@ -37,7 +37,7 @@ export default function NewRideRequestPopup({
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={onIgnore}
             >
-              Ignore
+              Deny
             </button>
           </div>
 
@@ -51,24 +51,26 @@ export default function NewRideRequestPopup({
             <Users className="w-3.5 h-3.5" /> {ride.passengers || 1} passenger(s)
           </p>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onAccept(ride.id)}
-              className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
-            >
-              Accept Ride
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onIgnore}
-              className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
-            >
-              Ignore
-            </button>
-          </div>
+          {["pending", "requested"].includes(ride.status) && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onAccept(ride.id)}
+                className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onIgnore}
+                className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors"
+              >
+                Deny
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

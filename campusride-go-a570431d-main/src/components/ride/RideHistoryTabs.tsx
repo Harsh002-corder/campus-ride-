@@ -68,13 +68,13 @@ const RideHistoryTabs = ({ compact = false, initialTab = "all" }: RideHistoryTab
       if (activeTab === "all") return true;
       if (activeTab === "completed") return ride.status === "completed";
       if (activeTab === "cancelled") return ride.status === "cancelled";
-      return ["requested", "accepted", "ongoing"].includes(ride.status);
+      return ["pending", "accepted", "in_progress", "requested", "ongoing"].includes(ride.status);
     });
   }, [rides, activeTab]);
 
   const statusCounts = useMemo(() => ({
     all: rides.length,
-    active: rides.filter((ride) => ["requested", "accepted", "ongoing"].includes(ride.status)).length,
+    active: rides.filter((ride) => ["pending", "accepted", "in_progress", "requested", "ongoing"].includes(ride.status)).length,
     completed: rides.filter((ride) => ride.status === "completed").length,
     cancelled: rides.filter((ride) => ride.status === "cancelled").length,
   }), [rides]);

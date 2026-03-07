@@ -43,10 +43,12 @@ export default function IncomingRequestsList({
             <MapPin className="w-3 h-3 text-primary" />
             <span>{req.drop?.label || "-"}</span>
           </div>
-          <div className="flex gap-2">
-            <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onAccept(req.id)} className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold">Accept Ride</motion.button>
-            <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onDecline(req.id)} className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors">Ignore</motion.button>
-          </div>
+          {["pending", "requested"].includes(req.status) && (
+            <div className="flex gap-2">
+              <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onAccept(req.id)} className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold">Accept</motion.button>
+              <motion.button whileTap={{ scale: 0.97 }} disabled={busy} onClick={() => onDecline(req.id)} className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground transition-colors">Deny</motion.button>
+            </div>
+          )}
         </motion.div>
       ))}
     </div>

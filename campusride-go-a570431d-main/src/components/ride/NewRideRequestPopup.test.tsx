@@ -8,7 +8,7 @@ const baseRide: RideDto = {
   driverId: null,
   pickup: { lat: 12.9, lng: 77.5, label: "Library Gate" },
   drop: { lat: 12.91, lng: 77.51, label: "Hostel Block B" },
-  status: "requested",
+  status: "pending",
   verificationCode: "12",
   cancelReason: null,
   cancelledBy: null,
@@ -39,8 +39,8 @@ describe("NewRideRequestPopup", () => {
     expect(screen.getByText(/Pickup:/)).toHaveTextContent("Pickup: Library Gate");
     expect(screen.getByText(/Destination:/)).toHaveTextContent("Destination: Hostel Block B");
     expect(screen.getByText(/2 passenger\(s\)/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Accept Ride" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Ignore" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Deny" }).length).toBeGreaterThan(0);
   });
 
   it("calls accept and ignore handlers", () => {
@@ -56,8 +56,8 @@ describe("NewRideRequestPopup", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept Ride" }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Ignore" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Deny" })[0]);
 
     expect(onAccept).toHaveBeenCalledWith("ride-1");
     expect(onIgnore).toHaveBeenCalled();

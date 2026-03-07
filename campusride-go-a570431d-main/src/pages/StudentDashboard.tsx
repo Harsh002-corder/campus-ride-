@@ -118,7 +118,6 @@ const StudentDashboard = () => {
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
   const bookingMapRef = useRef<google.maps.Map | null>(null);
-  const rideStatusByIdRef = useRef<Record<string, RideDto["status"]>>({});
 
   const { isLoaded: isBookingMapLoaded } = useJsApiLoader({
     id: "student-booking-map",
@@ -192,8 +191,7 @@ const StudentDashboard = () => {
       const response = await apiClient.rides.my();
       const allRides = response.rides || [];
       setRides(allRides);
-      rideStatusByIdRef.current = Object.fromEntries(allRides.map((ride) => [ride.id, ride.status]));
-      const active = allRides.find((ride) => ["scheduled", "accepted", "ongoing", "requested"].includes(ride.status));
+      const active = allRides.find((ride) => ["scheduled", "accepted", "in_progress", "pending", "ongoing", "requested"].includes(ride.status));
       setActiveRide(active || null);
 
       const pendingFeedbackRide = allRides.find((ride) => ride.status === "completed" && !ride.studentRating);
@@ -245,20 +243,13 @@ const StudentDashboard = () => {
         return;
       }
 
-      const previousStatus = rideStatusByIdRef.current[updatedRide.id];
-      rideStatusByIdRef.current[updatedRide.id] = updatedRide.status;
-
-      if (updatedRide.status === "accepted" && previousStatus !== "accepted") {
-        toast.success("Driver accepted your request", "Your ride has been accepted. You can start tracking it now.");
-      }
-
       setRides((prev) => {
         const exists = prev.some((ride) => ride.id === updatedRide.id);
         const next = exists
           ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
           : [updatedRide, ...prev];
 
-        const nextActive = next.find((ride) => ["scheduled", "accepted", "ongoing", "requested"].includes(ride.status));
+        const nextActive = next.find((ride) => ["scheduled", "accepted", "in_progress", "pending", "ongoing", "requested"].includes(ride.status));
         setActiveRide(nextActive || null);
 
         const pendingFeedbackRide = next.find((ride) => ride.status === "completed" && !ride.studentRating);
@@ -282,7 +273,7 @@ const StudentDashboard = () => {
     const total = rides.length;
     const completed = rides.filter((ride) => ride.status === "completed").length;
     const cancelled = rides.filter((ride) => ride.status === "cancelled").length;
-    const active = rides.filter((ride) => ["scheduled", "requested", "accepted", "ongoing"].includes(ride.status)).length;
+    const active = rides.filter((ride) => ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"].includes(ride.status)).length;
 
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const cancellationRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
@@ -306,7 +297,7 @@ const StudentDashboard = () => {
   const quickActions = [
     { icon: MapPin, label: "Book a Ride", desc: "Find your next campus ride", gradient: true },
     { icon: Clock, label: "Ride History", desc: `${rideStats.total} rides`, gradient: false },
-    { icon: Navigation, label: "Active", desc: `${rideStats.active} ongoing/requested`, gradient: false },
+    { icon: Navigation, label: "Active", desc: `${rideStats.active} pending/in-progress`, gradient: false },
     { icon: CreditCard, label: "Completed", desc: `${rideStats.completed} completed`, gradient: false },
     { icon: Calendar, label: "Cancelled", desc: `${rideStats.cancelled} cancelled`, gradient: false },
     { icon: Shield, label: "Safety", desc: "Emergency contacts", gradient: false },
@@ -324,7 +315,7 @@ const StudentDashboard = () => {
     }
 
     if (label === "Active") {
-      if (activeRide && ["scheduled", "requested", "accepted", "ongoing"].includes(activeRide.status)) {
+      if (activeRide && ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"].includes(activeRide.status)) {
         navigate("/ride-tracking");
       } else {
         toast.info("No active ride", "You don’t have an ongoing ride right now.");
@@ -899,7 +890,7 @@ const StudentDashboard = () => {
             </div>
 
             {/* Track Active Ride */}
-            {activeRide && (activeRide.status === "accepted" || activeRide.status === "ongoing" || activeRide.status === "requested" || activeRide.status === "scheduled") && (
+            {activeRide && (["accepted", "in_progress", "pending", "ongoing", "requested", "scheduled"].includes(activeRide.status)) && (
               <motion.div {...card(7)} className="card-glass border border-primary/30">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
@@ -1065,9 +1056,9 @@ const StudentDashboard = () => {
         </div>
       </div>
 
-      {/* Floating Track Ride Button — visible only when ride is accepted or ongoing */}
+      {/* Floating Track Ride Button — visible only when ride is active */}
       <AnimatePresence>
-        {activeRide && (activeRide.status === "accepted" || activeRide.status === "ongoing" || activeRide.status === "requested" || activeRide.status === "scheduled") && (
+        {activeRide && (["accepted", "in_progress", "pending", "ongoing", "requested", "scheduled"].includes(activeRide.status)) && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

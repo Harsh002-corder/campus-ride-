@@ -25,8 +25,10 @@ interface Metrics {
   totalDrivers: number;
   pendingDrivers: number;
   totalRides: number;
+  pendingRides?: number;
   requestedRides: number;
   acceptedRides: number;
+  inProgressRides?: number;
   ongoingRides: number;
   completedRides: number;
   cancelledRides: number;
@@ -81,7 +83,17 @@ const AdminOverview = () => {
 
   const stats = [
     { label: "Total Users", value: String(metrics?.totalUsers ?? 0), change: "live", up: true, icon: Users },
-    { label: "Active Rides", value: String((metrics?.acceptedRides ?? 0) + (metrics?.ongoingRides ?? 0) + (metrics?.requestedRides ?? 0)), change: "live", up: true, icon: Navigation },
+    {
+      label: "Active Rides",
+      value: String(
+        (metrics?.acceptedRides ?? 0)
+        + (metrics?.inProgressRides ?? metrics?.ongoingRides ?? 0)
+        + (metrics?.pendingRides ?? metrics?.requestedRides ?? 0),
+      ),
+      change: "live",
+      up: true,
+      icon: Navigation,
+    },
     { label: "Revenue", value: `₹${metrics?.totalRevenue ?? 0}`, change: "all-time", up: true, icon: Wallet },
     { label: "Drivers", value: String(metrics ? Math.max(metrics.totalDrivers - metrics.pendingDrivers, 0) : 0), change: "approved", up: true, icon: Car },
   ];

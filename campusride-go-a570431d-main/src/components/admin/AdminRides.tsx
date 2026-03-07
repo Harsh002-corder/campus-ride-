@@ -7,7 +7,7 @@ import { useAppToast } from "@/hooks/use-app-toast";
 const AdminRides = () => {
   const toast = useAppToast();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "completed" | "ongoing" | "cancelled" | "requested" | "accepted">("all");
+  const [filter, setFilter] = useState<"all" | "completed" | "in_progress" | "cancelled" | "pending" | "accepted" | "ongoing" | "requested">("all");
   const [rides, setRides] = useState<RideDto[]>([]);
   const [reasonFilter, setReasonFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -40,7 +40,10 @@ const AdminRides = () => {
     return rides.filter((ride) => {
       const haystack = `${ride.pickup?.label || ""} ${ride.drop?.label || ""} ${ride.studentId || ""} ${ride.driverId || ""}`.toLowerCase();
       const matchSearch = haystack.includes(search.toLowerCase());
-      const matchFilter = filter === "all" || ride.status === filter;
+      const matchFilter = filter === "all"
+        || ride.status === filter
+        || (filter === "pending" && ride.status === "requested")
+        || (filter === "in_progress" && ride.status === "ongoing");
       return matchSearch && matchFilter;
     });
   }, [rides, search, filter]);
@@ -48,9 +51,9 @@ const AdminRides = () => {
   const statusCounts = useMemo(() => ({
     all: rides.length,
     completed: rides.filter((r) => r.status === "completed").length,
-    requested: rides.filter((r) => r.status === "requested").length,
+    pending: rides.filter((r) => r.status === "pending" || r.status === "requested").length,
     accepted: rides.filter((r) => r.status === "accepted").length,
-    ongoing: rides.filter((r) => r.status === "ongoing").length,
+    in_progress: rides.filter((r) => r.status === "in_progress" || r.status === "ongoing").length,
     cancelled: rides.filter((r) => r.status === "cancelled").length,
   }), [rides]);
 
@@ -72,7 +75,7 @@ const AdminRides = () => {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {(["all", "requested", "accepted", "ongoing", "completed", "cancelled"] as const).map((f) => (
+          {(["all", "pending", "accepted", "in_progress", "completed", "cancelled"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -124,8 +127,8 @@ const AdminRides = () => {
                   <span className="text-xs text-muted-foreground">#{ride.id.slice(-6)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     ride.status === "completed" ? "bg-green-500/20 text-green-400" :
-                    ride.status === "ongoing" || ride.status === "accepted" ? "bg-primary/20 text-primary" :
-                    ride.status === "requested" ? "bg-blue-500/20 text-blue-400" :
+                    ride.status === "in_progress" || ride.status === "ongoing" || ride.status === "accepted" ? "bg-primary/20 text-primary" :
+                    ride.status === "pending" || ride.status === "requested" ? "bg-blue-500/20 text-blue-400" :
                     "bg-destructive/20 text-destructive"
                   }`}>{ride.status}</span>
                 </div>

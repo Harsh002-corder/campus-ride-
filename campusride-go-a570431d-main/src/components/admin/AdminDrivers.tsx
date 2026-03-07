@@ -93,7 +93,7 @@ const AdminDrivers = () => {
   }, [rides]);
 
   const online = drivers.filter((d) => d.isOnline && d.driverApprovalStatus === "approved").length;
-  const onRide = rides.filter((r) => ["accepted", "ongoing"].includes(r.status) && !!r.driverId).length;
+  const onRide = rides.filter((r) => ["accepted", "in_progress", "ongoing"].includes(r.status) && !!r.driverId).length;
   const verificationByDriver = useMemo(() => {
     const map = new Map<string, { id: string; status: "pending" | "approved" | "rejected"; reviewNotes: string; documents: Array<{ type: string; url: string; fileName: string }> }>();
     verifications.forEach((verification) => {
