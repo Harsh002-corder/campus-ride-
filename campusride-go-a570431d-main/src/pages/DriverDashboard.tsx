@@ -357,7 +357,7 @@ const DriverDashboard = () => {
   }, [rideSearch]);
 
   const activeRides = useMemo(
-    () => toQueueRides(myRides.filter((ride) => ["in_progress", "ongoing"].includes(ride.status))).filter(matchesSearch),
+    () => toQueueRides(myRides.filter((ride) => ["accepted", "in_progress", "ongoing"].includes(ride.status))).filter(matchesSearch),
     [myRides, matchesSearch],
   );
 
@@ -916,7 +916,7 @@ const DriverDashboard = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold font-display text-sm">Assigned Rides</h3>
                     <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">
-                      {activeRides.length} ongoing rides
+                      {activeRides.length} assigned rides
                     </span>
                   </div>
 
@@ -930,12 +930,12 @@ const DriverDashboard = () => {
                   </div>
 
                   {activeRides.length === 0 && (
-                    <div className="card-glass text-sm text-muted-foreground">No ongoing rides match your current search.</div>
+                    <div className="card-glass text-sm text-muted-foreground">No assigned rides match your current search.</div>
                   )}
 
                   {activeRides.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-green-400">Active Rides (in_progress)</h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-green-400">Assigned Rides (accepted + in_progress)</h4>
                       {activeRides.map((ride, index) => (
                         <RideCard
                           key={ride.id}
