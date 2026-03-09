@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import RideTracking from "./pages/RideTracking";
 import RidesPage from "./pages/RidesPage";
 import PublicRideTracking from "./pages/PublicRideTracking";
+import TMUCampusMapPage from "./pages/TMUCampusMapPage";
 import JarviouWidget from "./components/JarviouWidget";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const AnimatedRoutes = () => {
         <Route path="/ride-tracking/:id" element={<RequireAuth><RideTracking /></RequireAuth>} />
         <Route path="/track/:token" element={<PublicRideTracking />} />
         <Route path="/rides" element={<RequireAuth><RidesPage /></RequireAuth>} />
+        <Route path="/campus-map" element={<TMUCampusMapPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
