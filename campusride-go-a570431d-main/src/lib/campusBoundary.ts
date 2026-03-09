@@ -1,44 +1,4 @@
-import { CAMPUS_STOPS } from "@/lib/stops";
-
 type LatLng = { lat: number; lng: number };
-
-function cross(origin: LatLng, pointA: LatLng, pointB: LatLng) {
-  return (pointA.lat - origin.lat) * (pointB.lng - origin.lng)
-    - (pointA.lng - origin.lng) * (pointB.lat - origin.lat);
-}
-
-function computeConvexHull(points: LatLng[]) {
-  const unique = Array.from(
-    new Map(points.map((point) => [`${point.lat.toFixed(6)}:${point.lng.toFixed(6)}`, point])).values(),
-  );
-
-  if (unique.length <= 3) {
-    return unique;
-  }
-
-  const sorted = [...unique].sort((left, right) => (left.lat - right.lat) || (left.lng - right.lng));
-
-  const lower: LatLng[] = [];
-  for (const point of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
-      lower.pop();
-    }
-    lower.push(point);
-  }
-
-  const upper: LatLng[] = [];
-  for (let index = sorted.length - 1; index >= 0; index -= 1) {
-    const point = sorted[index];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
-      upper.pop();
-    }
-    upper.push(point);
-  }
-
-  lower.pop();
-  upper.pop();
-  return [...lower, ...upper];
-}
 
 function computeCenter(points: LatLng[]) {
   if (!points.length) {
@@ -56,11 +16,23 @@ function computeCenter(points: LatLng[]) {
   };
 }
 
-const stopPoints: LatLng[] = CAMPUS_STOPS.map((stop) => ({ lat: stop.lat, lng: stop.lng }));
+export const CAMPUS_BOUNDARY_POLYGON: LatLng[] = [
+  { lat: 28.835700, lng: 78.689900 },
+  { lat: 28.835300, lng: 78.694500 },
+  { lat: 28.835000, lng: 78.698500 },
+  { lat: 28.833800, lng: 78.701200 },
+  { lat: 28.831200, lng: 78.701400 },
+  { lat: 28.828900, lng: 78.700500 },
+  { lat: 28.827500, lng: 78.698300 },
+  { lat: 28.826900, lng: 78.695900 },
+  { lat: 28.827200, lng: 78.693000 },
+  { lat: 28.828500, lng: 78.690900 },
+  { lat: 28.830500, lng: 78.689900 },
+  { lat: 28.833200, lng: 78.689500 },
+  { lat: 28.835700, lng: 78.689900 },
+];
 
-export const CAMPUS_BOUNDARY_POLYGON = computeConvexHull(stopPoints);
-
-export const CAMPUS_MAP_CENTER = computeCenter(stopPoints);
+export const CAMPUS_MAP_CENTER = computeCenter(CAMPUS_BOUNDARY_POLYGON);
 
 export function pointInPolygon(point: { lat: number; lng: number }, polygon = CAMPUS_BOUNDARY_POLYGON) {
   if (!point || !Array.isArray(polygon) || polygon.length < 3) return false;
