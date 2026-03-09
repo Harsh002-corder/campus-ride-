@@ -58,6 +58,7 @@ export default function RideCard({
   const isCompleting = actionLabel === "Completing...";
   const isCancelling = actionLabel === "Cancelling...";
   const createdAtText = new Date(ride.createdAt).toLocaleString();
+  const shouldShowVerificationCode = ["accepted", "in_progress", "ongoing"].includes(ride.status) && Boolean(ride.verificationCode);
 
   return (
     <motion.div className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}>
@@ -125,6 +126,13 @@ export default function RideCard({
           />
         )}
       </div>
+
+      {shouldShowVerificationCode && (
+        <div className="mb-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2">
+          <p className="text-[11px] text-primary/90">Verification Code</p>
+          <p className="text-sm font-bold tracking-widest text-primary">{ride.verificationCode}</p>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <motion.button
