@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { GoogleMap, Marker, Polygon, Polyline, useJsApiLoader } from "@react-google-maps/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppToast } from "@/hooks/use-app-toast";
 import PageTransition from "@/components/PageTransition";
@@ -9,6 +8,7 @@ import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import RideCompletionPopup from "@/components/ride/RideCompletionPopup";
 import StopTypeahead from "@/components/ride/StopTypeahead";
 import ProfileDialog from "@/components/ProfileDialog";
+import TMUCampusLeafletMap from "@/components/map/TMUCampusLeafletMap";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import { apiClient, type AuthUser, type FavoriteLocation, type RideDto, type RideIssueDto } from "@/lib/apiClient";
-import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isWithinCampusBoundary } from "@/lib/campusBoundary";
+import { isInsideCampus } from "@/lib/campusBoundary";
 import { CAMPUS_STOPS, type CampusStop } from "@/lib/stops";
 import { getSocketClient } from "@/lib/socketClient";
 import { API_BASE_URL } from "@/config/api";
@@ -38,49 +38,9 @@ const toNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() || "";
+type SelectedPoint = { lat: number; lng: number; label: string };
 
-const mapContainerStyle = { width: "100%", height: "100%" };
-const mapLibraries: ("places" | "geometry" | "drawing")[] = ["places", "geometry"];
-const bookingMapOptions: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  fullscreenControl: false,
-  streetViewControl: false,
-  mapTypeControl: false,
-};
-
-const campusBoundaryOptions: google.maps.PolygonOptions = {
-  fillColor: "#10b981",
-  fillOpacity: 0.08,
-  strokeColor: "#10b981",
-  strokeOpacity: 0.65,
-  strokeWeight: 2,
-  clickable: false,
-  zIndex: 1,
-};
-
-const bookingRouteLineOptions: google.maps.PolylineOptions = {
-  strokeColor: "#10b981",
-  strokeOpacity: 0.85,
-  strokeWeight: 3,
-  geodesic: true,
-  zIndex: 20,
-};
-
-const getSelectedMarkerIcon = (isPickupSelected: boolean, isDropSelected: boolean): google.maps.Symbol | undefined => {
-  if ((!isPickupSelected && !isDropSelected) || typeof window === "undefined" || !window.google?.maps) {
-    return undefined;
-  }
-
-  return {
-    path: isPickupSelected
-      ? window.google.maps.SymbolPath.CIRCLE
-      : window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-    scale: isPickupSelected ? 8 : 6,
-    strokeWeight: 2,
-  };
-};
+const formatPinnedLabel = (lat: number, lng: number) => `Pinned ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
 const StudentDashboard = () => {
   const { user, logout, login } = useAuth();
@@ -117,22 +77,8 @@ const StudentDashboard = () => {
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
-  const bookingMapRef = useRef<google.maps.Map | null>(null);
-
-  const { isLoaded: isBookingMapLoaded } = useJsApiLoader({
-    id: "student-booking-map",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: mapLibraries,
-  });
-
-  const canRenderBookingMap = Boolean(GOOGLE_MAPS_API_KEY) && isBookingMapLoaded;
-  const bookingMapCenter = pickupStop || dropStop || CAMPUS_MAP_CENTER;
-  const bookingRoutePath = pickupStop && dropStop
-    ? [
-        { lat: pickupStop.lat, lng: pickupStop.lng },
-        { lat: dropStop.lat, lng: dropStop.lng },
-      ]
-    : null;
+  const [pickupPoint, setPickupPoint] = useState<SelectedPoint | null>(null);
+  const [dropPoint, setDropPoint] = useState<SelectedPoint | null>(null);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -344,30 +290,25 @@ const StudentDashboard = () => {
     setDrop(pickup);
     setPickupStop(dropStop);
     setDropStop(pickupStop);
+    setPickupPoint(dropPoint);
+    setDropPoint(pickupPoint);
   };
 
-  const handleMapStopSelect = (stop: CampusStop) => {
-    if (mapSelectionTarget === "pickup") {
-      setPickup(stop.name);
-      setPickupStop(stop);
+  const handleLeafletPointSelect = (point: { lat: number; lng: number }, target: "pickup" | "drop") => {
+    const label = formatPinnedLabel(point.lat, point.lng);
+
+    if (target === "pickup") {
+      setPickup(label);
+      setPickupStop(null);
+      setPickupPoint({ lat: point.lat, lng: point.lng, label });
       setMapSelectionTarget("drop");
       return;
     }
 
-    setDrop(stop.name);
-    setDropStop(stop);
+    setDrop(label);
+    setDropStop(null);
+    setDropPoint({ lat: point.lat, lng: point.lng, label });
   };
-
-  useEffect(() => {
-    if (!bookingMapRef.current || !pickupStop || !dropStop || typeof window === "undefined" || !window.google?.maps) {
-      return;
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend({ lat: pickupStop.lat, lng: pickupStop.lng });
-    bounds.extend({ lat: dropStop.lat, lng: dropStop.lng });
-    bookingMapRef.current.fitBounds(bounds, 70);
-  }, [pickupStop, dropStop]);
 
   const handleFindRide = async () => {
     if (!rideBookingEnabled) {
@@ -375,18 +316,18 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!pickupStop || !dropStop) {
-      toast.info("Select pickup and drop stops", "Please choose valid campus stops from suggestions.");
+    if (!pickupPoint || !dropPoint) {
+      toast.info("Select pickup and drop locations", "Please choose valid pickup and drop points inside campus.");
       return;
     }
 
-    if (pickupStop.name === dropStop.name) {
+    if (pickupPoint.lat === dropPoint.lat && pickupPoint.lng === dropPoint.lng) {
       toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
       return;
     }
 
-    if (!isWithinCampusBoundary({ lat: pickupStop.lat, lng: pickupStop.lng }) || !isWithinCampusBoundary({ lat: dropStop.lat, lng: dropStop.lng })) {
-      toast.info("Outside campus boundary", "Pickup and drop must be within the campus geofence.");
+    if (!isInsideCampus(pickupPoint.lat, pickupPoint.lng) || !isInsideCampus(dropPoint.lat, dropPoint.lng)) {
+      toast.info("Outside campus boundary", "Pickup and drop must be inside the campus boundary.");
       return;
     }
 
@@ -399,8 +340,8 @@ const StudentDashboard = () => {
     setBooking(true);
     try {
       const response = await apiClient.rides.book({
-        pickup: { lat: pickupStop.lat, lng: pickupStop.lng, label: pickupStop.name },
-        drop: { lat: dropStop.lat, lng: dropStop.lng, label: dropStop.name },
+        pickup: { lat: pickupPoint.lat, lng: pickupPoint.lng, label: pickupPoint.label || pickup },
+        drop: { lat: dropPoint.lat, lng: dropPoint.lng, label: dropPoint.label || drop },
         passengers,
         passengerNames,
         splitFare,
@@ -470,22 +411,23 @@ const StudentDashboard = () => {
   };
 
   const saveCurrentAsFavorite = async (type: "pickup" | "drop") => {
-    const stop = type === "pickup" ? pickupStop : dropStop;
-    if (!stop) {
-      toast.info("Select a stop first", `Choose a ${type} stop before saving as favorite.`);
+    const point = type === "pickup" ? pickupPoint : dropPoint;
+    if (!point) {
+      toast.info("Select a location first", `Choose a ${type} location before saving as favorite.`);
       return;
     }
 
-    const label = window.prompt(`Favorite label for ${stop.name}`, stop.name);
+    const defaultLabel = type === "pickup" ? (pickup || point.label) : (drop || point.label);
+    const label = window.prompt(`Favorite label for ${defaultLabel}`, defaultLabel);
     if (!label?.trim()) return;
 
     try {
       await apiClient.users.addFavorite({
         label: label.trim(),
         location: {
-          lat: stop.lat,
-          lng: stop.lng,
-          address: stop.name,
+          lat: point.lat,
+          lng: point.lng,
+          address: point.label,
         },
       });
       toast.success("Favorite saved", `${label.trim()} is now available for quick booking.`);
@@ -623,10 +565,12 @@ const StudentDashboard = () => {
                         setPickup(value);
                         if (pickupStop?.name !== value) {
                           setPickupStop(null);
+                          setPickupPoint(null);
                         }
                       }}
                       onSelect={(stop) => {
                         setPickupStop(stop);
+                        setPickupPoint({ lat: stop.lat, lng: stop.lng, label: stop.name });
                       }}
                       stops={CAMPUS_STOPS}
                       minChars={2}
@@ -651,10 +595,12 @@ const StudentDashboard = () => {
                         setDrop(value);
                         if (dropStop?.name !== value) {
                           setDropStop(null);
+                          setDropPoint(null);
                         }
                       }}
                       onSelect={(stop) => {
                         setDropStop(stop);
+                        setDropPoint({ lat: stop.lat, lng: stop.lng, label: stop.name });
                       }}
                       stops={CAMPUS_STOPS}
                       minChars={2}
@@ -685,56 +631,23 @@ const StudentDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="h-56 rounded-xl overflow-hidden">
-                      {canRenderBookingMap ? (
-                        <GoogleMap
-                          mapContainerStyle={mapContainerStyle}
-                          zoom={16}
-                          center={bookingMapCenter}
-                          options={bookingMapOptions}
-                          onLoad={(map) => {
-                            bookingMapRef.current = map;
-                          }}
-                          onUnmount={() => {
-                            bookingMapRef.current = null;
-                          }}
-                        >
-                          <Polygon paths={CAMPUS_BOUNDARY_POLYGON} options={campusBoundaryOptions} />
-                          {bookingRoutePath && (
-                            <Polyline
-                              path={bookingRoutePath}
-                              options={bookingRouteLineOptions}
-                            />
-                          )}
-                          {CAMPUS_STOPS.map((stop) => {
-                            const isPickupSelected = pickupStop?.name === stop.name;
-                            const isDropSelected = dropStop?.name === stop.name;
-
-                            return (
-                              <Marker
-                                key={stop.name}
-                                position={{ lat: stop.lat, lng: stop.lng }}
-                                title={isPickupSelected ? `${stop.name} (Pickup)` : isDropSelected ? `${stop.name} (Drop-off)` : stop.name}
-                                label={isPickupSelected ? "P" : isDropSelected ? "D" : undefined}
-                                icon={getSelectedMarkerIcon(isPickupSelected, isDropSelected)}
-                                zIndex={isPickupSelected || isDropSelected ? 1000 : 10}
-                                onClick={() => handleMapStopSelect(stop)}
-                              />
-                            );
-                          })}
-                        </GoogleMap>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-muted/50 text-xs text-muted-foreground text-center px-4">
-                          Add VITE_GOOGLE_MAPS_API_KEY to enable map stop selection.
-                        </div>
-                      )}
-                    </div>
+                  <div className="h-56 rounded-xl overflow-hidden">
+                    <TMUCampusLeafletMap
+                      pickupPoint={pickupPoint}
+                      dropPoint={dropPoint}
+                      selectionTarget={mapSelectionTarget}
+                      onSelectPoint={handleLeafletPointSelect}
+                      onOutsideBoundary={() => {
+                        toast.info("Outside campus boundary", "Ride service is available only inside TMU campus.");
+                      }}
+                    />
+                  </div>
 
                     <p className="text-[11px] text-muted-foreground">
-                      Click a stop marker to set {mapSelectionTarget === "pickup" ? "pickup" : "drop-off"}.
+                      Click inside the TMU boundary to set {mapSelectionTarget === "pickup" ? "pickup" : "drop-off"}.
                     </p>
                     <p className="text-[11px] text-muted-foreground">
-                      Selected: P {pickupStop?.name || "—"} · D {dropStop?.name || "—"}
+                      Selected: P {pickupPoint?.label || "—"} · D {dropPoint?.label || "—"}
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 items-center">

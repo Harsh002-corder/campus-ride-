@@ -1,66 +1,35 @@
-import { CAMPUS_STOPS } from "@/lib/stops";
-
 type LatLng = { lat: number; lng: number };
 
-function cross(origin: LatLng, pointA: LatLng, pointB: LatLng) {
-  return (pointA.lat - origin.lat) * (pointB.lng - origin.lng)
-    - (pointA.lng - origin.lng) * (pointB.lat - origin.lat);
-}
+export const CAMPUS_MAP_CENTER: LatLng = { lat: 28.8311, lng: 78.6959 };
+export const TMU_MAIN_GATE: LatLng = { lat: 28.83096, lng: 78.69023 };
 
-function computeConvexHull(points: LatLng[]) {
-  const unique = Array.from(
-    new Map(points.map((point) => [`${point.lat.toFixed(6)}:${point.lng.toFixed(6)}`, point])).values(),
-  );
+export const CAMPUS_BOUNDARY_POLYGON: LatLng[] = [
+  { lat: 28.8358, lng: 78.6895 },
+  { lat: 28.8350, lng: 78.6935 },
+  { lat: 28.8342, lng: 78.6978 },
+  { lat: 28.8329, lng: 78.7008 },
+  { lat: 28.8310, lng: 78.7015 },
+  { lat: 28.8292, lng: 78.7005 },
+  { lat: 28.8278, lng: 78.6987 },
+  { lat: 28.8270, lng: 78.6965 },
+  { lat: 28.8272, lng: 78.6940 },
+  { lat: 28.8282, lng: 78.6918 },
+  { lat: 28.8298, lng: 78.6902 },
+  { lat: 28.8315, lng: 78.6893 },
+  { lat: 28.8335, lng: 78.6892 },
+  { lat: 28.8358, lng: 78.6895 },
+];
 
-  if (unique.length <= 3) {
-    return unique;
-  }
-
-  const sorted = [...unique].sort((left, right) => (left.lat - right.lat) || (left.lng - right.lng));
-
-  const lower: LatLng[] = [];
-  for (const point of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
-      lower.pop();
-    }
-    lower.push(point);
-  }
-
-  const upper: LatLng[] = [];
-  for (let index = sorted.length - 1; index >= 0; index -= 1) {
-    const point = sorted[index];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
-      upper.pop();
-    }
-    upper.push(point);
-  }
-
-  lower.pop();
-  upper.pop();
-  return [...lower, ...upper];
-}
-
-function computeCenter(points: LatLng[]) {
-  if (!points.length) {
-    return { lat: 28.8244, lng: 78.6579 };
-  }
-
-  const aggregate = points.reduce(
-    (acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
-    { lat: 0, lng: 0 },
-  );
-
+function getCampusBounds(polygon = CAMPUS_BOUNDARY_POLYGON) {
+  const latitudes = polygon.map((point) => point.lat);
+  const longitudes = polygon.map((point) => point.lng);
   return {
-    lat: Number((aggregate.lat / points.length).toFixed(6)),
-    lng: Number((aggregate.lng / points.length).toFixed(6)),
+    minLat: Math.min(...latitudes),
+    maxLat: Math.max(...latitudes),
+    minLng: Math.min(...longitudes),
+    maxLng: Math.max(...longitudes),
   };
 }
-
-const stopPoints: LatLng[] = CAMPUS_STOPS.map((stop) => ({ lat: stop.lat, lng: stop.lng }));
-
-export const CAMPUS_BOUNDARY_POLYGON = computeConvexHull(stopPoints);
-
-export const CAMPUS_MAP_CENTER = computeCenter(stopPoints);
 
 export function pointInPolygon(point: { lat: number; lng: number }, polygon = CAMPUS_BOUNDARY_POLYGON) {
   if (!point || !Array.isArray(polygon) || polygon.length < 3) return false;
@@ -81,5 +50,14 @@ export function pointInPolygon(point: { lat: number; lng: number }, polygon = CA
 }
 
 export function isWithinCampusBoundary(point: { lat: number; lng: number }) {
-  return pointInPolygon(point, CAMPUS_BOUNDARY_POLYGON);
+  const bounds = getCampusBounds(CAMPUS_BOUNDARY_POLYGON);
+  const insideBounds = point.lat >= bounds.minLat
+    && point.lat <= bounds.maxLat
+    && point.lng >= bounds.minLng
+    && point.lng <= bounds.maxLng;
+  return insideBounds && pointInPolygon(point, CAMPUS_BOUNDARY_POLYGON);
+}
+
+export function isInsideCampus(lat: number, lng: number) {
+  return isWithinCampusBoundary({ lat, lng });
 }

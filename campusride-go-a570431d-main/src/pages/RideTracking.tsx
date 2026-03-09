@@ -6,7 +6,7 @@ import BrandIcon from "@/components/BrandIcon";
 import { ArrowLeft, Clock, Phone, MessageCircle, User, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, type RideDto } from "@/lib/apiClient";
-import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER } from "@/lib/campusBoundary";
+import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isInsideCampus } from "@/lib/campusBoundary";
 import { getSocketClient, getSocketConnectErrorMessage } from "@/lib/socketClient";
 
 const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() || "";
@@ -61,6 +61,7 @@ const RideTracking = () => {
   const [rideError, setRideError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [geofenceWarning, setGeofenceWarning] = useState<string | null>(null);
   const [socketInfo, setSocketInfo] = useState<string | null>(null);
   const [isRideInfoVisible, setIsRideInfoVisible] = useState(true);
 
@@ -246,6 +247,16 @@ const RideTracking = () => {
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
+          const hasOutsidePoint = (result.routes?.[0]?.overview_path || []).some(
+            (point) => !isInsideCampus(point.lat(), point.lng()),
+          );
+
+          if (hasOutsidePoint) {
+            setDirections(null);
+            setRouteError("Suggested route goes outside campus boundary.");
+            return;
+          }
+
           setDirections(result);
           setRouteError(null);
         } else {
@@ -254,6 +265,20 @@ const RideTracking = () => {
       },
     );
   }, [dropPos, isLoaded, pickupPos]);
+
+  useEffect(() => {
+    if (isValidLatLng(ride?.driverLocation) && !isInsideCampus(ride.driverLocation.lat, ride.driverLocation.lng)) {
+      setGeofenceWarning("Warning: driver location moved outside campus boundary.");
+      return;
+    }
+
+    if (driverPos && !isInsideCampus(driverPos.lat, driverPos.lng)) {
+      setGeofenceWarning("Warning: driver location moved outside campus boundary.");
+      return;
+    }
+
+    setGeofenceWarning(null);
+  }, [driverPos, ride?.driverLocation]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -503,6 +528,13 @@ const RideTracking = () => {
             </div>
           )}
 
+          {geofenceWarning && (
+            <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2">
+              <p className="text-xs font-semibold text-destructive">Campus boundary warning</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{geofenceWarning}</p>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
             <p className="text-xs font-semibold mb-2">Ride Timeline</p>
             <div className="space-y-2">
@@ -620,6 +652,7 @@ const RideTracking = () => {
             {rideError && <p>{rideError}</p>}
             {routeError && <p>{routeError}</p>}
             {geoError && <p>{geoError}</p>}
+            {geofenceWarning && <p>{geofenceWarning}</p>}
             {socketInfo && <p>{socketInfo}</p>}
           </div>
           </motion.div>
