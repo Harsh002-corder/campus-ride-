@@ -16,9 +16,10 @@ import AdminIssues from "@/components/admin/AdminIssues";
 import AdminSettings from "@/components/admin/AdminSettings";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
-import { apiClient, type RideIssueDto } from "@/lib/apiClient";
+import ProfileDialog from "@/components/ProfileDialog";
+import { apiClient, type AuthUser, type RideIssueDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
-import { LogOut } from "lucide-react";
+import { LogOut, UserCircle2 } from "lucide-react";
 
 const tabs: Record<string, React.FC> = {
   overview: AdminOverview,
@@ -30,10 +31,11 @@ const tabs: Record<string, React.FC> = {
 };
 
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [pendingIssuesCount, setPendingIssuesCount] = useState(0);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +116,18 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center gap-3">
                 <NotificationBell />
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setProfileDialogOpen(true)}
+                  className="w-9 h-9 rounded-full overflow-hidden bg-muted/50 hover:bg-muted border border-border transition-colors flex items-center justify-center"
+                  title="Edit profile"
+                >
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCircle2 className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </motion.button>
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   <span className="text-foreground font-medium">{user?.name || "Admin"}</span>
                 </span>
@@ -129,6 +143,27 @@ const AdminDashboard = () => {
             </main>
           </div>
         </div>
+
+        <ProfileDialog
+          open={profileDialogOpen}
+          onOpenChange={setProfileDialogOpen}
+          user={user as AuthUser | null}
+          onSaved={(updatedUser) => {
+            login({
+              id: updatedUser.id,
+              name: updatedUser.name,
+              email: updatedUser.email,
+              role: updatedUser.role,
+              phone: updatedUser.phone || null,
+              avatarUrl: updatedUser.avatarUrl || null,
+              driverApprovalStatus: updatedUser.driverApprovalStatus,
+              driverVerificationStatus: updatedUser.driverVerificationStatus,
+              vehicleSeats: updatedUser.vehicleSeats,
+              driverPerformanceScore: updatedUser.driverPerformanceScore,
+              driverStats: updatedUser.driverStats,
+            });
+          }}
+        />
       </SidebarProvider>
     </PageTransition>
   );
