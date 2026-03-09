@@ -20,7 +20,6 @@ import {
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import { apiClient, type AuthUser, type FavoriteLocation, type RideDto, type RideIssueDto } from "@/lib/apiClient";
-import { isInsideCampus } from "@/lib/campusBoundary";
 import { CAMPUS_STOPS, type CampusStop } from "@/lib/stops";
 import { getSocketClient } from "@/lib/socketClient";
 import { API_BASE_URL } from "@/config/api";
@@ -317,17 +316,12 @@ const StudentDashboard = () => {
     }
 
     if (!pickupPoint || !dropPoint) {
-      toast.info("Select pickup and drop locations", "Please choose valid pickup and drop points inside campus.");
+      toast.info("Select pickup and drop locations", "Please choose pickup and drop points on the map.");
       return;
     }
 
     if (pickupPoint.lat === dropPoint.lat && pickupPoint.lng === dropPoint.lng) {
       toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
-      return;
-    }
-
-    if (!isInsideCampus(pickupPoint.lat, pickupPoint.lng) || !isInsideCampus(dropPoint.lat, dropPoint.lng)) {
-      toast.info("Outside campus boundary", "Pickup and drop must be inside the campus boundary.");
       return;
     }
 
@@ -637,14 +631,11 @@ const StudentDashboard = () => {
                       dropPoint={dropPoint}
                       selectionTarget={mapSelectionTarget}
                       onSelectPoint={handleLeafletPointSelect}
-                      onOutsideBoundary={() => {
-                        toast.info("Outside campus boundary", "Ride service is available only inside TMU campus.");
-                      }}
                     />
                   </div>
 
                     <p className="text-[11px] text-muted-foreground">
-                      Click inside the TMU boundary to set {mapSelectionTarget === "pickup" ? "pickup" : "drop-off"}.
+                      Boundary checks are temporarily disabled. Click anywhere on the map to set {mapSelectionTarget === "pickup" ? "pickup" : "drop-off"}.
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       Selected: P {pickupPoint?.label || "—"} · D {dropPoint?.label || "—"}

@@ -6,7 +6,7 @@ import BrandIcon from "@/components/BrandIcon";
 import { ArrowLeft, Clock, Phone, MessageCircle, User, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, type RideDto } from "@/lib/apiClient";
-import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isInsideCampus } from "@/lib/campusBoundary";
+import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isWithinCampusBoundary } from "@/lib/campusBoundary";
 import { getSocketClient, getSocketConnectErrorMessage } from "@/lib/socketClient";
 
 const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() || "";
@@ -248,7 +248,7 @@ const RideTracking = () => {
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
           const hasOutsidePoint = (result.routes?.[0]?.overview_path || []).some(
-            (point) => !isInsideCampus(point.lat(), point.lng()),
+            (point) => !isWithinCampusBoundary({ lat: point.lat(), lng: point.lng() }),
           );
 
           if (hasOutsidePoint) {
@@ -267,12 +267,12 @@ const RideTracking = () => {
   }, [dropPos, isLoaded, pickupPos]);
 
   useEffect(() => {
-    if (isValidLatLng(ride?.driverLocation) && !isInsideCampus(ride.driverLocation.lat, ride.driverLocation.lng)) {
+    if (isValidLatLng(ride?.driverLocation) && !isWithinCampusBoundary({ lat: ride.driverLocation.lat, lng: ride.driverLocation.lng })) {
       setGeofenceWarning("Warning: driver location moved outside campus boundary.");
       return;
     }
 
-    if (driverPos && !isInsideCampus(driverPos.lat, driverPos.lng)) {
+    if (driverPos && !isWithinCampusBoundary({ lat: driverPos.lat, lng: driverPos.lng })) {
       setGeofenceWarning("Warning: driver location moved outside campus boundary.");
       return;
     }

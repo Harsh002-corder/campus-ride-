@@ -1,7 +1,6 @@
-import { useEffect } from "react";
-import { CircleMarker, MapContainer, Marker, Polygon, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import type { LatLngTuple, LeafletMouseEvent } from "leaflet";
-import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, TMU_MAIN_GATE, isInsideCampus } from "@/lib/campusBoundary";
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
+import type { LeafletMouseEvent } from "leaflet";
+import { CAMPUS_MAP_CENTER, TMU_MAIN_GATE } from "@/lib/campusBoundary";
 
 type SelectedPoint = { lat: number; lng: number; label: string } | null;
 
@@ -10,37 +9,19 @@ type Props = {
   dropPoint: SelectedPoint;
   selectionTarget: "pickup" | "drop";
   onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void;
-  onOutsideBoundary: () => void;
 };
-
-const polygonPath: LatLngTuple[] = CAMPUS_BOUNDARY_POLYGON.map((point) => [point.lat, point.lng]);
-
-function FitToCampusPolygon() {
-  const map = useMap();
-
-  useEffect(() => {
-    map.fitBounds(polygonPath);
-  }, [map]);
-
-  return null;
-}
 
 function ClickHandler({
   selectionTarget,
   onSelectPoint,
-  onOutsideBoundary,
 }: {
   selectionTarget: "pickup" | "drop";
   onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void;
-  onOutsideBoundary: () => void;
 }) {
   useMapEvents({
     click(event: LeafletMouseEvent) {
       const { lat, lng } = event.latlng;
-      if (!isInsideCampus(lat, lng)) {
-        onOutsideBoundary();
-        return;
-      }
+      // Campus boundary checks are temporarily disabled for unrestricted map selection.
       onSelectPoint({ lat, lng }, selectionTarget);
     },
   });
@@ -53,7 +34,6 @@ export default function TMUCampusLeafletMap({
   dropPoint,
   selectionTarget,
   onSelectPoint,
-  onOutsideBoundary,
 }: Props) {
   return (
     <MapContainer
@@ -66,22 +46,9 @@ export default function TMUCampusLeafletMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-
-      <FitToCampusPolygon />
       <ClickHandler
         selectionTarget={selectionTarget}
         onSelectPoint={onSelectPoint}
-        onOutsideBoundary={onOutsideBoundary}
-      />
-
-      <Polygon
-        positions={polygonPath}
-        pathOptions={{
-          color: "#16a34a",
-          weight: 3,
-          fillColor: "#22c55e",
-          fillOpacity: 0.18,
-        }}
       />
 
       <Marker position={[TMU_MAIN_GATE.lat, TMU_MAIN_GATE.lng]}>

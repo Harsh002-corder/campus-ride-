@@ -58,6 +58,3 @@ export function isWithinCampusBoundary(point: { lat: number; lng: number }) {
   return insideBounds && pointInPolygon(point, CAMPUS_BOUNDARY_POLYGON);
 }
 
-export function isInsideCampus(lat: number, lng: number) {
-  return isWithinCampusBoundary({ lat, lng });
-}
