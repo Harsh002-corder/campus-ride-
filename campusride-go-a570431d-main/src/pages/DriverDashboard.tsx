@@ -188,7 +188,7 @@ const DriverDashboard = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [profile, mine, available, verification, settingsResponse] = await Promise.all([
+      const [profileResult, mineResult, availableResult, verificationResult, settingsResult] = await Promise.allSettled([
         apiClient.users.me() as Promise<{ user: { isOnline?: boolean; driverVerificationStatus?: "pending" | "approved" | "rejected" } }>,
         apiClient.rides.my(),
         apiClient.rides.available(),
@@ -196,13 +196,23 @@ const DriverDashboard = () => {
         apiClient.settings.list() as Promise<{ settings?: Array<{ key: string; value: unknown }> }>,
       ]);
 
+      const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
+      const mine = mineResult.status === "fulfilled" ? mineResult.value : null;
+      const available = availableResult.status === "fulfilled" ? availableResult.value : null;
+      const verification = verificationResult.status === "fulfilled" ? verificationResult.value : null;
+      const settingsResponse = settingsResult.status === "fulfilled" ? settingsResult.value : null;
+
+      if (!profile || !mine || !available) {
+        throw new Error("Failed to load core driver ride data");
+      }
+
       setIsOnline(Boolean(profile.user?.isOnline));
       setMyRides(toQueueRides(mine.rides || []));
       setAvailableRides(toIncomingRequestRides(available.rides || []));
-      setVerificationStatus(profile.user?.driverVerificationStatus || verification.verification?.status || "not_submitted");
-      setVerificationNotes(verification.verification?.reviewNotes || "");
+      setVerificationStatus(profile.user?.driverVerificationStatus || verification?.verification?.status || "not_submitted");
+      setVerificationNotes(verification?.verification?.reviewNotes || "");
 
-      const settingsMap = new globalThis.Map((settingsResponse.settings || []).map((item) => [item.key, item.value]));
+      const settingsMap = new globalThis.Map((settingsResponse?.settings || []).map((item) => [item.key, item.value]));
       const bookingSetting = settingsMap.get("ride_booking_enabled");
       const syncSetting = settingsMap.get("ride_location_sync_interval_seconds");
       const supportPhoneSetting = settingsMap.get("ride_support_phone");
@@ -228,10 +238,8 @@ const DriverDashboard = () => {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      const socket = getSocketClient();
-      if (!socket.connected) {
-        void loadData();
-      }
+      // Keep incoming request list fresh even if realtime events are delayed.
+      void loadData();
     }, 20000);
 
     const socket = getSocketClient();
