@@ -353,16 +353,6 @@ const DriverDashboard = () => {
     [myRides, matchesSearch],
   );
 
-  const acceptedRides = useMemo(
-    () => toQueueRides(myRides.filter((ride) => ride.status === "accepted")).filter(matchesSearch),
-    [myRides, matchesSearch],
-  );
-
-  const completedRides = useMemo(
-    () => toQueueRides(myRides.filter((ride) => ride.status === "completed")).filter(matchesSearch),
-    [myRides, matchesSearch],
-  );
-
   const activeRide = activeRides[0] || null;
 
   const supportDigits = toPhoneDigits(rideSupportPhone);
@@ -918,7 +908,7 @@ const DriverDashboard = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold font-display text-sm">Assigned Rides</h3>
                     <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">
-                      {activeRides.length + acceptedRides.length + completedRides.length} rides • latest first
+                      {activeRides.length} ongoing rides
                     </span>
                   </div>
 
@@ -931,8 +921,8 @@ const DriverDashboard = () => {
                     />
                   </div>
 
-                  {activeRides.length === 0 && acceptedRides.length === 0 && completedRides.length === 0 && (
-                    <div className="card-glass text-sm text-muted-foreground">No rides match your current search.</div>
+                  {activeRides.length === 0 && (
+                    <div className="card-glass text-sm text-muted-foreground">No ongoing rides match your current search.</div>
                   )}
 
                   {activeRides.length > 0 && (
@@ -956,58 +946,6 @@ const DriverDashboard = () => {
                           onCancel={cancelRide}
                           onComplete={completeRide}
                           onTrack={(rideId) => navigate(`/ride-tracking/${rideId}`)}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {acceptedRides.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-400">Accepted Rides</h4>
-                      {acceptedRides.map((ride, index) => (
-                        <RideCard
-                          key={ride.id}
-                          ride={ride}
-                          busy={isRideBusy(ride.id)}
-                          isActive={false}
-                          queuePosition={index + 1}
-                          isLatest={index === 0 && activeRides.length === 0}
-                          actionLabel={getRideActionLabel(ride.id)}
-                          cancelReasonKey={cancelReasonByRide[ride.id] || "driver_delayed"}
-                          cancelCustomReason={cancelCustomReasonByRide[ride.id] || ""}
-                          cancellationReasons={cancellationReasons}
-                          onCancelReasonKeyChange={handleCancelReasonKeyChange}
-                          onCancelCustomReasonChange={handleCancelCustomReasonChange}
-                          onStart={startRide}
-                          onCancel={cancelRide}
-                          onComplete={completeRide}
-                          onTrack={(rideId) => navigate(`/ride-tracking/${rideId}`)}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {completedRides.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completed Rides</h4>
-                      {completedRides.map((ride, index) => (
-                        <RideCard
-                          key={ride.id}
-                          ride={ride}
-                          busy={isRideBusy(ride.id)}
-                          isActive={false}
-                          queuePosition={index + 1}
-                          actionLabel={getRideActionLabel(ride.id)}
-                          cancelReasonKey={cancelReasonByRide[ride.id] || "driver_delayed"}
-                          cancelCustomReason={cancelCustomReasonByRide[ride.id] || ""}
-                          cancellationReasons={cancellationReasons}
-                          onCancelReasonKeyChange={handleCancelReasonKeyChange}
-                          onCancelCustomReasonChange={handleCancelCustomReasonChange}
-                          onStart={startRide}
-                          onCancel={cancelRide}
-                          onComplete={completeRide}
-                          onTrack={(rideId) => navigate(`/ride-tracking/${rideId}`)}
-                          isLatest={index === 0 && activeRides.length === 0 && acceptedRides.length === 0}
                         />
                       ))}
                     </div>
