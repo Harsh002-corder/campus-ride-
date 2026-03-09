@@ -35,14 +35,20 @@ type TMUCampusMapProps = {
 
 export default function TMUCampusMap({ locations = TMU_LOCATIONS }: TMUCampusMapProps) {
   const markerData = useMemo(() => locations, [locations]);
+  const mapContainerProps = {
+    center: TMU_CAMPUS_CENTER,
+    zoom: 16,
+    className: "h-full w-full",
+  } as unknown as React.ComponentProps<typeof MapContainer>;
+  const tileLayerProps = {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  } as unknown as React.ComponentProps<typeof TileLayer>;
 
   return (
     <div className="h-[70vh] min-h-[420px] w-full overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-      <MapContainer center={TMU_CAMPUS_CENTER} zoom={16} className="h-full w-full">
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
+      <MapContainer {...mapContainerProps}>
+        <TileLayer {...tileLayerProps} />
         <FitMarkersBounds locations={markerData} />
 
         {markerData.map((location) => (
