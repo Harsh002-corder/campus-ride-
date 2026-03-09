@@ -12,7 +12,6 @@ type RideCardProps = {
   busy: boolean;
   isActive: boolean;
   queuePosition: number;
-  canStart: boolean;
   isLatest?: boolean;
   actionLabel?: string;
   cancelReasonKey: string;
@@ -33,7 +32,6 @@ export default function RideCard({
   busy,
   isActive,
   queuePosition,
-  canStart,
   isLatest,
   actionLabel,
   cancelReasonKey,
@@ -80,7 +78,7 @@ export default function RideCard({
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onTrack(ride.id)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track</motion.button>
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onTrack(ride.id)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track Ride</motion.button>
         </div>
       </div>
 
@@ -132,8 +130,7 @@ export default function RideCard({
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => onStart(ride.id)}
-          disabled={busy || ride.status !== "accepted" || !canStart}
-          title={!canStart && ride.status === "accepted" ? "Start is available only for the first queued ride" : undefined}
+          disabled={busy || ride.status !== "accepted"}
           className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
           <Play className="w-3.5 h-3.5" /> {isStarting ? "Starting..." : "Start Ride"}
