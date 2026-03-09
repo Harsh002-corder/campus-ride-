@@ -966,7 +966,11 @@ const DriverDashboard = () => {
                     View all <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-                <RideHistoryTabs compact />
+                <RideHistoryTabs
+                  compact
+                  allowedTabs={["all", "completed", "cancelled"]}
+                  allTabFilter="finalizedOnly"
+                />
               </div>
             </div>
           </div>

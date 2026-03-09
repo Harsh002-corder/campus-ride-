@@ -24,17 +24,35 @@ const statusColors: Record<RideStatus, string> = {
 interface RideHistoryTabsProps {
   compact?: boolean;
   initialTab?: RideStatus;
+  allowedTabs?: RideStatus[];
+  allTabFilter?: "allRides" | "finalizedOnly";
 }
 
-const RideHistoryTabs = ({ compact = false, initialTab = "all" }: RideHistoryTabsProps) => {
+const RideHistoryTabs = ({
+  compact = false,
+  initialTab = "all",
+  allowedTabs,
+  allTabFilter = "allRides",
+}: RideHistoryTabsProps) => {
   const { user } = useAuth();
   const toast = useAppToast();
   const [activeTab, setActiveTab] = useState<RideStatus>(initialTab);
   const [rides, setRides] = useState<RideDto[]>([]);
 
+  const visibleTabs = useMemo(() => {
+    const configuredTabs = allowedTabs && allowedTabs.length > 0 ? allowedTabs : tabs.map((tab) => tab.value);
+    return tabs.filter((tab) => configuredTabs.includes(tab.value));
+  }, [allowedTabs]);
+
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.value === activeTab)) {
+      setActiveTab(visibleTabs[0]?.value || "all");
+    }
+  }, [activeTab, visibleTabs]);
 
   useEffect(() => {
     let mounted = true;
@@ -65,19 +83,26 @@ const RideHistoryTabs = ({ compact = false, initialTab = "all" }: RideHistoryTab
 
   const filtered = useMemo(() => {
     return rides.filter((ride) => {
-      if (activeTab === "all") return true;
+      if (activeTab === "all") {
+        if (allTabFilter === "finalizedOnly") {
+          return ride.status === "completed" || ride.status === "cancelled";
+        }
+        return true;
+      }
       if (activeTab === "completed") return ride.status === "completed";
       if (activeTab === "cancelled") return ride.status === "cancelled";
       return ["pending", "accepted", "in_progress", "requested", "ongoing"].includes(ride.status);
     });
-  }, [rides, activeTab]);
+  }, [rides, activeTab, allTabFilter]);
 
   const statusCounts = useMemo(() => ({
-    all: rides.length,
+    all: allTabFilter === "finalizedOnly"
+      ? rides.filter((ride) => ride.status === "completed" || ride.status === "cancelled").length
+      : rides.length,
     active: rides.filter((ride) => ["pending", "accepted", "in_progress", "requested", "ongoing"].includes(ride.status)).length,
     completed: rides.filter((ride) => ride.status === "completed").length,
     cancelled: rides.filter((ride) => ride.status === "cancelled").length,
-  }), [rides]);
+  }), [rides, allTabFilter]);
 
   const formatDate = (value: string | null) => {
     if (!value) return "—";
@@ -88,7 +113,7 @@ const RideHistoryTabs = ({ compact = false, initialTab = "all" }: RideHistoryTab
     <div>
       {/* Tabs */}
       <div className="flex gap-2 mb-4">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const count = statusCounts[tab.value];
           return (
             <button
