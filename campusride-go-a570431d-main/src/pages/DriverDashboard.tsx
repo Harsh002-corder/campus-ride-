@@ -57,6 +57,9 @@ const DriverDashboard = () => {
   const [verificationUploadBusy, setVerificationUploadBusy] = useState(false);
   const [cancelReasonByRide, setCancelReasonByRide] = useState<Record<string, string>>({});
   const [cancelCustomReasonByRide, setCancelCustomReasonByRide] = useState<Record<string, string>>({});
+  const [verificationCodeByRide, setVerificationCodeByRide] = useState<Record<string, string>>({});
+  const [verificationModalRideId, setVerificationModalRideId] = useState<string | null>(null);
+  const [verificationModalCode, setVerificationModalCode] = useState("");
   const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
   const [rideSearch, setRideSearch] = useState("");
   const newRequestPopupTimerRef = useRef<number | null>(null);
@@ -512,6 +515,43 @@ const DriverDashboard = () => {
       await apiClient.rides.start(rideId);
       toast.success("Ride started", "Trip status is now marked as in progress.");
     } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      if (message.includes("verification code")) {
+        setVerificationModalRideId(rideId);
+        setVerificationModalCode(verificationCodeByRide[rideId] || "");
+        toast.info("Verification required", "Enter the student code to start this ride.");
+        setRideActionBusy(rideId, false);
+        setRideActionType(rideId, null);
+        return;
+      }
+      await loadData();
+      toast.error("Could not start ride", error);
+    } finally {
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
+    }
+  };
+
+  const submitVerificationAndStart = async () => {
+    const rideId = verificationModalRideId;
+    if (!rideId) return;
+
+    const verificationCode = verificationModalCode.trim();
+    if (!verificationCode) {
+      toast.error("Verification code required", "Enter the student code before starting the ride.");
+      return;
+    }
+
+    setVerificationCodeByRide((prev) => ({ ...prev, [rideId]: verificationCode }));
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "start");
+
+    try {
+      await apiClient.rides.verify(rideId, verificationCode);
+      setVerificationModalRideId(null);
+      setVerificationModalCode("");
+      toast.success("Ride started", "Trip status is now marked as in progress.");
+    } catch (error) {
       await loadData();
       toast.error("Could not start ride", error);
     } finally {
@@ -546,6 +586,10 @@ const DriverDashboard = () => {
   const cancelRide = async (rideId: string) => {
     const reasonKey = cancelReasonByRide[rideId] || "driver_delayed";
     const customReason = cancelCustomReasonByRide[rideId] || "";
+    const selectedReason = cancellationReasons.find((item) => item.key === reasonKey)?.label || "Other";
+    const reasonText = reasonKey === "other"
+      ? (customReason.trim() || "Other")
+      : selectedReason;
 
     setRideActionBusy(rideId, true);
     setRideActionType(rideId, "cancel");
@@ -560,6 +604,7 @@ const DriverDashboard = () => {
 
     try {
       await apiClient.rides.cancel(rideId, {
+        reason: reasonText,
         reasonKey,
         customReason: reasonKey === "other" ? customReason : undefined,
       });
@@ -624,6 +669,44 @@ const DriverDashboard = () => {
           onAccept={acceptRide}
           onIgnore={() => setNewRequestPopupRide(null)}
         />
+
+        {verificationModalRideId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="card-glass border border-primary/40 w-full max-w-sm">
+              <h3 className="text-base font-semibold font-display mb-1">Enter Verification Code</h3>
+              <p className="text-xs text-muted-foreground mb-3">Ask student for the ride code before starting.</p>
+              <input
+                value={verificationModalCode}
+                onChange={(event) => setVerificationModalCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                placeholder="Enter code"
+                className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-3 text-sm"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerificationModalRideId(null);
+                    setVerificationModalCode("");
+                  }}
+                  className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isRideBusy(verificationModalRideId)}
+                  onClick={() => void submitVerificationAndStart()}
+                  className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
+                >
+                  {isRideBusy(verificationModalRideId) ? "Starting..." : "Verify & Start"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
