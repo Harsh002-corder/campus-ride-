@@ -295,13 +295,8 @@ const RideTracking = () => {
           } else {
             setStudentPos(current);
           }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "";
-          if (message) {
-            setGeoError(message);
-          } else {
-            setSocketInfo("Realtime unavailable, GPS sync retrying");
-          }
+        } catch {
+          setSocketInfo("Realtime unavailable, GPS sync retrying");
         } finally {
           syncingDriverLocationRef.current = false;
         }
