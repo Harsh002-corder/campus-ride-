@@ -13,8 +13,8 @@ type Props = {
 };
 
 function getSelectionBoundary(pickupPoint: SelectedPoint, dropPoint: SelectedPoint): [number, number][] | null {
-  const points = [pickupPoint, dropPoint].filter((point): point is NonNullable<SelectedPoint> => Boolean(point));
-  if (points.length === 0) return null;
+  if (!pickupPoint || !dropPoint) return null;
+  const points = [pickupPoint, dropPoint];
 
   const latitudes = points.map((point) => point.lat);
   const longitudes = points.map((point) => point.lng);
@@ -23,7 +23,7 @@ function getSelectionBoundary(pickupPoint: SelectedPoint, dropPoint: SelectedPoi
   const minLng = Math.min(...longitudes);
   const maxLng = Math.max(...longitudes);
 
-  // Keep a visible boundary even when only one point is selected.
+  // Keep a visible boundary for very short pickup/drop distances.
   const latPadding = Math.max(0.0004, (maxLat - minLat) * 0.2);
   const lngPadding = Math.max(0.0004, (maxLng - minLng) * 0.2);
 
