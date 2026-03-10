@@ -19,7 +19,7 @@ import {
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import { apiClient, type AuthUser, type RideDto, type RideIssueDto } from "@/lib/apiClient";
-import { getDistanceMeters, isWithinCampusBoundary } from "@/lib/campusBoundary";
+import { CAMPUS_BOUNDARY_POLYGON, getDistanceMeters, pointInPolygon } from "@/lib/campusBoundary";
 import { CAMPUS_STOPS, type CampusStop } from "@/lib/stops";
 import { getSocketClient } from "@/lib/socketClient";
 import { API_BASE_URL } from "@/config/api";
@@ -44,14 +44,66 @@ type GpsVerificationState = {
 
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 
-function resolveStop(value: string, selectedStop: CampusStop | null) {
+function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {
     return selectedStop;
   }
 
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
-  return CAMPUS_STOPS.find((stop) => stop.name.toLowerCase() === normalized) || null;
+  return stops.find((stop) => stop.name.toLowerCase() === normalized) || null;
+}
+
+function normalizeStops(value: unknown, fallback: CampusStop[]): CampusStop[] {
+  if (!Array.isArray(value)) return fallback;
+  const rows = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const name = String((item as { name?: unknown }).name || "").trim();
+      const lat = Number((item as { lat?: unknown }).lat);
+      const lng = Number((item as { lng?: unknown }).lng);
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return { name, lat, lng };
+    })
+    .filter(Boolean) as CampusStop[];
+
+  return rows.length > 0 ? rows : fallback;
+}
+
+function normalizeBoundary(value: unknown, fallback = CAMPUS_BOUNDARY_POLYGON) {
+  if (!Array.isArray(value)) return fallback;
+
+  const rows = value
+    .map((point) => {
+      if (Array.isArray(point) && point.length >= 2) {
+        const lat = Number(point[0]);
+        const lng = Number(point[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      }
+
+      if (point && typeof point === "object") {
+        const lat = Number((point as { lat?: unknown }).lat);
+        const lng = Number((point as { lng?: unknown }).lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      }
+
+      return null;
+    })
+    .filter(Boolean) as Array<{ lat: number; lng: number }>;
+
+  if (rows.length < 3) return fallback;
+  return rows;
+}
+
+function isWithinBoundary(point: { lat: number; lng: number }, polygon: Array<{ lat: number; lng: number }>) {
+  if (!point || !Array.isArray(polygon) || polygon.length < 3) return false;
+  const latitudes = polygon.map((item) => item.lat);
+  const longitudes = polygon.map((item) => item.lng);
+  const insideBounds = point.lat >= Math.min(...latitudes)
+    && point.lat <= Math.max(...latitudes)
+    && point.lng >= Math.min(...longitudes)
+    && point.lng <= Math.max(...longitudes);
+  return insideBounds && pointInPolygon(point, polygon);
 }
 
 function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
@@ -101,6 +153,8 @@ const StudentDashboard = () => {
   const [rideSupportPhone, setRideSupportPhone] = useState("+91 90000 00000");
   const [rideSecurityPhone, setRideSecurityPhone] = useState("+91 100");
   const [rideAmbulancePhone, setRideAmbulancePhone] = useState("+91 108");
+  const [runtimeStops, setRuntimeStops] = useState<CampusStop[]>(CAMPUS_STOPS);
+  const [campusBoundary, setCampusBoundary] = useState(CAMPUS_BOUNDARY_POLYGON);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [cancelReasonKey, setCancelReasonKey] = useState("change_of_plans");
   const [cancelCustomReason, setCancelCustomReason] = useState("");
@@ -141,18 +195,24 @@ const StudentDashboard = () => {
       const supportPhoneSetting = settingsMap.get("ride_support_phone");
       const securityPhoneSetting = settingsMap.get("ride_security_phone");
       const ambulancePhoneSetting = settingsMap.get("ride_ambulance_phone");
+      const stopsSetting = settingsMap.get("ride_pickup_drop_stops");
+      const boundarySetting = settingsMap.get("ride_campus_boundary_polygon");
 
       setRideBookingEnabled(bookingSetting === undefined ? true : bookingSetting === true || String(bookingSetting).toLowerCase() === "true");
       setRideMaxPassengers(Math.max(1, Math.min(6, toNumber(maxPassengersSetting, 4))));
       setRideSupportPhone(String(supportPhoneSetting || "+91 90000 00000"));
       setRideSecurityPhone(String(securityPhoneSetting || "+91 100"));
       setRideAmbulancePhone(String(ambulancePhoneSetting || "+91 108"));
+      setRuntimeStops(normalizeStops(stopsSetting, CAMPUS_STOPS));
+      setCampusBoundary(normalizeBoundary(boundarySetting, CAMPUS_BOUNDARY_POLYGON));
     } catch {
       setRideBookingEnabled(true);
       setRideMaxPassengers(4);
       setRideSupportPhone("+91 90000 00000");
       setRideSecurityPhone("+91 100");
       setRideAmbulancePhone("+91 108");
+      setRuntimeStops(CAMPUS_STOPS);
+      setCampusBoundary(CAMPUS_BOUNDARY_POLYGON);
     }
   }, []);
 
@@ -319,8 +379,8 @@ const StudentDashboard = () => {
       return;
     }
 
-    const resolvedPickup = resolveStop(pickup, pickupStop);
-    const resolvedDrop = resolveStop(drop, dropStop);
+    const resolvedPickup = resolveStop(pickup, pickupStop, runtimeStops);
+    const resolvedDrop = resolveStop(drop, dropStop, runtimeStops);
 
     if (!resolvedPickup || !resolvedDrop) {
       setGpsVerification({ state: "failed", message: "Select pickup and drop first" });
@@ -328,7 +388,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinCampusBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng })) {
+    if (!isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -350,7 +410,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinCampusBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng })) {
+    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -407,7 +467,7 @@ const StudentDashboard = () => {
   };
 
   const handleReverifyGps = async () => {
-    const resolvedPickup = resolveStop(pickup, pickupStop);
+    const resolvedPickup = resolveStop(pickup, pickupStop, runtimeStops);
 
     if (!resolvedPickup) {
       setGpsVerification({ state: "failed", message: "Select pickup first" });
@@ -426,7 +486,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinCampusBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng })) {
+    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -468,7 +528,9 @@ const StudentDashboard = () => {
   };
 
   const saveCurrentAsFavorite = async (type: "pickup" | "drop") => {
-    const point = type === "pickup" ? resolveStop(pickup, pickupStop) : resolveStop(drop, dropStop);
+    const point = type === "pickup"
+      ? resolveStop(pickup, pickupStop, runtimeStops)
+      : resolveStop(drop, dropStop, runtimeStops);
     if (!point) {
       toast.info("Select a location first", `Choose a ${type} location before saving as favorite.`);
       return;
@@ -628,7 +690,7 @@ const StudentDashboard = () => {
                         setPickupStop(stop);
                         setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" });
                       }}
-                      stops={CAMPUS_STOPS}
+                      stops={runtimeStops}
                       minChars={2}
                       maxResults={8}
                       debounceMs={300}
@@ -656,7 +718,7 @@ const StudentDashboard = () => {
                       onSelect={(stop) => {
                         setDropStop(stop);
                       }}
-                      stops={CAMPUS_STOPS}
+                      stops={runtimeStops}
                       minChars={2}
                       maxResults={8}
                       debounceMs={300}

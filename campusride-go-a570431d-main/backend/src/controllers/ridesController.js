@@ -13,7 +13,7 @@ import { estimateRideFare } from "../services/fareService.js";
 import { createRideStatusNotifications } from "../services/notificationService.js";
 import { generateRideInvoiceBuffer } from "../services/pdfInvoiceService.js";
 import { recomputeDriverPerformance } from "../services/driverPerformanceService.js";
-import { distanceInMeters, isWithinCampusBoundary } from "../utils/geoFence.js";
+import { CAMPUS_BOUNDARY_POLYGON, distanceInMeters, pointInPolygon } from "../utils/geoFence.js";
 import { sendRideInvoiceEmail } from "../utils/mailer.js";
 
 const CANCELLATION_REASONS = {
@@ -31,6 +31,13 @@ const RIDE_SETTING_KEYS = {
   cancellationWindowMinutes: "ride_cancellation_window_minutes",
   locationSyncIntervalSeconds: "ride_location_sync_interval_seconds",
   supportPhone: "ride_support_phone",
+  baseFare: "ride_base_fare",
+  perKmRate: "ride_per_km_rate",
+  perMinuteRate: "ride_per_minute_rate",
+  minimumFare: "ride_minimum_fare",
+  platformFeePercent: "ride_platform_fee_percent",
+  pickupDropStops: "ride_pickup_drop_stops",
+  campusBoundaryPolygon: "ride_campus_boundary_polygon",
 };
 
 const DEFAULT_RIDE_SETTINGS = {
@@ -39,6 +46,13 @@ const DEFAULT_RIDE_SETTINGS = {
   cancellationWindowMinutes: 10,
   locationSyncIntervalSeconds: 5,
   supportPhone: "+91 90000 00000",
+  baseFare: 20,
+  perKmRate: 12,
+  perMinuteRate: 1.5,
+  minimumFare: 40,
+  platformFeePercent: 0,
+  pickupDropStops: [],
+  campusBoundaryPolygon: CAMPUS_BOUNDARY_POLYGON,
 };
 
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
@@ -65,22 +79,22 @@ function getShareTrackingUrl(token) {
   return `${base.replace(/\/$/, "")}/track/${token}`;
 }
 
-function assertRidePointsWithinCampus(pickup, drop) {
+function assertRidePointsWithinCampus(pickup, drop, boundaryPolygon) {
   if (!ENFORCE_CAMPUS_BOUNDARY) return;
-  if (!isWithinCampusBoundary(pickup)) {
+  if (!isWithinBoundary(pickup, boundaryPolygon)) {
     throw new AppError(400, "Pickup location must be inside the campus.");
   }
-  if (!isWithinCampusBoundary(drop)) {
+  if (!isWithinBoundary(drop, boundaryPolygon)) {
     throw new AppError(400, "Drop location must be inside the campus boundary.");
   }
 }
 
-function assertPickupGpsVerification(pickup, studentGps) {
+function assertPickupGpsVerification(pickup, studentGps, boundaryPolygon) {
   if (!studentGps || typeof studentGps.lat !== "number" || typeof studentGps.lng !== "number") {
     throw new AppError(400, "Enable GPS location to verify your pickup point.");
   }
 
-  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinCampusBoundary(studentGps)) {
+  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinBoundary(studentGps, boundaryPolygon)) {
     throw new AppError(400, "Pickup location must be inside the campus.");
   }
 
@@ -109,6 +123,70 @@ function parseNumberSetting(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeStopList(value, fallback = []) {
+  if (!Array.isArray(value)) return fallback;
+
+  const normalized = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const name = String(item.name || "").trim();
+      const lat = Number(item.lat);
+      const lng = Number(item.lng);
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return { name, lat, lng };
+    })
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function normalizePolygon(value, fallback = CAMPUS_BOUNDARY_POLYGON) {
+  if (!Array.isArray(value)) return fallback;
+
+  const normalized = value
+    .map((point) => {
+      if (Array.isArray(point) && point.length >= 2) {
+        const lat = Number(point[0]);
+        const lng = Number(point[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+        return null;
+      }
+
+      if (point && typeof point === "object") {
+        const lat = Number(point.lat);
+        const lng = Number(point.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  if (normalized.length < 3) return fallback;
+
+  const first = normalized[0];
+  const last = normalized[normalized.length - 1];
+  if (first.lat !== last.lat || first.lng !== last.lng) {
+    normalized.push({ ...first });
+  }
+
+  return normalized;
+}
+
+function isWithinBoundary(point, polygon = CAMPUS_BOUNDARY_POLYGON) {
+  if (!point || typeof point.lat !== "number" || typeof point.lng !== "number") return false;
+  if (!Array.isArray(polygon) || polygon.length < 3) return false;
+
+  const latitudes = polygon.map((entry) => entry.lat);
+  const longitudes = polygon.map((entry) => entry.lng);
+  const insideBounds = point.lat >= Math.min(...latitudes)
+    && point.lat <= Math.max(...latitudes)
+    && point.lng >= Math.min(...longitudes)
+    && point.lng <= Math.max(...longitudes);
+
+  return insideBounds && pointInPolygon(point, polygon);
+}
+
 async function getRideRuntimeSettings() {
   const keys = Object.values(RIDE_SETTING_KEYS);
   const rows = await Setting.find({ key: { $in: keys } }).lean();
@@ -120,6 +198,13 @@ async function getRideRuntimeSettings() {
     cancellationWindowMinutes: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.cancellationWindowMinutes), DEFAULT_RIDE_SETTINGS.cancellationWindowMinutes)),
     locationSyncIntervalSeconds: Math.max(1, parseNumberSetting(map.get(RIDE_SETTING_KEYS.locationSyncIntervalSeconds), DEFAULT_RIDE_SETTINGS.locationSyncIntervalSeconds)),
     supportPhone: String(map.get(RIDE_SETTING_KEYS.supportPhone) || DEFAULT_RIDE_SETTINGS.supportPhone),
+    baseFare: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.baseFare), DEFAULT_RIDE_SETTINGS.baseFare)),
+    perKmRate: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.perKmRate), DEFAULT_RIDE_SETTINGS.perKmRate)),
+    perMinuteRate: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.perMinuteRate), DEFAULT_RIDE_SETTINGS.perMinuteRate)),
+    minimumFare: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.minimumFare), DEFAULT_RIDE_SETTINGS.minimumFare)),
+    platformFeePercent: Math.max(0, Math.min(100, parseNumberSetting(map.get(RIDE_SETTING_KEYS.platformFeePercent), DEFAULT_RIDE_SETTINGS.platformFeePercent))),
+    pickupDropStops: normalizeStopList(map.get(RIDE_SETTING_KEYS.pickupDropStops), DEFAULT_RIDE_SETTINGS.pickupDropStops),
+    campusBoundary: normalizePolygon(map.get(RIDE_SETTING_KEYS.campusBoundaryPolygon), DEFAULT_RIDE_SETTINGS.campusBoundaryPolygon),
   };
 }
 
@@ -211,8 +296,8 @@ export const bookRide = asyncHandler(async (req, res) => {
     throw new AppError(409, `Ride booking is currently disabled. Contact support at ${settings.supportPhone}`);
   }
 
-  assertRidePointsWithinCampus(req.body.pickup, req.body.drop);
-  assertPickupGpsVerification(req.body.pickup, req.body.studentGps);
+  assertRidePointsWithinCampus(req.body.pickup, req.body.drop, settings.campusBoundary);
+  assertPickupGpsVerification(req.body.pickup, req.body.studentGps, settings.campusBoundary);
 
   const requestedPassengers = req.body.passengers || 1;
   const passengerNames = (req.body.passengerNames || []).slice(0, requestedPassengers);
@@ -239,6 +324,11 @@ export const bookRide = asyncHandler(async (req, res) => {
     drop: req.body.drop,
     activeRideCount,
     onlineDriverCount,
+    baseFare: settings.baseFare,
+    perKmRate: settings.perKmRate,
+    perMinuteRate: settings.perMinuteRate,
+    minimumFare: settings.minimumFare,
+    platformFeePercent: settings.platformFeePercent,
   });
 
   if (splitFare && requestedPassengers > 1) {
@@ -317,7 +407,8 @@ export const bookRide = asyncHandler(async (req, res) => {
 });
 
 export const estimateFare = asyncHandler(async (req, res) => {
-  assertRidePointsWithinCampus(req.body.pickup, req.body.drop);
+  const settings = await getRideRuntimeSettings();
+  assertRidePointsWithinCampus(req.body.pickup, req.body.drop, settings.campusBoundary);
 
   const [activeRideCount, onlineDriverCount] = await Promise.all([
     Ride.countDocuments({ status: { $in: [...REQUESTED_LIKE_STATUSES, RIDE_STATUS.ACCEPTED, ...ONGOING_LIKE_STATUSES] } }),
@@ -329,6 +420,11 @@ export const estimateFare = asyncHandler(async (req, res) => {
     drop: req.body.drop,
     activeRideCount,
     onlineDriverCount,
+    baseFare: settings.baseFare,
+    perKmRate: settings.perKmRate,
+    perMinuteRate: settings.perMinuteRate,
+    minimumFare: settings.minimumFare,
+    platformFeePercent: settings.platformFeePercent,
   });
 
   res.json({ fare });
@@ -933,7 +1029,7 @@ export const updateDriverLocation = asyncHandler(async (req, res) => {
     throw new AppError(409, "Ride location can be updated only in accepted/ongoing states");
   }
 
-  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinCampusBoundary({ lat: req.body.lat, lng: req.body.lng })) {
+  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinBoundary({ lat: req.body.lat, lng: req.body.lng }, settings.campusBoundary)) {
     throw new AppError(400, "Driver location must stay inside the campus boundary.");
   }
 

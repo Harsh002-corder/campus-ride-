@@ -12,7 +12,7 @@ interface SettingRow {
   updatedAt?: string | null;
 }
 
-type RideSettingType = "boolean" | "number" | "text";
+type RideSettingType = "boolean" | "number" | "text" | "json";
 
 interface RideSettingField {
   key: string;
@@ -84,6 +84,70 @@ const rideSettingFields: RideSettingField[] = [
     description: "Medical emergency number shown in emergency contacts.",
     defaultValue: "+91 108",
   },
+  {
+    key: "ride_base_fare",
+    label: "Base fare (INR)",
+    type: "number",
+    description: "Starting fare applied to each ride before distance/time charges.",
+    defaultValue: 20,
+    min: 0,
+    max: 200,
+    step: 1,
+  },
+  {
+    key: "ride_per_km_rate",
+    label: "Per km rate (INR)",
+    type: "number",
+    description: "Distance fare component charged per kilometer.",
+    defaultValue: 12,
+    min: 0,
+    max: 200,
+    step: 0.1,
+  },
+  {
+    key: "ride_per_minute_rate",
+    label: "Per minute rate (INR)",
+    type: "number",
+    description: "Time fare component charged per minute.",
+    defaultValue: 1.5,
+    min: 0,
+    max: 50,
+    step: 0.1,
+  },
+  {
+    key: "ride_minimum_fare",
+    label: "Minimum fare (INR)",
+    type: "number",
+    description: "Minimum fare applied after all calculations.",
+    defaultValue: 40,
+    min: 0,
+    max: 500,
+    step: 1,
+  },
+  {
+    key: "ride_platform_fee_percent",
+    label: "Platform fee (%)",
+    type: "number",
+    description: "Percent platform fee added on top of ride fare.",
+    defaultValue: 0,
+    min: 0,
+    max: 100,
+    step: 0.1,
+  },
+  {
+    key: "ride_pickup_drop_stops",
+    label: "Pickup/Drop stop list (JSON)",
+    type: "json",
+    description: "Editable stops used in booking suggestions. JSON array of { name, lat, lng }.",
+    defaultValue: "[]",
+  },
+  {
+    key: "ride_campus_boundary_polygon",
+    label: "Campus boundary coordinates (JSON)",
+    type: "json",
+    description: "Geofence polygon used for booking validation. JSON array of [lat, lng] or { lat, lng }.",
+    defaultValue: "[]",
+  },
 ];
 
 const coerceSettingValue = (rawValue: unknown, field: RideSettingField) => {
@@ -98,6 +162,22 @@ const coerceSettingValue = (rawValue: unknown, field: RideSettingField) => {
     const parsed = Number(rawValue);
     if (Number.isFinite(parsed)) return parsed;
     return Number(field.defaultValue);
+  }
+
+  if (field.type === "json") {
+    if (typeof rawValue === "string") {
+      return rawValue;
+    }
+
+    if (rawValue === null || rawValue === undefined) {
+      return String(field.defaultValue);
+    }
+
+    try {
+      return JSON.stringify(rawValue, null, 2);
+    } catch {
+      return String(field.defaultValue);
+    }
   }
 
   if (typeof rawValue === "string") return rawValue;
@@ -148,6 +228,19 @@ const AdminSettings = () => {
     setRideSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const normalizeValueForSave = (field: RideSettingField, value: boolean | number | string) => {
+    if (field.type !== "json") return value;
+
+    const text = String(value || "").trim();
+    if (!text) return [];
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`${field.label}: Invalid JSON format`);
+    }
+  };
+
   const saveRideSettings = async () => {
     setSaving(true);
     try {
@@ -155,7 +248,7 @@ const AdminSettings = () => {
         rideSettingFields.map((field) =>
           apiClient.settings.update({
             key: field.key,
-            value: rideSettings[field.key],
+            value: normalizeValueForSave(field, rideSettings[field.key]),
             description: field.description,
           }),
         ),
@@ -263,6 +356,17 @@ const AdminSettings = () => {
                         value={String(value)}
                         onChange={(event) => setRideSettingValue(field.key, event.target.value)}
                         className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    )}
+
+                    {field.type === "json" && (
+                      <textarea
+                        title={field.label}
+                        placeholder={field.label}
+                        value={String(value)}
+                        onChange={(event) => setRideSettingValue(field.key, event.target.value)}
+                        rows={6}
+                        className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
                       />
                     )}
                   </div>

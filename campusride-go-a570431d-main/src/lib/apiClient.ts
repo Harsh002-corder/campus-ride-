@@ -74,6 +74,8 @@ export interface RideDto {
     timeCharge: number;
     surgeMultiplier: number;
     subtotal: number;
+    platformFeePercent?: number;
+    platformFee?: number;
     totalFare: number;
     generatedAt: string;
   } | null;
