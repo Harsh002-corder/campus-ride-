@@ -14,8 +14,6 @@ import {
   listRideHistory,
   listAvailableRides,
   listMyRides,
-  quickBookRide,
-  quickBookRideSchema,
   rejectRide,
   rideFeedbackSchema,
   startRide,
@@ -33,7 +31,6 @@ const router = Router();
 router.use(requireAuth);
 
 router.post("/", requireRole(ROLES.STUDENT), validate(bookRideSchema), bookRide);
-router.post("/quick-book", requireRole(ROLES.STUDENT), validate(quickBookRideSchema), quickBookRide);
 router.post("/fare-estimate", requireRole(ROLES.STUDENT), validate(fareEstimateSchema), estimateFare);
 router.get("/my", listMyRides);
 router.get("/history", listRideHistory);

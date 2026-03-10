@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { RIDE_STATUS, ROLES } from "../constants/roles.js";
-import { Cancellation, EmailLog, Favorite, Payment, Rating, Ride, ScheduledRide, Setting, User } from "../models/index.js";
+import { Cancellation, EmailLog, Payment, Rating, Ride, ScheduledRide, Setting, User } from "../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateUniqueRideCode } from "../utils/rideCode.js";
@@ -13,7 +13,7 @@ import { estimateRideFare } from "../services/fareService.js";
 import { createRideStatusNotifications } from "../services/notificationService.js";
 import { generateRideInvoiceBuffer } from "../services/pdfInvoiceService.js";
 import { recomputeDriverPerformance } from "../services/driverPerformanceService.js";
-import { isWithinCampusBoundary } from "../utils/geoFence.js";
+import { distanceInMeters, isWithinCampusBoundary } from "../utils/geoFence.js";
 import { sendRideInvoiceEmail } from "../utils/mailer.js";
 
 const CANCELLATION_REASONS = {
@@ -44,8 +44,8 @@ const DEFAULT_RIDE_SETTINGS = {
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
 const REQUESTED_LIKE_STATUSES = [RIDE_STATUS.REQUESTED, "requested"];
 const ONGOING_LIKE_STATUSES = [RIDE_STATUS.ONGOING, "ongoing"];
-// Temporary switch: keep false until campus polygon is corrected.
-const ENFORCE_CAMPUS_BOUNDARY = false;
+const ENFORCE_CAMPUS_BOUNDARY = true;
+const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 
 function isRequestedLikeStatus(status) {
   return REQUESTED_LIKE_STATUSES.includes(status);
@@ -67,8 +67,30 @@ function getShareTrackingUrl(token) {
 
 function assertRidePointsWithinCampus(pickup, drop) {
   if (!ENFORCE_CAMPUS_BOUNDARY) return;
-  if (!isWithinCampusBoundary(pickup) || !isWithinCampusBoundary(drop)) {
-    throw new AppError(400, "Pickup and drop must be inside the campus boundary.");
+  if (!isWithinCampusBoundary(pickup)) {
+    throw new AppError(400, "Pickup location must be inside the campus.");
+  }
+  if (!isWithinCampusBoundary(drop)) {
+    throw new AppError(400, "Drop location must be inside the campus boundary.");
+  }
+}
+
+function assertPickupGpsVerification(pickup, studentGps) {
+  if (!studentGps || typeof studentGps.lat !== "number" || typeof studentGps.lng !== "number") {
+    throw new AppError(400, "Enable GPS location to verify your pickup point.");
+  }
+
+  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinCampusBoundary(studentGps)) {
+    throw new AppError(400, "Pickup location must be inside the campus.");
+  }
+
+  const meters = distanceInMeters(
+    { lat: studentGps.lat, lng: studentGps.lng },
+    { lat: pickup.lat, lng: pickup.lng },
+  );
+
+  if (meters > MAX_PICKUP_GPS_DISTANCE_METERS) {
+    throw new AppError(400, "Pickup location must be within 200 meters of your current GPS location.");
   }
 }
 
@@ -140,15 +162,11 @@ const locationSchema = z.object({
 export const bookRideSchema = z.object({
   pickup: locationSchema,
   drop: locationSchema,
-  passengers: z.number().int().min(1).max(6).optional(),
-  passengerNames: z.array(z.string().min(1).max(60)).max(10).optional(),
-  scheduledAt: z.string().datetime().optional(),
-  splitFare: z.boolean().optional(),
-});
-
-export const quickBookRideSchema = z.object({
-  pickupFavoriteId: z.string().min(1),
-  dropFavoriteId: z.string().min(1),
+  studentGps: z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracy: z.number().positive().max(5000).optional(),
+  }).optional(),
   passengers: z.number().int().min(1).max(6).optional(),
   passengerNames: z.array(z.string().min(1).max(60)).max(10).optional(),
   scheduledAt: z.string().datetime().optional(),
@@ -194,6 +212,7 @@ export const bookRide = asyncHandler(async (req, res) => {
   }
 
   assertRidePointsWithinCampus(req.body.pickup, req.body.drop);
+  assertPickupGpsVerification(req.body.pickup, req.body.studentGps);
 
   const requestedPassengers = req.body.passengers || 1;
   const passengerNames = (req.body.passengerNames || []).slice(0, requestedPassengers);
@@ -295,40 +314,6 @@ export const bookRide = asyncHandler(async (req, res) => {
   emitRideUpdate(serialized);
   await createRideStatusNotifications(serialized);
   res.status(201).json({ ride: serialized });
-});
-
-export const quickBookRide = asyncHandler(async (req, res) => {
-  if (req.user.role !== ROLES.STUDENT) {
-    throw new AppError(403, "Only students can quick-book rides");
-  }
-
-  const [pickupFavorite, dropFavorite] = await Promise.all([
-    Favorite.findOne({
-      _id: new mongoose.Types.ObjectId(req.body.pickupFavoriteId),
-      userId: new mongoose.Types.ObjectId(req.user.id),
-    }).lean(),
-    Favorite.findOne({
-      _id: new mongoose.Types.ObjectId(req.body.dropFavoriteId),
-      userId: new mongoose.Types.ObjectId(req.user.id),
-    }).lean(),
-  ]);
-
-  if (!pickupFavorite || !dropFavorite) {
-    throw new AppError(404, "Favorite locations not found");
-  }
-
-  req.body.pickup = {
-    lat: pickupFavorite.location.lat,
-    lng: pickupFavorite.location.lng,
-    label: pickupFavorite.label,
-  };
-  req.body.drop = {
-    lat: dropFavorite.location.lat,
-    lng: dropFavorite.location.lng,
-    label: dropFavorite.label,
-  };
-
-  return bookRide(req, res);
 });
 
 export const estimateFare = asyncHandler(async (req, res) => {

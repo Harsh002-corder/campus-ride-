@@ -1,23 +1,16 @@
 type LatLng = { lat: number; lng: number };
+const EARTH_RADIUS_METERS = 6371000;
 
-export const CAMPUS_MAP_CENTER: LatLng = { lat: 28.8311, lng: 78.6959 };
-export const TMU_MAIN_GATE: LatLng = { lat: 28.83096, lng: 78.69023 };
+export const CAMPUS_MAP_CENTER: LatLng = { lat: 28.8248, lng: 78.6592 };
+export const TMU_MAIN_GATE: LatLng = { lat: 28.828318, lng: 78.657056 };
 
 export const CAMPUS_BOUNDARY_POLYGON: LatLng[] = [
-  { lat: 28.8358, lng: 78.6895 },
-  { lat: 28.8350, lng: 78.6935 },
-  { lat: 28.8342, lng: 78.6978 },
-  { lat: 28.8329, lng: 78.7008 },
-  { lat: 28.8310, lng: 78.7015 },
-  { lat: 28.8292, lng: 78.7005 },
-  { lat: 28.8278, lng: 78.6987 },
-  { lat: 28.8270, lng: 78.6965 },
-  { lat: 28.8272, lng: 78.6940 },
-  { lat: 28.8282, lng: 78.6918 },
-  { lat: 28.8298, lng: 78.6902 },
-  { lat: 28.8315, lng: 78.6893 },
-  { lat: 28.8335, lng: 78.6892 },
-  { lat: 28.8358, lng: 78.6895 },
+  { lat: 28.828318, lng: 78.657056 },
+  { lat: 28.825181, lng: 78.666301 },
+  { lat: 28.822246, lng: 78.663600 },
+  { lat: 28.822058, lng: 78.655897 },
+  { lat: 28.824051, lng: 78.653022 },
+  { lat: 28.828318, lng: 78.657056 },
 ];
 
 function getCampusBounds(polygon = CAMPUS_BOUNDARY_POLYGON) {
@@ -56,5 +49,18 @@ export function isWithinCampusBoundary(point: { lat: number; lng: number }) {
     && point.lng >= bounds.minLng
     && point.lng <= bounds.maxLng;
   return insideBounds && pointInPolygon(point, CAMPUS_BOUNDARY_POLYGON);
+}
+
+export function getDistanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+
+  const haversine = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(haversine));
 }
 

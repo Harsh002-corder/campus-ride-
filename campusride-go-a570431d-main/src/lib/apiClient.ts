@@ -21,6 +21,7 @@ export interface AuthUser {
 export interface RidePayload {
   pickup: { lat: number; lng: number; label?: string };
   drop: { lat: number; lng: number; label?: string };
+  studentGps?: { lat: number; lng: number; accuracy?: number };
   passengers?: number;
   passengerNames?: string[];
   scheduledAt?: string;
@@ -243,9 +244,6 @@ export const apiClient = {
   rides: {
     book(input: RidePayload) {
       return request<{ ride: RideDto }>("/rides", { method: "POST", body: JSON.stringify(input) });
-    },
-    quickBook(input: { pickupFavoriteId: string; dropFavoriteId: string; passengers?: number; passengerNames?: string[]; scheduledAt?: string; splitFare?: boolean }) {
-      return request<{ ride: RideDto }>("/rides/quick-book", { method: "POST", body: JSON.stringify(input) });
     },
     my() {
       return request<{ rides: RideDto[] }>("/rides/my");

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { CircleMarker, MapContainer, Marker, Polygon, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import type { LeafletMouseEvent } from "leaflet";
-import { CAMPUS_MAP_CENTER, TMU_MAIN_GATE } from "@/lib/campusBoundary";
+import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isWithinCampusBoundary, TMU_MAIN_GATE } from "@/lib/campusBoundary";
 
 type SelectedPoint = { lat: number; lng: number; label: string } | null;
 
@@ -9,44 +9,27 @@ type Props = {
   pickupPoint: SelectedPoint;
   dropPoint: SelectedPoint;
   selectionTarget: "pickup" | "drop";
-  onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void;
+  onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void | Promise<void>;
+  onBoundaryViolation?: () => void;
 };
-
-function getSelectionBoundary(pickupPoint: SelectedPoint, dropPoint: SelectedPoint): [number, number][] | null {
-  if (!pickupPoint || !dropPoint) return null;
-  const points = [pickupPoint, dropPoint];
-
-  const latitudes = points.map((point) => point.lat);
-  const longitudes = points.map((point) => point.lng);
-  const minLat = Math.min(...latitudes);
-  const maxLat = Math.max(...latitudes);
-  const minLng = Math.min(...longitudes);
-  const maxLng = Math.max(...longitudes);
-
-  // Keep a visible boundary for very short pickup/drop distances.
-  const latPadding = Math.max(0.0004, (maxLat - minLat) * 0.2);
-  const lngPadding = Math.max(0.0004, (maxLng - minLng) * 0.2);
-
-  return [
-    [minLat - latPadding, minLng - lngPadding],
-    [minLat - latPadding, maxLng + lngPadding],
-    [maxLat + latPadding, maxLng + lngPadding],
-    [maxLat + latPadding, minLng - lngPadding],
-  ];
-}
 
 function ClickHandler({
   selectionTarget,
   onSelectPoint,
+  onBoundaryViolation,
 }: {
   selectionTarget: "pickup" | "drop";
-  onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void;
+  onSelectPoint: (point: { lat: number; lng: number }, target: "pickup" | "drop") => void | Promise<void>;
+  onBoundaryViolation?: () => void;
 }) {
   useMapEvents({
     click(event: LeafletMouseEvent) {
       const { lat, lng } = event.latlng;
-      // Campus boundary checks are temporarily disabled for unrestricted map selection.
-      onSelectPoint({ lat, lng }, selectionTarget);
+      if (!isWithinCampusBoundary({ lat, lng })) {
+        onBoundaryViolation?.();
+        return;
+      }
+      void onSelectPoint({ lat, lng }, selectionTarget);
     },
   });
 
@@ -69,8 +52,9 @@ export default function TMUCampusLeafletMap({
   dropPoint,
   selectionTarget,
   onSelectPoint,
+  onBoundaryViolation,
 }: Props) {
-  const selectionBoundary = getSelectionBoundary(pickupPoint, dropPoint);
+  const campusBoundary = CAMPUS_BOUNDARY_POLYGON.map((point) => [point.lat, point.lng] as [number, number]);
 
   return (
     <MapContainer
@@ -86,21 +70,20 @@ export default function TMUCampusLeafletMap({
       <ClickHandler
         selectionTarget={selectionTarget}
         onSelectPoint={onSelectPoint}
+        onBoundaryViolation={onBoundaryViolation}
       />
-      <FitToSelectionBoundary boundary={selectionBoundary} />
+      <FitToSelectionBoundary boundary={campusBoundary} />
 
-      {selectionBoundary && (
-        <Polygon
-          positions={selectionBoundary}
-          pathOptions={{
-            color: "#f97316",
-            weight: 2,
-            fillColor: "#fb923c",
-            fillOpacity: 0.08,
-            dashArray: "6 6",
-          }}
-        />
-      )}
+      <Polygon
+        positions={campusBoundary}
+        pathOptions={{
+          color: "#f97316",
+          weight: 2,
+          fillColor: "#fb923c",
+          fillOpacity: 0.08,
+          dashArray: "6 6",
+        }}
+      />
 
       <Marker position={[TMU_MAIN_GATE.lat, TMU_MAIN_GATE.lng]}>
         <Popup>TMU Main Gate</Popup>
