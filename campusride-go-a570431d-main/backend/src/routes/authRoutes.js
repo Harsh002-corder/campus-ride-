@@ -9,8 +9,6 @@ import {
   requestSignupOtpSchema,
   resetPassword,
   resetPasswordSchema,
-  superAdminSignup,
-  superAdminSignupSchema,
   verifySignupOtp,
   verifySignupOtpSchema,
 } from "../controllers/authController.js";
@@ -21,7 +19,6 @@ const router = Router();
 
 router.post("/request-signup-otp", validate(requestSignupOtpSchema), requestSignupOtp);
 router.post("/verify-signup-otp", validate(verifySignupOtpSchema), verifySignupOtp);
-router.post("/super-admin-signup", validate(superAdminSignupSchema), superAdminSignup);
 router.post("/forgot-password", validate(requestPasswordResetSchema), requestPasswordReset);
 router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
 router.post("/login", validate(loginSchema), login);
