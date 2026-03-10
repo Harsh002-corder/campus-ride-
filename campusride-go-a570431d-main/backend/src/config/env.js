@@ -39,5 +39,6 @@ env.firebaseServerKey = process.env.FIREBASE_SERVER_KEY || "";
 env.webPushPublicKey = process.env.WEB_PUSH_PUBLIC_KEY || "";
 env.webPushPrivateKey = process.env.WEB_PUSH_PRIVATE_KEY || "";
 env.openAiApiKey = process.env.OPENAI_API_KEY || "";
+env.superAdminSetupKey = process.env.SUPER_ADMIN_SETUP_KEY || "";
 
 env.clientOrigin = env.clientOrigins[0] || "https://campusride-deploy.vercel.app";

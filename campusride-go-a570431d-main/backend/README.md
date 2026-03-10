@@ -45,6 +45,7 @@ Mongoose connects to `MONGODB_URI` (example: `mongodb://127.0.0.1:27017/campus_r
 - `RATE_LIMIT_MAX`
 - `OTP_TTL_MINUTES`
 - `MONGO_RECONNECT_MS`
+- `SUPER_ADMIN_SETUP_KEY` (required to enable `POST /api/auth/super-admin-signup`)
 
 ## 3) API base
 
@@ -54,6 +55,7 @@ All routes are under `/api`.
 
 - `POST /api/auth/request-signup-otp`
 - `POST /api/auth/verify-signup-otp`
+- `POST /api/auth/super-admin-signup`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
 - `POST /api/auth/login`

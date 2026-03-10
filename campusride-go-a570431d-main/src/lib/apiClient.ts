@@ -245,6 +245,19 @@ export const apiClient = {
         body: JSON.stringify(input),
       });
     },
+    superAdminSignup(input: {
+      name: string;
+      email: string;
+      password: string;
+      setupKey: string;
+      phone?: string;
+      collegeId?: string;
+    }) {
+      return request<{ message: string; token: string; user: AuthUser }>("/auth/super-admin-signup", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+    },
     login(input: { email: string; password: string }) {
       return request<{ token: string; user: AuthUser }>("/auth/login", {
         method: "POST",

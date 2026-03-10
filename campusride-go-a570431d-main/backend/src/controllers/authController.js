@@ -56,6 +56,15 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
+export const superAdminSignupSchema = z.object({
+  name: z.string().min(2).max(120),
+  email: z.string().email().transform((value) => value.toLowerCase().trim()),
+  password: z.string().min(8).max(128),
+  setupKey: z.string().min(8).max(256),
+  phone: z.string().min(7).max(20).optional(),
+  collegeId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+});
+
 export const requestSignupOtp = asyncHandler(async (req, res) => {
   const { name, email, password, role, phone, driverSecurity, collegeId } = req.body;
   const existingUser = await User.findOne({ email }).lean();
@@ -188,6 +197,62 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
   });
 
   res.status(201).json({
+    token,
+    user: sanitizeUser(user),
+  });
+});
+
+export const superAdminSignup = asyncHandler(async (req, res) => {
+  const { name, email, password, setupKey, phone, collegeId } = req.body;
+
+  if (!env.superAdminSetupKey) {
+    throw new AppError(503, "Super admin signup is not enabled");
+  }
+
+  if (setupKey !== env.superAdminSetupKey) {
+    throw new AppError(403, "Invalid setup key");
+  }
+
+  const existingUser = await User.findOne({ email }).lean();
+  if (existingUser) {
+    throw new AppError(409, "An account with this email already exists");
+  }
+
+  if (collegeId) {
+    const college = await College.findOne({ _id: collegeId, status: "active" }).lean();
+    if (!college) {
+      throw new AppError(400, "Selected college is invalid or inactive");
+    }
+  }
+
+  const now = new Date();
+  const passwordHash = await hashPassword(password);
+  const user = await User.create({
+    name,
+    email,
+    phone: phone || null,
+    collegeId: collegeId || null,
+    passwordHash,
+    role: ROLES.SUPER_ADMIN,
+    isOnline: false,
+    isActive: true,
+    driverApprovalStatus: "approved",
+    driverVerificationStatus: "approved",
+    vehicleSeats: 4,
+    driverPerformanceScore: 60,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const token = signJwt({
+    sub: user._id.toString(),
+    role: user.role,
+    email: user.email,
+    collegeId: user.collegeId?.toString?.() || null,
+  });
+
+  return res.status(201).json({
+    message: "Super admin account created",
     token,
     user: sanitizeUser(user),
   });

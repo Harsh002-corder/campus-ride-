@@ -154,6 +154,12 @@ const Login = () => {
                 Sign up
               </Link>
             </p>
+            <p className="text-xs text-muted-foreground/90 text-center mt-2">
+              Platform owner?{" "}
+              <Link to="/super-admin-signup" className="text-primary hover:underline font-medium">
+                Create super admin
+              </Link>
+            </p>
           </div>
         </motion.div>
       </div>
