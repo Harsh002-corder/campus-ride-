@@ -2,7 +2,18 @@ import { ROLES, RIDE_STATUS } from "../constants/roles.js";
 import { Cancellation, Ride, ScheduledRide, User } from "../models/index.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
+function getCollegeScopedFilters(req) {
+  if (req.user.role === ROLES.SUB_ADMIN && req.user.collegeId) {
+    return { collegeId: req.user.collegeId };
+  }
+  return null;
+}
+
+export const getDashboardAnalytics = asyncHandler(async (req, res) => {
+  const scope = getCollegeScopedFilters(req);
+  const userScope = scope ? { collegeId: scope.collegeId } : {};
+  const rideScope = scope ? { collegeId: scope.collegeId } : {};
+
   const [
     totalUsers,
     totalStudents,
@@ -16,22 +27,23 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
     cancelledRides,
     cancellations,
   ] = await Promise.all([
-    User.countDocuments({}),
-    User.countDocuments({ role: ROLES.STUDENT }),
-    User.countDocuments({ role: ROLES.DRIVER }),
-    User.countDocuments({ role: ROLES.DRIVER, driverApprovalStatus: "pending" }),
-    Ride.countDocuments({}),
-    Ride.countDocuments({ status: RIDE_STATUS.REQUESTED }),
-    Ride.countDocuments({ status: RIDE_STATUS.ACCEPTED }),
-    Ride.countDocuments({ status: RIDE_STATUS.ONGOING }),
-    Ride.countDocuments({ status: RIDE_STATUS.COMPLETED }),
-    Ride.countDocuments({ status: RIDE_STATUS.CANCELLED }),
-    Ride.find({ status: RIDE_STATUS.CANCELLED }).sort({ cancelledAt: -1 }).limit(100).lean(),
+    User.countDocuments(userScope),
+    User.countDocuments({ ...userScope, role: ROLES.STUDENT }),
+    User.countDocuments({ ...userScope, role: ROLES.DRIVER }),
+    User.countDocuments({ ...userScope, role: ROLES.DRIVER, driverApprovalStatus: "pending" }),
+    Ride.countDocuments(rideScope),
+    Ride.countDocuments({ ...rideScope, status: RIDE_STATUS.REQUESTED }),
+    Ride.countDocuments({ ...rideScope, status: RIDE_STATUS.ACCEPTED }),
+    Ride.countDocuments({ ...rideScope, status: RIDE_STATUS.ONGOING }),
+    Ride.countDocuments({ ...rideScope, status: RIDE_STATUS.COMPLETED }),
+    Ride.countDocuments({ ...rideScope, status: RIDE_STATUS.CANCELLED }),
+    Ride.find({ ...rideScope, status: RIDE_STATUS.CANCELLED }).sort({ cancelledAt: -1 }).limit(100).lean(),
   ]);
 
   const [driverPerformanceAgg, revenueAgg, peakHoursAgg] = await Promise.all([
     Ride.aggregate([
       { $match: { status: RIDE_STATUS.COMPLETED, driverId: { $ne: null } } },
+      ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
       {
         $group: {
           _id: "$driverId",
@@ -54,6 +66,7 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
     ]),
     Ride.aggregate([
       { $match: { status: RIDE_STATUS.COMPLETED } },
+      ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
       {
         $group: {
           _id: null,
@@ -63,6 +76,7 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
       },
     ]),
     Ride.aggregate([
+      ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
       {
         $group: {
           _id: { $hour: "$createdAt" },
@@ -85,7 +99,7 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
 
     bookingTrend.push({
       day: start.toLocaleDateString("en-IN", { weekday: "short" }),
-      count: await Ride.countDocuments({ createdAt: { $gte: start, $lt: end } }),
+      count: await Ride.countDocuments({ ...rideScope, createdAt: { $gte: start, $lt: end } }),
     });
   }
 
@@ -99,6 +113,7 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
   const cancellationRate = totalRides > 0 ? Number(((cancelledRides / totalRides) * 100).toFixed(2)) : 0;
 
   const cancellationReasonAgg = await Cancellation.aggregate([
+    ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
     {
       $group: {
         _id: "$reasonKey",
@@ -152,7 +167,8 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
 });
 
 export const getFilteredRides = asyncHandler(async (req, res) => {
-  const query = {};
+  const scope = getCollegeScopedFilters(req);
+  const query = scope ? { collegeId: scope.collegeId } : {};
   if (req.query.driverId) {
     query.driverId = req.query.driverId;
   }
@@ -238,8 +254,14 @@ export const getFilteredRides = asyncHandler(async (req, res) => {
   });
 });
 
-export const getScheduledRideQueue = asyncHandler(async (_req, res) => {
-  const rows = await ScheduledRide.find({})
+export const getScheduledRideQueue = asyncHandler(async (req, res) => {
+  const scope = getCollegeScopedFilters(req);
+  const rideScope = scope ? { collegeId: scope.collegeId } : {};
+  const rideIds = scope
+    ? await Ride.find(rideScope).distinct("_id")
+    : null;
+
+  const rows = await ScheduledRide.find(scope ? { rideId: { $in: rideIds } } : {})
     .populate("rideId")
     .populate("studentId", "name email phone")
     .sort({ triggerAt: 1 })

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Settings, Save, RefreshCw } from "lucide-react";
-import { apiClient } from "@/lib/apiClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiClient, type CollegeDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
+import CollegeBoundaryEditor from "@/components/admin/CollegeBoundaryEditor";
 
 interface SettingRow {
   id: string;
@@ -24,6 +26,9 @@ interface RideSettingField {
   max?: number;
   step?: number;
 }
+
+const MIN_BOUNDARY_POINTS = 3;
+const MIN_BOUNDARY_AREA_M2 = 1500;
 
 const rideSettingFields: RideSettingField[] = [
   {
@@ -185,19 +190,68 @@ const coerceSettingValue = (rawValue: unknown, field: RideSettingField) => {
   return JSON.stringify(rawValue);
 };
 
+function computePolygonAreaMeters(points: Array<{ lat: number; lng: number }>) {
+  if (!Array.isArray(points) || points.length < MIN_BOUNDARY_POINTS) return 0;
+
+  const center = points.reduce(
+    (acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
+    { lat: 0, lng: 0 },
+  );
+  const centerLat = center.lat / points.length;
+  const centerLng = center.lng / points.length;
+
+  const metersPerDegreeLat = 111320;
+  const metersPerDegreeLng = 111320 * Math.cos((centerLat * Math.PI) / 180);
+
+  let area = 0;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = (points[i].lng - centerLng) * metersPerDegreeLng;
+    const yi = (points[i].lat - centerLat) * metersPerDegreeLat;
+    const xj = (points[j].lng - centerLng) * metersPerDegreeLng;
+    const yj = (points[j].lat - centerLat) * metersPerDegreeLat;
+    area += xj * yi - xi * yj;
+  }
+
+  return Math.abs(area / 2);
+}
+
+function validateBoundary(points: Array<{ lat: number; lng: number }>) {
+  if (!Array.isArray(points) || points.length < MIN_BOUNDARY_POINTS) {
+    throw new Error(`Boundary needs at least ${MIN_BOUNDARY_POINTS} points.`);
+  }
+
+  const area = computePolygonAreaMeters(points);
+  if (area < MIN_BOUNDARY_AREA_M2) {
+    throw new Error(`Boundary area is too small (${Math.round(area)} m2). Minimum is ${MIN_BOUNDARY_AREA_M2} m2.`);
+  }
+}
+
 const AdminSettings = () => {
+  const { user } = useAuth();
   const toast = useAppToast();
   const [settings, setSettings] = useState<SettingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rideSettings, setRideSettings] = useState<Record<string, boolean | number | string>>({});
+  const [colleges, setColleges] = useState<CollegeDto[]>([]);
+  const [myCollege, setMyCollege] = useState<CollegeDto | null>(null);
+  const [savingCollegeId, setSavingCollegeId] = useState<string | null>(null);
+  const [newCollegeName, setNewCollegeName] = useState("");
+  const [newCollegeCode, setNewCollegeCode] = useState("");
+  const [newCollegeBoundary, setNewCollegeBoundary] = useState<Array<{ lat: number; lng: number }>>([]);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiClient.settings.list() as { settings: SettingRow[] };
+      const [response, listResponse, myResponse] = await Promise.all([
+        apiClient.settings.list() as Promise<{ settings: SettingRow[] }>,
+        apiClient.colleges.list().catch(() => ({ colleges: [] as CollegeDto[] })),
+        apiClient.colleges.my().catch(() => ({ college: null as CollegeDto | null })),
+      ]);
       const rows = response.settings || [];
       setSettings(rows);
+      setColleges(listResponse.colleges || []);
+      setMyCollege(myResponse.college || null);
 
       const settingsMap = new Map(rows.map((row) => [row.key, row.value]));
       const nextRideSettings = rideSettingFields.reduce<Record<string, boolean | number | string>>((acc, field) => {
@@ -261,6 +315,68 @@ const AdminSettings = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const canCreateCollege = ["admin", "super_admin"].includes(user?.role || "");
+
+  const createCollege = async () => {
+    if (!newCollegeName.trim() || !newCollegeCode.trim()) {
+      toast.info("Missing fields", "College name and code are required.");
+      return;
+    }
+
+    try {
+      validateBoundary(newCollegeBoundary);
+    } catch (error) {
+      toast.error("Invalid boundary", error, "Please expand the polygon and try again.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiClient.colleges.create({
+        name: newCollegeName.trim(),
+        code: newCollegeCode.trim().toUpperCase(),
+        boundaryPolygon: newCollegeBoundary,
+      });
+      setNewCollegeName("");
+      setNewCollegeCode("");
+      setNewCollegeBoundary([]);
+      toast.success("College created", "New college has been added.");
+      await loadSettings();
+    } catch (error) {
+      toast.error("Could not create college", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveCollegeConfig = async (college: CollegeDto) => {
+    const boundary = college.boundaryPolygon || [];
+    try {
+      validateBoundary(boundary);
+    } catch (error) {
+      toast.error("Invalid college boundary", error, `Cannot save ${college.name} until boundary is valid.`);
+      return;
+    }
+
+    setSavingCollegeId(college.id);
+    try {
+      await apiClient.colleges.update(college.id, {
+        boundaryPolygon: boundary,
+        config: college.config || {},
+      });
+      toast.success("College settings saved", `${college.name} configuration updated.`);
+      await loadSettings();
+    } catch (error) {
+      toast.error("Could not save college settings", error);
+    } finally {
+      setSavingCollegeId(null);
+    }
+  };
+
+  const updateCollegeLocal = (collegeId: string, updater: (existing: CollegeDto) => CollegeDto) => {
+    setColleges((prev) => prev.map((college) => (college.id === collegeId ? updater(college) : college)));
   };
 
   return (
@@ -374,6 +490,133 @@ const AdminSettings = () => {
               </div>
             );
           })}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card-glass"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+            <Settings className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">College Management</h3>
+            <p className="text-xs text-muted-foreground">Per-college boundary and fare config</p>
+          </div>
+        </div>
+
+        {canCreateCollege && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+            <input
+              type="text"
+              value={newCollegeName}
+              onChange={(event) => setNewCollegeName(event.target.value)}
+              placeholder="College name"
+              className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+            />
+            <input
+              type="text"
+              value={newCollegeCode}
+              onChange={(event) => setNewCollegeCode(event.target.value.toUpperCase())}
+              placeholder="College code"
+              className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => void createCollege()}
+              disabled={saving}
+              className="btn-primary-gradient px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
+            >
+              Create College
+            </button>
+            <div className="md:col-span-3">
+              <CollegeBoundaryEditor points={newCollegeBoundary} onChange={setNewCollegeBoundary} />
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {(canCreateCollege ? colleges : myCollege ? [myCollege] : []).map((college) => (
+            <div key={college.id} className="py-3 border-b border-border/50 last:border-0">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-sm font-semibold">{college.name} ({college.code})</p>
+                <button
+                  type="button"
+                  onClick={() => void saveCollegeConfig(college)}
+                  disabled={savingCollegeId === college.id}
+                  className="px-3 py-1.5 rounded-lg text-xs bg-primary/20 text-primary disabled:opacity-60"
+                >
+                  {savingCollegeId === college.id ? "Saving..." : "Save College"}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={Number(college.config?.baseFare ?? 20)}
+                  onChange={(event) => updateCollegeLocal(college.id, (current) => ({
+                    ...current,
+                    config: { ...(current.config || {}), baseFare: Number(event.target.value) },
+                  }))}
+                  title="Base fare"
+                  placeholder="Base fare"
+                  className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+                />
+                <input
+                  type="number"
+                  value={Number(college.config?.platformFeePercent ?? 0)}
+                  onChange={(event) => updateCollegeLocal(college.id, (current) => ({
+                    ...current,
+                    config: { ...(current.config || {}), platformFeePercent: Number(event.target.value) },
+                  }))}
+                  title="Platform fee percent"
+                  placeholder="Platform fee %"
+                  className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+                />
+                <textarea
+                  title="College boundary"
+                  value={JSON.stringify(college.boundaryPolygon || [], null, 2)}
+                  onChange={(event) => {
+                    try {
+                      const parsed = JSON.parse(event.target.value);
+                      const boundary = Array.isArray(parsed)
+                        ? parsed
+                            .map((point) => {
+                              if (point && typeof point === "object") {
+                                return {
+                                  lat: Number((point as { lat?: number }).lat),
+                                  lng: Number((point as { lng?: number }).lng),
+                                };
+                              }
+                              return null;
+                            })
+                            .filter((point): point is { lat: number; lng: number } => Boolean(point) && Number.isFinite(point.lat) && Number.isFinite(point.lng))
+                        : [];
+                      updateCollegeLocal(college.id, (current) => ({ ...current, boundaryPolygon: boundary }));
+                    } catch {
+                      // Ignore invalid JSON edits until user fixes input.
+                    }
+                  }}
+                  rows={6}
+                  className="md:col-span-2 bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs font-mono"
+                />
+
+                <div className="md:col-span-2">
+                  <CollegeBoundaryEditor
+                    points={college.boundaryPolygon || []}
+                    onChange={(points) => updateCollegeLocal(college.id, (current) => ({ ...current, boundaryPolygon: points }))}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {!canCreateCollege && !myCollege && (
+            <p className="text-xs text-muted-foreground">No college assigned to your account yet.</p>
+          )}
         </div>
       </motion.div>
 

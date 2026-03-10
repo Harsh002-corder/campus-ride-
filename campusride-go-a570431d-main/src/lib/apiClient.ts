@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "@/config/api";
 
-export type UserRole = "student" | "driver" | "admin";
+export type UserRole = "student" | "driver" | "admin" | "super_admin" | "sub_admin";
 
 export interface AuthUser {
   id: string;
@@ -9,6 +9,7 @@ export interface AuthUser {
   phone?: string | null;
   avatarUrl?: string | null;
   role: UserRole;
+  collegeId?: string | null;
   isOnline?: boolean;
   isActive?: boolean;
   driverApprovalStatus?: "pending" | "approved" | "rejected";
@@ -38,6 +39,7 @@ export interface FavoriteLocation {
 
 export interface RideDto {
   id: string;
+  collegeId?: string | null;
   studentId: string | null;
   driverId: string | null;
   student?: { id: string; name: string; email?: string | null; phone?: string | null } | null;
@@ -125,6 +127,27 @@ export interface RideIssueDto {
   updatedAt: string;
 }
 
+export interface CollegeDto {
+  id: string;
+  name: string;
+  code: string;
+  status: "active" | "inactive";
+  location?: { lat?: number | null; lng?: number | null; address?: string } | null;
+  boundaryPolygon?: Array<{ lat: number; lng: number }>;
+  subAdminId?: string | null;
+  config?: {
+    baseFare?: number | null;
+    perKmRate?: number | null;
+    perMinuteRate?: number | null;
+    minimumFare?: number | null;
+    platformFeePercent?: number | null;
+    maxPassengers?: number | null;
+    matchingRadiusKm?: number | null;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 const TOKEN_KEY = "campusride_token";
 
 export function getAuthToken() {
@@ -197,6 +220,7 @@ export const apiClient = {
       email: string;
       password: string;
       role: Extract<UserRole, "student" | "driver">;
+      collegeId?: string;
       phone?: string;
       driverSecurity?: {
         licenseNumber: string;
@@ -426,6 +450,39 @@ export const apiClient = {
     },
     update(input: { key: string; value: unknown; description?: string }) {
       return request("/settings", { method: "PUT", body: JSON.stringify(input) });
+    },
+  },
+  colleges: {
+    publicList() {
+      return request<{ colleges: CollegeDto[] }>("/colleges/public");
+    },
+    list() {
+      return request<{ colleges: CollegeDto[] }>("/colleges");
+    },
+    my() {
+      return request<{ college: CollegeDto | null }>("/colleges/my");
+    },
+    create(input: {
+      name: string;
+      code: string;
+      status?: "active" | "inactive";
+      location?: { lat?: number | null; lng?: number | null; address?: string };
+      boundaryPolygon?: Array<{ lat: number; lng: number }>;
+      subAdminId?: string | null;
+      config?: CollegeDto["config"];
+    }) {
+      return request<{ college: CollegeDto }>("/colleges", { method: "POST", body: JSON.stringify(input) });
+    },
+    update(collegeId: string, input: {
+      name?: string;
+      code?: string;
+      status?: "active" | "inactive";
+      location?: { lat?: number | null; lng?: number | null; address?: string };
+      boundaryPolygon?: Array<{ lat: number; lng: number }>;
+      subAdminId?: string | null;
+      config?: CollegeDto["config"];
+    }) {
+      return request<{ college: CollegeDto }>(`/colleges/${collegeId}`, { method: "PATCH", body: JSON.stringify(input) });
     },
   },
   stops: {

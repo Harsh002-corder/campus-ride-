@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { z } from "zod";
-import { ALLOWED_ROLES, ROLES } from "../constants/roles.js";
+import { ALLOWED_ROLES, ROLES, SUPER_ADMIN_ROLES } from "../constants/roles.js";
 import { Favorite, User } from "../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -17,6 +17,7 @@ export const adminUpdateUserSchema = z.object({
   phone: z.string().min(7).max(20).nullable().optional(),
   avatarUrl: z.string().max(2_000_000).nullable().optional(),
   role: z.enum(ALLOWED_ROLES).optional(),
+  collegeId: z.string().regex(/^[0-9a-fA-F]{24}$/).nullable().optional(),
   isActive: z.boolean().optional(),
   driverApprovalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
   driverVerificationStatus: z.enum(["pending", "approved", "rejected"]).optional(),
@@ -34,7 +35,12 @@ export const createFavoriteSchema = z.object({
 
 export const listUsers = asyncHandler(async (req, res) => {
   const role = req.query.role;
-  const query = role ? { role } : {};
+  const query = {
+    ...(role ? { role } : {}),
+    ...(req.user.role === ROLES.SUB_ADMIN && req.user.collegeId
+      ? { collegeId: new mongoose.Types.ObjectId(req.user.collegeId) }
+      : {}),
+  };
 
   const users = await User.find(query)
     .select("-passwordHash")
@@ -82,7 +88,17 @@ export const adminUpdateUser = asyncHandler(async (req, res) => {
     throw new AppError(404, "User not found");
   }
 
-  if (user.role === ROLES.ADMIN && req.body.role && req.body.role !== ROLES.ADMIN) {
+  const isSuperAdminLike = SUPER_ADMIN_ROLES.includes(req.user.role);
+  if (!isSuperAdminLike) {
+    if (!req.user.collegeId || user.collegeId?.toString?.() !== req.user.collegeId) {
+      throw new AppError(403, "Forbidden: cannot manage users outside your college");
+    }
+    if (req.body.role && [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN].includes(req.body.role)) {
+      throw new AppError(403, "Sub admin cannot promote admin roles");
+    }
+  }
+
+  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user.role) && req.body.role && ![ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(req.body.role)) {
     throw new AppError(400, "Cannot downgrade an admin user");
   }
 
@@ -146,8 +162,14 @@ export const adminDeleteUser = asyncHandler(async (req, res) => {
     throw new AppError(404, "User not found");
   }
 
-  if (user.role === ROLES.ADMIN) {
+  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN].includes(user.role)) {
     throw new AppError(400, "Cannot delete an admin user");
+  }
+
+  if (!SUPER_ADMIN_ROLES.includes(req.user.role)) {
+    if (!req.user.collegeId || user.collegeId?.toString?.() !== req.user.collegeId) {
+      throw new AppError(403, "Forbidden: cannot delete users outside your college");
+    }
   }
 
   if (user._id.toString() === req.user.id) {
@@ -242,6 +264,7 @@ function serializeUser(user) {
     phone: user.phone || null,
     avatarUrl: user.avatarUrl || null,
     role: user.role,
+    collegeId: user.collegeId?.toString?.() || null,
     isOnline: Boolean(user.isOnline),
     isActive: user.isActive !== false,
     driverApprovalStatus: user.driverApprovalStatus || "approved",

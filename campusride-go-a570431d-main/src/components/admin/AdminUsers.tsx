@@ -8,10 +8,12 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
-  role: "student" | "driver" | "admin";
+  role: "student" | "driver" | "admin" | "super_admin" | "sub_admin";
   isActive: boolean;
   createdAt?: string;
 }
+
+const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_admin"].includes(role);
 
 const AdminUsers = () => {
   const toast = useAppToast();
@@ -49,7 +51,7 @@ const AdminUsers = () => {
   }, [toast]);
 
   const toggleBlockUser = async (user: UserRow) => {
-    if (user.role === "admin") {
+    if (isAdminRole(user.role)) {
       toast.info("Action blocked", "Admin users cannot be blocked from this panel.");
       return;
     }
@@ -70,7 +72,7 @@ const AdminUsers = () => {
   };
 
   const deleteUser = async (user: UserRow) => {
-    if (user.role === "admin") {
+    if (isAdminRole(user.role)) {
       toast.info("Action blocked", "Admin users cannot be deleted from this panel.");
       return;
     }

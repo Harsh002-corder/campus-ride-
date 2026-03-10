@@ -66,7 +66,7 @@ const RideTracking = () => {
   const [isRideInfoVisible, setIsRideInfoVisible] = useState(true);
 
   const isDriverView = user?.role === "driver";
-  const backPath = user?.role === "driver" ? "/driver-dashboard" : user?.role === "admin" ? "/admin" : "/student-dashboard";
+  const backPath = user?.role === "driver" ? "/driver-dashboard" : ["admin", "super_admin", "sub_admin"].includes(user?.role || "") ? "/admin" : "/student-dashboard";
   const pickupPos = isValidLatLng(ride?.pickup) ? ride.pickup : null;
   const dropPos = isValidLatLng(ride?.drop) ? ride.drop : null;
   const contactRoleLabel = isDriverView ? "Student" : "Driver";

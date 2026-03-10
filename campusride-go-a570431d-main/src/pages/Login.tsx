@@ -31,7 +31,7 @@ const Login = () => {
     try {
       const response = await apiClient.auth.login({ email, password });
       login(response.user, response.token);
-      navigate(response.user.role === "admin" ? "/admin" : response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
+      navigate(["admin", "super_admin", "sub_admin"].includes(response.user.role) ? "/admin" : response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

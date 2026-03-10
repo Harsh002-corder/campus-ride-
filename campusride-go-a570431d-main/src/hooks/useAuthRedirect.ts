@@ -9,7 +9,7 @@ export const useAuthRedirect = () => {
     if (!isAuthenticated) {
       navigate("/login", { state: { from: "booking" } });
     } else {
-      navigate(user?.role === "admin" ? "/admin" : user?.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
+      navigate(["admin", "super_admin", "sub_admin"].includes(user?.role || "") ? "/admin" : user?.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
     }
   };
 

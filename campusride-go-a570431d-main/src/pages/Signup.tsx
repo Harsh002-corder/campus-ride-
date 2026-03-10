@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,8 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<"student" | "driver">("student");
+  const [collegeId, setCollegeId] = useState("");
+  const [collegeOptions, setCollegeOptions] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,24 @@ const Signup = () => {
   const [info, setInfo] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+    const loadColleges = async () => {
+      try {
+        const response = await apiClient.colleges.publicList();
+        if (!mounted) return;
+        setCollegeOptions((response.colleges || []).map((item) => ({ id: item.id, name: item.name, code: item.code })));
+      } catch {
+        if (mounted) setCollegeOptions([]);
+      }
+    };
+
+    void loadColleges();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +78,7 @@ const Signup = () => {
           password,
           role,
           ...(phone ? { phone } : {}),
+          ...(collegeId ? { collegeId } : {}),
           ...(role === "driver"
             ? {
                 driverSecurity: {
@@ -185,6 +206,23 @@ const Signup = () => {
                   onChange={(e) => setPhone(e.target.value)}
                   className={inputClass}
                 />
+              </div>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <select
+                  value={collegeId}
+                  onChange={(e) => setCollegeId(e.target.value)}
+                  disabled={otpRequested}
+                  className={`${inputClass} appearance-none`}
+                  title="Select college"
+                >
+                  <option value="">Select your college (optional)</option>
+                  {collegeOptions.map((college) => (
+                    <option key={college.id} value={college.id}>
+                      {college.name} ({college.code})
+                    </option>
+                  ))}
+                </select>
               </div>
               {role === "driver" && (
                 <>

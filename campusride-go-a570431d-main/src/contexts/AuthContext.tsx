@@ -5,7 +5,8 @@ interface User {
   id?: string;
   name: string;
   email: string;
-  role: "student" | "driver" | "admin";
+  role: "student" | "driver" | "admin" | "super_admin" | "sub_admin";
+  collegeId?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
   driverApprovalStatus?: "pending" | "approved" | "rejected";

@@ -148,6 +148,8 @@ export function emitRideUpdate(ride) {
   }
 
   io.to("role:admin").emit("admin:ride-updated", ride);
+  io.to("role:super_admin").emit("admin:ride-updated", ride);
+  io.to("role:sub_admin").emit("admin:ride-updated", ride);
 }
 
 export function emitNewRideRequest(ride, onlineDriverIds = []) {
@@ -169,6 +171,8 @@ export function emitNewRideRequest(ride, onlineDriverIds = []) {
   }
 
   io.to("role:admin").emit("admin:ride-requested", ride);
+  io.to("role:super_admin").emit("admin:ride-requested", ride);
+  io.to("role:sub_admin").emit("admin:ride-requested", ride);
 }
 
 export function emitUserNotification(userId, notification) {
@@ -185,6 +189,8 @@ export function emitAdminIssueCreated(issue) {
   }
 
   io.to("role:admin").emit("admin:issue-created", issue);
+  io.to("role:super_admin").emit("admin:issue-created", issue);
+  io.to("role:sub_admin").emit("admin:issue-created", issue);
 }
 
 export function emitAdminIssueUpdated(payload) {
@@ -193,4 +199,6 @@ export function emitAdminIssueUpdated(payload) {
   }
 
   io.to("role:admin").emit("admin:issue-updated", payload);
+  io.to("role:super_admin").emit("admin:issue-updated", payload);
+  io.to("role:sub_admin").emit("admin:issue-updated", payload);
 }

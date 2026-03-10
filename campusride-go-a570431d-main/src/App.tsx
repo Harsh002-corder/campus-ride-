@@ -26,7 +26,7 @@ const RequireAuth = ({
   allowedRoles,
 }: {
   children: JSX.Element;
-  allowedRoles?: Array<"student" | "driver" | "admin">;
+  allowedRoles?: Array<"student" | "driver" | "admin" | "super_admin" | "sub_admin">;
 }) => {
   const { isAuthenticated, user } = useAuth();
 
@@ -35,7 +35,7 @@ const RequireAuth = ({
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={user.role === "admin" ? "/admin" : user.role === "driver" ? "/driver-dashboard" : "/student-dashboard"} replace />;
+    return <Navigate to={["admin", "super_admin", "sub_admin"].includes(user.role) ? "/admin" : user.role === "driver" ? "/driver-dashboard" : "/student-dashboard"} replace />;
   }
 
   return children;
@@ -52,7 +52,7 @@ const AnimatedRoutes = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/student-dashboard" element={<RequireAuth allowedRoles={["student"]}><StudentDashboard /></RequireAuth>} />
         <Route path="/driver-dashboard" element={<RequireAuth allowedRoles={["driver"]}><DriverDashboard /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth allowedRoles={["admin", "super_admin", "sub_admin"]}><AdminDashboard /></RequireAuth>} />
         <Route path="/ride-tracking" element={<RequireAuth><RideTracking /></RequireAuth>} />
         <Route path="/ride-tracking/:id" element={<RequireAuth><RideTracking /></RequireAuth>} />
         <Route path="/track/:token" element={<PublicRideTracking />} />

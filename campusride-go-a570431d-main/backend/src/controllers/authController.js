@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { env } from "../config/env.js";
-import { ALLOWED_ROLES, ROLES } from "../constants/roles.js";
-import { PasswordResetOTP, SignupOTP, User } from "../models/index.js";
+import { ROLES } from "../constants/roles.js";
+import { College, PasswordResetOTP, SignupOTP, User } from "../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { signJwt } from "../utils/jwt.js";
@@ -13,8 +13,9 @@ export const requestSignupOtpSchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email().transform((value) => value.toLowerCase().trim()),
   password: z.string().min(8).max(128),
-  role: z.enum(ALLOWED_ROLES.filter((r) => r !== ROLES.ADMIN)),
+  role: z.enum([ROLES.STUDENT, ROLES.DRIVER]),
   phone: z.string().min(7).max(20).optional(),
+  collegeId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
   driverSecurity: z
     .object({
       licenseNumber: z.string().min(5).max(40),
@@ -36,7 +37,7 @@ export const requestSignupOtpSchema = z.object({
 
 export const verifySignupOtpSchema = z.object({
   email: z.string().email().transform((value) => value.toLowerCase().trim()),
-  role: z.enum(ALLOWED_ROLES.filter((r) => r !== ROLES.ADMIN)),
+  role: z.enum([ROLES.STUDENT, ROLES.DRIVER]),
   otp: z.string().regex(/^\d{6}$/),
 });
 
@@ -56,10 +57,17 @@ export const resetPasswordSchema = z.object({
 });
 
 export const requestSignupOtp = asyncHandler(async (req, res) => {
-  const { name, email, password, role, phone, driverSecurity } = req.body;
+  const { name, email, password, role, phone, driverSecurity, collegeId } = req.body;
   const existingUser = await User.findOne({ email }).lean();
   if (existingUser) {
     throw new AppError(409, "An account with this email already exists");
+  }
+
+  if (collegeId) {
+    const college = await College.findOne({ _id: collegeId, status: "active" }).lean();
+    if (!college) {
+      throw new AppError(400, "Selected college is invalid or inactive");
+    }
   }
 
   const otp = generateOtp(6);
@@ -87,6 +95,7 @@ export const requestSignupOtp = asyncHandler(async (req, res) => {
     passwordHash,
     role,
     phone: phone || null,
+    collegeId: collegeId || null,
     driverSecurity: role === ROLES.DRIVER ? driverSecurity : null,
     otp,
     consumed: false,
@@ -148,6 +157,7 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
     email: otpDoc.email,
     phone: otpDoc.phone,
     driverSecurity: otpDoc.driverSecurity || null,
+    collegeId: otpDoc.collegeId || null,
     passwordHash: otpDoc.passwordHash,
     role: otpDoc.role,
     isOnline: false,
@@ -174,6 +184,7 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
     sub: user._id.toString(),
     role: user.role,
     email: user.email,
+    collegeId: user.collegeId?.toString?.() || null,
   });
 
   res.status(201).json({
@@ -205,6 +216,7 @@ export const login = asyncHandler(async (req, res) => {
     sub: user._id.toString(),
     role: user.role,
     email: user.email,
+    collegeId: user.collegeId?.toString?.() || null,
   });
 
   await User.updateOne(
@@ -330,6 +342,7 @@ function sanitizeUser(user) {
     phone: user.phone || null,
     avatarUrl: user.avatarUrl || null,
     role: user.role,
+    collegeId: user.collegeId?.toString?.() || null,
     isOnline: Boolean(user.isOnline),
     isActive: user.isActive !== false,
     driverApprovalStatus: user.driverApprovalStatus || "approved",

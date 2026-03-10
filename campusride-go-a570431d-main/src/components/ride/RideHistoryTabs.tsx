@@ -59,11 +59,7 @@ const RideHistoryTabs = ({
 
     const loadRides = async () => {
       try {
-        const response = user?.role === "driver"
-          ? await apiClient.rides.my()
-          : user?.role === "admin"
-            ? await apiClient.rides.my()
-            : await apiClient.rides.my();
+        const response = await apiClient.rides.my();
 
         if (mounted) {
           setRides(response.rides || []);

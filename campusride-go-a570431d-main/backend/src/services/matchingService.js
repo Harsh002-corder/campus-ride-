@@ -40,6 +40,17 @@ function normalizePerformanceScore(score) {
 }
 
 function readDriverLocation(driver) {
+  if (
+    driver.currentLocationGeo
+    && Array.isArray(driver.currentLocationGeo.coordinates)
+    && driver.currentLocationGeo.coordinates.length >= 2
+  ) {
+    const [lng, lat] = driver.currentLocationGeo.coordinates;
+    if (typeof lat === "number" && typeof lng === "number") {
+      return { lat, lng };
+    }
+  }
+
   const location = driver.currentLocation || driver.location || null;
   if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
     return null;
@@ -57,22 +68,8 @@ function calculateCompositeScore(input) {
   return Number((weighted * 100).toFixed(2));
 }
 
-export async function findBestDriverForRide({ pickup, drop, passengers = 1 }) {
-  const busyDriverIds = await Ride.find({ status: { $in: [RIDE_STATUS.ACCEPTED, RIDE_STATUS.ONGOING] }, driverId: { $ne: null } })
-    .distinct("driverId");
-
-  const blockedSet = new Set(busyDriverIds.map((id) => id.toString()));
-
-  const availableDrivers = await User.find({
-    role: ROLES.DRIVER,
-    isOnline: true,
-    driverApprovalStatus: "approved",
-    driverVerificationStatus: { $in: ["approved", null] },
-  })
-    .select("name phone email currentLocation location rating ratingAverage seatsAvailable vehicleSeats preferredRoute driverPerformanceScore")
-    .lean();
-
-  const scored = availableDrivers
+function scoreDrivers(drivers, blockedSet, { pickup, drop, passengers, matchingRadiusKm }) {
+  return drivers
     .filter((driver) => !blockedSet.has(driver._id.toString()))
     .map((driver) => {
       const location = readDriverLocation(driver);
@@ -107,7 +104,87 @@ export async function findBestDriverForRide({ pickup, drop, passengers = 1 }) {
       };
     })
     .filter((driver) => driver.scores.seatScore > 0)
+    .filter((driver) => {
+      if (!matchingRadiusKm || !Number.isFinite(Number(matchingRadiusKm))) return true;
+      return driver.distanceKm <= Number(matchingRadiusKm);
+    })
     .sort((a, b) => b.scores.matchScore - a.scores.matchScore);
+}
+
+function buildDriverQuery({ collegeId }) {
+  return {
+    role: ROLES.DRIVER,
+    ...(collegeId ? { collegeId: toObjectId(collegeId) } : {}),
+    isOnline: true,
+    driverApprovalStatus: "approved",
+    driverVerificationStatus: { $in: ["approved", null] },
+  };
+}
+
+async function findGeoNearbyDrivers({ pickup, collegeId, matchingRadiusKm, selectFields }) {
+  if (!matchingRadiusKm || !Number.isFinite(Number(matchingRadiusKm))) {
+    return [];
+  }
+
+  const baseRadius = Math.max(0.2, Number(matchingRadiusKm));
+  const radiusSteps = [baseRadius, Math.min(baseRadius * 1.8, 25), Math.min(baseRadius * 3, 35)];
+  const dedupe = new Map();
+
+  for (const radiusKm of radiusSteps) {
+    const maxDistance = Math.round(radiusKm * 1000);
+
+    const rows = await User.find({
+      ...buildDriverQuery({ collegeId }),
+      currentLocationGeo: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+          $maxDistance: maxDistance,
+        },
+      },
+    })
+      .select(selectFields)
+      .limit(40)
+      .lean();
+
+    for (const row of rows) {
+      dedupe.set(row._id.toString(), row);
+    }
+
+    if (dedupe.size >= 10) {
+      break;
+    }
+  }
+
+  return Array.from(dedupe.values());
+}
+
+export async function findBestDriverForRide({ pickup, drop, passengers = 1, collegeId = null, matchingRadiusKm = null }) {
+  const busyDriverIds = await Ride.find({ status: { $in: [RIDE_STATUS.ACCEPTED, RIDE_STATUS.ONGOING] }, driverId: { $ne: null } })
+    .distinct("driverId");
+
+  const blockedSet = new Set(busyDriverIds.map((id) => id.toString()));
+
+  const selectFields = "name phone email currentLocation currentLocationGeo location rating ratingAverage seatsAvailable vehicleSeats preferredRoute driverPerformanceScore";
+  let availableDrivers = [];
+
+  try {
+    availableDrivers = await findGeoNearbyDrivers({ pickup, collegeId, matchingRadiusKm, selectFields });
+  } catch {
+    availableDrivers = [];
+  }
+
+  if (availableDrivers.length === 0) {
+    availableDrivers = await User.find(buildDriverQuery({ collegeId }))
+      .select(selectFields)
+      .lean();
+  }
+
+  const scored = scoreDrivers(availableDrivers, blockedSet, {
+    pickup,
+    drop,
+    passengers,
+    matchingRadiusKm,
+  });
 
   return {
     bestDriver: scored[0] || null,

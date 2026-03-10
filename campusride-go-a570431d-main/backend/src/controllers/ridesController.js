@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { z } from "zod";
 import { env } from "../config/env.js";
-import { RIDE_STATUS, ROLES } from "../constants/roles.js";
-import { Cancellation, EmailLog, Payment, Rating, Ride, ScheduledRide, Setting, User } from "../models/index.js";
+import { RIDE_STATUS, ROLES, ADMIN_DASHBOARD_ROLES } from "../constants/roles.js";
+import { Cancellation, College, EmailLog, Payment, Rating, Ride, ScheduledRide, Setting, User } from "../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateUniqueRideCode } from "../utils/rideCode.js";
@@ -53,6 +53,7 @@ const DEFAULT_RIDE_SETTINGS = {
   platformFeePercent: 0,
   pickupDropStops: [],
   campusBoundaryPolygon: CAMPUS_BOUNDARY_POLYGON,
+  matchingRadiusKm: 8,
 };
 
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
@@ -187,24 +188,37 @@ function isWithinBoundary(point, polygon = CAMPUS_BOUNDARY_POLYGON) {
   return insideBounds && pointInPolygon(point, polygon);
 }
 
-async function getRideRuntimeSettings() {
+async function getRideRuntimeSettings(collegeId = null) {
   const keys = Object.values(RIDE_SETTING_KEYS);
   const rows = await Setting.find({ key: { $in: keys } }).lean();
   const map = new Map(rows.map((row) => [row.key, row.value]));
 
+  const college = collegeId && mongoose.Types.ObjectId.isValid(collegeId)
+    ? await College.findById(collegeId).lean()
+    : null;
+
+  const collegeConfig = college?.config || {};
+  const collegeBoundary = Array.isArray(college?.boundaryPolygon) && college.boundaryPolygon.length >= 3
+    ? college.boundaryPolygon
+    : null;
+
   return {
+    collegeId: college?._id?.toString?.() || null,
     bookingEnabled: parseBooleanSetting(map.get(RIDE_SETTING_KEYS.bookingEnabled), DEFAULT_RIDE_SETTINGS.bookingEnabled),
-    maxPassengers: Math.max(1, Math.min(6, parseNumberSetting(map.get(RIDE_SETTING_KEYS.maxPassengers), DEFAULT_RIDE_SETTINGS.maxPassengers))),
+    maxPassengers: Math.max(1, Math.min(6, parseNumberSetting(collegeConfig.maxPassengers ?? map.get(RIDE_SETTING_KEYS.maxPassengers), DEFAULT_RIDE_SETTINGS.maxPassengers))),
     cancellationWindowMinutes: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.cancellationWindowMinutes), DEFAULT_RIDE_SETTINGS.cancellationWindowMinutes)),
     locationSyncIntervalSeconds: Math.max(1, parseNumberSetting(map.get(RIDE_SETTING_KEYS.locationSyncIntervalSeconds), DEFAULT_RIDE_SETTINGS.locationSyncIntervalSeconds)),
     supportPhone: String(map.get(RIDE_SETTING_KEYS.supportPhone) || DEFAULT_RIDE_SETTINGS.supportPhone),
-    baseFare: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.baseFare), DEFAULT_RIDE_SETTINGS.baseFare)),
-    perKmRate: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.perKmRate), DEFAULT_RIDE_SETTINGS.perKmRate)),
-    perMinuteRate: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.perMinuteRate), DEFAULT_RIDE_SETTINGS.perMinuteRate)),
-    minimumFare: Math.max(0, parseNumberSetting(map.get(RIDE_SETTING_KEYS.minimumFare), DEFAULT_RIDE_SETTINGS.minimumFare)),
-    platformFeePercent: Math.max(0, Math.min(100, parseNumberSetting(map.get(RIDE_SETTING_KEYS.platformFeePercent), DEFAULT_RIDE_SETTINGS.platformFeePercent))),
+    baseFare: Math.max(0, parseNumberSetting(collegeConfig.baseFare ?? map.get(RIDE_SETTING_KEYS.baseFare), DEFAULT_RIDE_SETTINGS.baseFare)),
+    perKmRate: Math.max(0, parseNumberSetting(collegeConfig.perKmRate ?? map.get(RIDE_SETTING_KEYS.perKmRate), DEFAULT_RIDE_SETTINGS.perKmRate)),
+    perMinuteRate: Math.max(0, parseNumberSetting(collegeConfig.perMinuteRate ?? map.get(RIDE_SETTING_KEYS.perMinuteRate), DEFAULT_RIDE_SETTINGS.perMinuteRate)),
+    minimumFare: Math.max(0, parseNumberSetting(collegeConfig.minimumFare ?? map.get(RIDE_SETTING_KEYS.minimumFare), DEFAULT_RIDE_SETTINGS.minimumFare)),
+    platformFeePercent: Math.max(0, Math.min(100, parseNumberSetting(collegeConfig.platformFeePercent ?? map.get(RIDE_SETTING_KEYS.platformFeePercent), DEFAULT_RIDE_SETTINGS.platformFeePercent))),
+    matchingRadiusKm: Math.max(0.2, parseNumberSetting(collegeConfig.matchingRadiusKm, DEFAULT_RIDE_SETTINGS.matchingRadiusKm)),
     pickupDropStops: normalizeStopList(map.get(RIDE_SETTING_KEYS.pickupDropStops), DEFAULT_RIDE_SETTINGS.pickupDropStops),
-    campusBoundary: normalizePolygon(map.get(RIDE_SETTING_KEYS.campusBoundaryPolygon), DEFAULT_RIDE_SETTINGS.campusBoundaryPolygon),
+    campusBoundary: collegeBoundary
+      ? normalizePolygon(collegeBoundary, DEFAULT_RIDE_SETTINGS.campusBoundaryPolygon)
+      : normalizePolygon(map.get(RIDE_SETTING_KEYS.campusBoundaryPolygon), DEFAULT_RIDE_SETTINGS.campusBoundaryPolygon),
   };
 }
 
@@ -291,7 +305,12 @@ export const bookRide = asyncHandler(async (req, res) => {
     throw new AppError(403, "Only students can book rides");
   }
 
-  const settings = await getRideRuntimeSettings();
+  const student = await User.findById(req.user.id).select("collegeId").lean();
+  if (!student?.collegeId) {
+    throw new AppError(400, "Your account is not mapped to a college. Contact admin.");
+  }
+
+  const settings = await getRideRuntimeSettings(student.collegeId.toString());
   if (!settings.bookingEnabled) {
     throw new AppError(409, `Ride booking is currently disabled. Contact support at ${settings.supportPhone}`);
   }
@@ -314,9 +333,9 @@ export const bookRide = asyncHandler(async (req, res) => {
   }
 
   const [activeRideCount, onlineDriverCount, onlineDrivers] = await Promise.all([
-    Ride.countDocuments({ status: { $in: [...REQUESTED_LIKE_STATUSES, RIDE_STATUS.ACCEPTED, ...ONGOING_LIKE_STATUSES] } }),
-    User.countDocuments({ role: ROLES.DRIVER, isOnline: true, driverApprovalStatus: "approved" }),
-    User.find({ role: ROLES.DRIVER, isOnline: true, driverApprovalStatus: "approved" }).select("_id").lean(),
+    Ride.countDocuments({ collegeId: student.collegeId, status: { $in: [...REQUESTED_LIKE_STATUSES, RIDE_STATUS.ACCEPTED, ...ONGOING_LIKE_STATUSES] } }),
+    User.countDocuments({ role: ROLES.DRIVER, collegeId: student.collegeId, isOnline: true, driverApprovalStatus: "approved" }),
+    User.find({ role: ROLES.DRIVER, collegeId: student.collegeId, isOnline: true, driverApprovalStatus: "approved" }).select("_id").lean(),
   ]);
 
   const fareBreakdown = estimateRideFare({
@@ -341,6 +360,8 @@ export const bookRide = asyncHandler(async (req, res) => {
       pickup: req.body.pickup,
       drop: req.body.drop,
       passengers: requestedPassengers,
+      collegeId: student.collegeId.toString(),
+      matchingRadiusKm: settings.matchingRadiusKm,
     });
 
   const now = new Date();
@@ -350,6 +371,7 @@ export const bookRide = asyncHandler(async (req, res) => {
 
   const rideDoc = {
     studentId: new mongoose.Types.ObjectId(req.user.id),
+    collegeId: student.collegeId,
     driverId: null,
     pickup: req.body.pickup,
     drop: req.body.drop,
@@ -407,12 +429,12 @@ export const bookRide = asyncHandler(async (req, res) => {
 });
 
 export const estimateFare = asyncHandler(async (req, res) => {
-  const settings = await getRideRuntimeSettings();
+  const settings = await getRideRuntimeSettings(req.user.collegeId || null);
   assertRidePointsWithinCampus(req.body.pickup, req.body.drop, settings.campusBoundary);
 
   const [activeRideCount, onlineDriverCount] = await Promise.all([
-    Ride.countDocuments({ status: { $in: [...REQUESTED_LIKE_STATUSES, RIDE_STATUS.ACCEPTED, ...ONGOING_LIKE_STATUSES] } }),
-    User.countDocuments({ role: ROLES.DRIVER, isOnline: true, driverApprovalStatus: "approved" }),
+    Ride.countDocuments({ ...(settings.collegeId ? { collegeId: settings.collegeId } : {}), status: { $in: [...REQUESTED_LIKE_STATUSES, RIDE_STATUS.ACCEPTED, ...ONGOING_LIKE_STATUSES] } }),
+    User.countDocuments({ role: ROLES.DRIVER, ...(settings.collegeId ? { collegeId: settings.collegeId } : {}), isOnline: true, driverApprovalStatus: "approved" }),
   ]);
 
   const fare = estimateRideFare({
@@ -435,7 +457,9 @@ export const listMyRides = asyncHandler(async (req, res) => {
     ? { studentId: new mongoose.Types.ObjectId(req.user.id) }
     : req.user.role === ROLES.DRIVER
       ? { driverId: new mongoose.Types.ObjectId(req.user.id) }
-      : {};
+      : (req.user.role === ROLES.SUB_ADMIN && req.user.collegeId)
+        ? { collegeId: new mongoose.Types.ObjectId(req.user.collegeId) }
+        : {};
 
   // Driver dashboards behave as a queue: oldest accepted ride should stay active first.
   const sortByCreatedAt = req.user.role === ROLES.DRIVER ? 1 : -1;
@@ -454,7 +478,9 @@ export const listRideHistory = asyncHandler(async (req, res) => {
     ? { studentId: new mongoose.Types.ObjectId(req.user.id) }
     : req.user.role === ROLES.DRIVER
       ? { driverId: new mongoose.Types.ObjectId(req.user.id) }
-      : {};
+      : (req.user.role === ROLES.SUB_ADMIN && req.user.collegeId)
+        ? { collegeId: new mongoose.Types.ObjectId(req.user.collegeId) }
+        : {};
 
   const rides = await Ride.find({
     ...query,
@@ -471,7 +497,13 @@ export const listRideHistory = asyncHandler(async (req, res) => {
 
 export const listAvailableRides = asyncHandler(async (req, res) => {
   const driverObjectId = new mongoose.Types.ObjectId(req.user.id);
+  const driver = await User.findById(req.user.id).select("collegeId").lean();
+  if (!driver?.collegeId) {
+    return res.json({ rides: [] });
+  }
+
   const rides = await Ride.find({
+    collegeId: driver.collegeId,
     status: { $in: REQUESTED_LIKE_STATUSES },
     driverId: null,
     deniedDriverIds: { $ne: driverObjectId },
@@ -553,6 +585,9 @@ export const acceptRide = asyncHandler(async (req, res) => {
   if (driver.driverApprovalStatus !== "approved" || (driver.driverVerificationStatus && driver.driverVerificationStatus !== "approved")) {
     throw new AppError(403, "Driver verification pending. Upload documents and wait for admin approval.");
   }
+  if (!driver.collegeId) {
+    throw new AppError(403, "Driver is not mapped to any college");
+  }
 
   const rideId = new mongoose.Types.ObjectId(req.params.rideId);
   const now = new Date();
@@ -563,6 +598,7 @@ export const acceptRide = asyncHandler(async (req, res) => {
       status: { $in: REQUESTED_LIKE_STATUSES },
       driverId: null,
       deniedDriverIds: { $ne: new mongoose.Types.ObjectId(req.user.id) },
+      collegeId: driver.collegeId,
     },
     {
       $set: {
@@ -604,6 +640,7 @@ export const rejectRide = asyncHandler(async (req, res) => {
       _id: rideId,
       status: { $in: REQUESTED_LIKE_STATUSES },
       driverId: null,
+      ...(req.user.collegeId ? { collegeId: new mongoose.Types.ObjectId(req.user.collegeId) } : {}),
     },
     {
       $addToSet: {
@@ -891,10 +928,17 @@ export const cancelRide = asyncHandler(async (req, res) => {
 
   const isStudent = req.user.role === ROLES.STUDENT && ride.studentId?.toString() === req.user.id;
   const isDriver = req.user.role === ROLES.DRIVER && ride.driverId?.toString() === req.user.id;
-  const isAdmin = req.user.role === ROLES.ADMIN;
+  const isAdmin = ADMIN_DASHBOARD_ROLES.includes(req.user.role);
 
   if (!isStudent && !isDriver && !isAdmin) {
     throw new AppError(403, "Not allowed to cancel this ride");
+  }
+
+  if (req.user.role === ROLES.SUB_ADMIN) {
+    const rideCollegeId = ride.collegeId?.toString?.() || null;
+    if (!req.user.collegeId || rideCollegeId !== req.user.collegeId) {
+      throw new AppError(403, "Sub admin cannot cancel rides outside assigned college");
+    }
   }
 
   if (ride.status === RIDE_STATUS.COMPLETED || ride.status === RIDE_STATUS.CANCELLED) {
@@ -948,6 +992,7 @@ export const cancelRide = asyncHandler(async (req, res) => {
 
   await Cancellation.create({
     rideId,
+    collegeId: ride.collegeId || null,
     cancelledByUserId: new mongoose.Types.ObjectId(req.user.id),
     cancelledByRole: cancelledBy,
     reasonKey: cancellation.reasonKey,
@@ -1007,12 +1052,13 @@ export const updateDriverLocation = asyncHandler(async (req, res) => {
 
   const rideId = new mongoose.Types.ObjectId(req.params.rideId);
   const now = new Date();
-  const settings = await getRideRuntimeSettings();
 
   const ride = await Ride.findById(rideId).lean();
   if (!ride) {
     throw new AppError(404, "Ride not found");
   }
+
+  const settings = await getRideRuntimeSettings(ride?.collegeId?.toString?.() || null);
 
   const rideDriverId = ride.driverId?.toString() || null;
   const rideStudentId = ride.studentId?.toString() || null;
@@ -1073,8 +1119,15 @@ export const updateDriverLocation = asyncHandler(async (req, res) => {
 });
 
 function enforceRideAccess(user, ride) {
-  if (user.role === ROLES.ADMIN) {
+  if ([ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user.role)) {
     return;
+  }
+
+  if (user.role === ROLES.SUB_ADMIN) {
+    if (user.collegeId && ride.collegeId?.toString?.() === user.collegeId) {
+      return;
+    }
+    throw new AppError(403, "Forbidden ride access");
   }
 
   const resolveRefId = (value) => {
@@ -1216,6 +1269,7 @@ function serializeRide(ride) {
 
   return {
     id: ride._id.toString(),
+    collegeId: ride.collegeId?.toString?.() || null,
     studentId,
     driverId,
     student: ride.studentId && typeof ride.studentId === "object" && ride.studentId._id
