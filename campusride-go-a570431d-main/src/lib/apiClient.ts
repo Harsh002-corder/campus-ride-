@@ -245,6 +245,15 @@ export const apiClient = {
         body: JSON.stringify(input),
       });
     },
+    superAdminSetupStatus() {
+      return request<{ initialized: boolean; message: string }>("/auth/super-admin-signup/status");
+    },
+    superAdminSignup(input: { name: string; email: string; password: string }) {
+      return request<{ message: string }>("/auth/super-admin-signup", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+    },
     login(input: { email: string; password: string }) {
       return request<{ token: string; user: AuthUser }>("/auth/login", {
         method: "POST",

@@ -40,6 +40,14 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index(
+  { role: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { role: "super_admin" },
+    name: "unique_super_admin_role",
+  },
+);
 userSchema.index({ role: 1, isOnline: 1 });
 userSchema.index({ collegeId: 1, role: 1 });
 userSchema.index({ currentLocationGeo: "2dsphere" });

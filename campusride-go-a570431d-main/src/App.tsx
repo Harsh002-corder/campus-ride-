@@ -12,6 +12,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import StudentDashboard from "./pages/StudentDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import SuperAdminSetup from "./pages/SuperAdminSetup";
 import NotFound from "./pages/NotFound";
 import RideTracking from "./pages/RideTracking";
 import RidesPage from "./pages/RidesPage";
@@ -35,7 +37,7 @@ const RequireAuth = ({
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={["admin", "super_admin", "sub_admin"].includes(user.role) ? "/admin" : user.role === "driver" ? "/driver-dashboard" : "/student-dashboard"} replace />;
+    return <Navigate to={user.role === "super_admin" ? "/super-admin-dashboard" : ["admin", "sub_admin"].includes(user.role) ? "/admin" : user.role === "driver" ? "/driver-dashboard" : "/student-dashboard"} replace />;
   }
 
   return children;
@@ -49,10 +51,12 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/system/setup-super-admin" element={<SuperAdminSetup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/student-dashboard" element={<RequireAuth allowedRoles={["student"]}><StudentDashboard /></RequireAuth>} />
         <Route path="/driver-dashboard" element={<RequireAuth allowedRoles={["driver"]}><DriverDashboard /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth allowedRoles={["admin", "super_admin", "sub_admin"]}><AdminDashboard /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth allowedRoles={["admin", "sub_admin"]}><AdminDashboard /></RequireAuth>} />
+        <Route path="/super-admin-dashboard" element={<RequireAuth allowedRoles={["super_admin"]}><SuperAdminDashboard /></RequireAuth>} />
         <Route path="/ride-tracking" element={<RequireAuth><RideTracking /></RequireAuth>} />
         <Route path="/ride-tracking/:id" element={<RequireAuth><RideTracking /></RequireAuth>} />
         <Route path="/track/:token" element={<PublicRideTracking />} />

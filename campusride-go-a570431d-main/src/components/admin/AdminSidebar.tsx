@@ -32,15 +32,16 @@ interface AdminSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   pendingIssuesCount?: number;
+  panelLabel?: string;
 }
 
-export function AdminSidebar({ activeTab, setActiveTab, pendingIssuesCount = 0 }: AdminSidebarProps) {
+export function AdminSidebar({ activeTab, setActiveTab, pendingIssuesCount = 0, panelLabel = "Admin Panel" }: AdminSidebarProps) {
   return (
     <Sidebar className="border-r border-border">
       <SidebarContent className="pt-4">
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground px-4 mb-2">
-            <Shield className="w-3 h-3 mr-1 inline" /> Admin Panel
+            <Shield className="w-3 h-3 mr-1 inline" /> {panelLabel}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

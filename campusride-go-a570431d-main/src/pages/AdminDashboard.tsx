@@ -30,10 +30,16 @@ const tabs: Record<string, React.FC> = {
   settings: AdminSettings,
 };
 
-const AdminDashboard = () => {
+interface AdminDashboardProps {
+  panelBadge?: string;
+  sidebarLabel?: string;
+  initialTab?: keyof typeof tabs;
+}
+
+const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", initialTab = "overview" }: AdminDashboardProps) => {
   const { user, logout, login } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [pendingIssuesCount, setPendingIssuesCount] = useState(0);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
@@ -99,7 +105,7 @@ const AdminDashboard = () => {
         <div className="min-h-screen flex w-full bg-background relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none [background:var(--gradient-hero)]" />
 
-          <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingIssuesCount={pendingIssuesCount} />
+          <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingIssuesCount={pendingIssuesCount} panelLabel={sidebarLabel} />
 
           <div className="flex-1 flex flex-col relative z-10">
             {/* Top bar */}
@@ -110,7 +116,7 @@ const AdminDashboard = () => {
                   <BrandIcon className="w-8 h-8 rounded-lg" />
                   <span className="text-lg font-bold font-display">
                     Campus<span className="gradient-text">Ride</span>
-                    <span className="text-xs ml-2 bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">Admin</span>
+                    <span className="text-xs ml-2 bg-primary/20 text-primary px-2 py-0.5 rounded-full font-medium">{panelBadge}</span>
                   </span>
                 </div>
               </div>
