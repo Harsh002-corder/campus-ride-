@@ -13,8 +13,11 @@ const SuperAdminSetup = () => {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [setupApiAvailable, setSetupApiAvailable] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const isMissingSetupApi = (value: string) => value.toLowerCase().includes("route not found");
 
   useEffect(() => {
     let mounted = true;
@@ -26,8 +29,14 @@ const SuperAdminSetup = () => {
         if (response.initialized) {
           setMessage("System already initialized.");
         }
-      } catch {
+      } catch (err) {
         if (!mounted) return;
+        const text = err instanceof Error ? err.message : "Unable to verify setup status right now.";
+        if (isMissingSetupApi(text)) {
+          setSetupApiAvailable(false);
+          setError("Setup API not deployed yet. Redeploy backend to enable super admin setup.");
+          return;
+        }
         setError("Unable to verify setup status right now.");
       } finally {
         if (mounted) setStatusLoading(false);
@@ -53,6 +62,11 @@ const SuperAdminSetup = () => {
       return;
     }
 
+    if (!setupApiAvailable) {
+      setError("Setup API not deployed yet. Redeploy backend to enable super admin setup.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await apiClient.auth.superAdminSignup({
@@ -67,7 +81,12 @@ const SuperAdminSetup = () => {
       setPassword("");
     } catch (err) {
       const text = err instanceof Error ? err.message : "Setup failed";
-      setError(text);
+      if (isMissingSetupApi(text)) {
+        setSetupApiAvailable(false);
+        setError("Setup API not deployed yet. Redeploy backend to enable super admin setup.");
+      } else {
+        setError(text);
+      }
       if (text.includes("Super Admin already exists")) {
         setInitialized(true);
         setMessage("System already initialized.");
@@ -152,7 +171,7 @@ const SuperAdminSetup = () => {
 
                 <button
                   type="submit"
-                  disabled={initialized || loading}
+                  disabled={initialized || loading || !setupApiAvailable}
                   className="w-full btn-primary-gradient py-3 rounded-xl font-semibold text-sm shadow-lg shadow-primary/20 disabled:opacity-60"
                 >
                   {loading ? "Creating..." : "Create Super Admin"}
