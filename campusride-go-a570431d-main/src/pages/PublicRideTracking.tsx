@@ -135,8 +135,8 @@ const PublicRideTracking = () => {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <div className="absolute inset-0 [background:var(--gradient-hero)]" />
-      <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <div className="glass rounded-2xl px-4 py-3 flex items-center justify-between">
+      <div className="relative z-10 max-w-6xl mx-auto p-3 sm:p-4 md:p-6 space-y-4">
+        <div className="glass rounded-2xl px-3 sm:px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <BrandIcon className="w-8 h-8" />
             <div>
@@ -153,7 +153,7 @@ const PublicRideTracking = () => {
         {socketInfo && <div className="glass rounded-xl px-4 py-3 text-sm text-muted-foreground">{socketInfo}</div>}
 
         <div className="grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 h-[420px] glass rounded-2xl overflow-hidden">
+          <div className="lg:col-span-2 h-[55vh] min-h-[300px] max-h-[520px] glass rounded-2xl overflow-hidden">
             {isLoaded && (
               <GoogleMap
                 mapContainerStyle={mapContainerStyle}
@@ -173,7 +173,7 @@ const PublicRideTracking = () => {
             )}
           </div>
 
-          <div className="glass rounded-2xl p-4 space-y-4">
+          <div className="glass rounded-2xl p-3 sm:p-4 space-y-4">
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
               <p className="text-sm font-semibold">Route</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {ride?.pickup?.label || "—"}</p>

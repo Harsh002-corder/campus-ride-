@@ -707,18 +707,18 @@ const DriverDashboard = () => {
         )}
 
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
-        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
+        <div className="absolute top-1/4 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
 
         <div className="relative z-10">
-          <nav className="glass py-4 px-6 sticky top-0 z-20">
-            <div className="container mx-auto flex items-center justify-between">
+          <nav className="glass py-3 sm:py-4 px-3 sm:px-6 sticky top-0 z-20">
+            <div className="container mx-auto flex items-center justify-between gap-2 flex-wrap">
               <a href="/" className="flex items-center gap-2">
                 <BrandIcon className="w-9 h-9" />
-                <span className="text-xl font-bold font-display">
+                <span className="text-base sm:text-xl font-bold font-display">
                   Campus<span className="gradient-text">Ride</span>
                 </span>
               </a>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={toggleOnline}
@@ -746,14 +746,14 @@ const DriverDashboard = () => {
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   <span className="text-foreground font-medium">{user?.name}</span>
                 </span>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-4 py-2 rounded-xl text-sm flex items-center gap-2">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
                   <LogOut className="w-4 h-4" /> Logout
                 </motion.button>
               </div>
             </div>
           </nav>
 
-          <div className="container mx-auto px-6 py-8 space-y-8">
+          <div className="container mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
             <motion.div {...card(0)} className={`card-glass border ${isOnline ? "border-green-500/30" : "border-muted"}`}>
               <h1 className="text-2xl md:text-3xl font-bold font-display mb-1">
                 {isOnline ? <>You're <span className="text-green-400">Online</span> 🟢</> : <>You're <span className="text-muted-foreground">Offline</span> ⚫</>}

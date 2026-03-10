@@ -103,8 +103,8 @@ const AdminDashboard = () => {
 
           <div className="flex-1 flex flex-col relative z-10">
             {/* Top bar */}
-            <nav className="glass py-3 px-6 sticky top-0 z-20 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <nav className="glass py-3 px-3 sm:px-6 sticky top-0 z-20 flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
                 <div className="hidden sm:flex items-center gap-2">
                   <BrandIcon className="w-8 h-8 rounded-lg" />
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <NotificationBell />
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -131,14 +131,14 @@ const AdminDashboard = () => {
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   <span className="text-foreground font-medium">{user?.name || "Admin"}</span>
                 </span>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-3 py-2 rounded-xl text-sm flex items-center gap-2">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
                   <LogOut className="w-4 h-4" /> Logout
                 </motion.button>
               </div>
             </nav>
 
             {/* Content */}
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-3 sm:p-6 overflow-auto">
               <ActiveComponent />
             </main>
           </div>

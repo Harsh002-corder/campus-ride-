@@ -103,7 +103,7 @@ const Signup = () => {
     <PageTransition>
       <div className="min-h-screen bg-background flex items-center justify-center px-6 py-12 relative overflow-hidden">
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] rounded-full opacity-15 animate-pulse-glow [background:var(--gradient-glow)]" />
+        <div className="absolute bottom-1/3 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-15 animate-pulse-glow [background:var(--gradient-glow)]" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

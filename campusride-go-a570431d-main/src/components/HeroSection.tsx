@@ -10,8 +10,8 @@ const HeroSection = () => {
     <section className="relative min-h-screen flex items-center overflow-hidden" id="home">
       {/* Background effects */}
       <div className="absolute inset-0" style={{ background: "var(--gradient-hero)" }} />
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full opacity-20 animate-pulse-glow" style={{ background: "var(--gradient-glow)" }} />
-      <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] rounded-full opacity-15 animate-pulse-glow" style={{ background: "radial-gradient(ellipse, hsl(263, 70%, 50%, 0.2), transparent 70%)", animationDelay: "1.5s" }} />
+      <div className="absolute top-1/4 left-1/4 w-[min(68vw,500px)] h-[min(68vw,500px)] rounded-full opacity-20 animate-pulse-glow" style={{ background: "var(--gradient-glow)" }} />
+      <div className="absolute bottom-1/3 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-15 animate-pulse-glow" style={{ background: "radial-gradient(ellipse, hsl(263, 70%, 50%, 0.2), transparent 70%)", animationDelay: "1.5s" }} />
 
       <div className="container mx-auto px-6 relative z-10 pt-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">

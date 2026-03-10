@@ -26,10 +26,10 @@ const Navbar = () => {
         scrolled ? "glass py-3" : "py-5 bg-transparent"
       }`}
     >
-      <div className="container mx-auto flex items-center justify-between px-6">
+      <div className="container mx-auto flex items-center justify-between px-3 sm:px-6 gap-3">
         <a href="#home" className="flex items-center gap-2 group">
           <BrandIcon className="w-9 h-9" />
-          <span className="text-xl font-bold font-display text-foreground">
+          <span className="text-base sm:text-xl font-bold font-display text-foreground">
             Campus<span className="gradient-text">Ride</span>
           </span>
         </a>
@@ -55,7 +55,8 @@ const Navbar = () => {
 
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden text-foreground"
+          className="md:hidden text-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors"
+          aria-label="Toggle mobile navigation"
         >
           {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>

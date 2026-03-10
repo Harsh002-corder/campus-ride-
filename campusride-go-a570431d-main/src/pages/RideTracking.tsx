@@ -459,7 +459,7 @@ const RideTracking = () => {
         )}
       </div>
 
-      <div className="relative z-10 p-4 flex items-center justify-between">
+      <div className="relative z-10 p-3 sm:p-4 flex items-center justify-between gap-2">
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -473,10 +473,10 @@ const RideTracking = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass px-4 py-2 rounded-xl flex items-center gap-2"
+          className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 min-w-0"
         >
           <BrandIcon className="w-7 h-7 rounded-lg" />
-          <span className="font-bold font-display text-sm">
+          <span className="font-bold font-display text-xs sm:text-sm truncate">
             Campus<span className="gradient-text">Ride</span>
           </span>
         </motion.div>
@@ -500,7 +500,7 @@ const RideTracking = () => {
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.1 }}
-            className="glass rounded-t-3xl p-6 space-y-5"
+            className="glass rounded-t-3xl p-4 sm:p-6 space-y-4 sm:space-y-5"
           >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -629,7 +629,7 @@ const RideTracking = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-4 sm:gap-6 text-xs text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full inline-block bg-green-500" /> Pickup
             </span>

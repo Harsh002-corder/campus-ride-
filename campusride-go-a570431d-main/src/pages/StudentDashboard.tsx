@@ -567,19 +567,19 @@ const StudentDashboard = () => {
     <PageTransition>
       <div className="min-h-screen bg-background relative overflow-hidden">
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
-        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
+        <div className="absolute top-1/4 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
 
         <div className="relative z-10">
           {/* Navbar */}
-          <nav className="glass py-4 px-6 sticky top-0 z-20">
-            <div className="container mx-auto flex items-center justify-between">
+          <nav className="glass py-3 sm:py-4 px-3 sm:px-6 sticky top-0 z-20">
+            <div className="container mx-auto flex items-center justify-between gap-2 flex-wrap">
               <a href="/" className="flex items-center gap-2">
                 <BrandIcon className="w-9 h-9" />
-                <span className="text-xl font-bold font-display">
+                <span className="text-base sm:text-xl font-bold font-display">
                   Campus<span className="gradient-text">Ride</span>
                 </span>
               </a>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <NotificationBell />
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -596,14 +596,14 @@ const StudentDashboard = () => {
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   Hey, <span className="text-foreground font-medium">{user?.name}</span>
                 </span>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-4 py-2 rounded-xl text-sm flex items-center gap-2">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
                   <LogOut className="w-4 h-4" /> Logout
                 </motion.button>
               </div>
             </div>
           </nav>
 
-          <div className="container mx-auto px-6 py-8 space-y-8">
+          <div className="container mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
             {/* Welcome + Booking */}
             <div className="grid lg:grid-cols-5 gap-6">
               <motion.div {...card(0)} className="lg:col-span-3 card-glass">
@@ -613,7 +613,7 @@ const StudentDashboard = () => {
                 <p className="text-muted-foreground text-sm mb-6">Where are you heading today?</p>
 
                 <div className="flex flex-col gap-3">
-                  <div className="flex flex-col sm:flex-row gap-3 items-center">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                     <StopTypeahead
                       placeholder="Pickup location"
                       value={pickup}
@@ -667,7 +667,7 @@ const StudentDashboard = () => {
                   <p className="text-[11px] text-muted-foreground">Select pickup and drop-off from suggestions to continue.</p>
                   <div className="flex flex-col sm:flex-row gap-3 items-center">
                     {/* Passenger count */}
-                    <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl py-2.5 px-4">
+                    <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl py-2.5 px-4 w-full sm:w-auto justify-center">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <div className="flex items-center gap-1">
                         <button
@@ -685,12 +685,12 @@ const StudentDashboard = () => {
                       whileTap={{ scale: 0.97 }}
                       onClick={handleFindRide}
                       disabled={booking || !rideBookingEnabled}
-                      className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap flex-1 sm:flex-none disabled:opacity-70"
+                      className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap w-full sm:w-auto sm:flex-1 disabled:opacity-70"
                     >
                       {!rideBookingEnabled ? "Booking Paused" : booking ? "Finding..." : "Find Ride"}
                     </motion.button>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
                       className={`px-2.5 py-1 rounded-lg border ${
                         gpsVerification.state === "verified"
@@ -704,7 +704,7 @@ const StudentDashboard = () => {
                     >
                       GPS: {gpsVerification.state === "idle" ? "Not verified" : gpsVerification.state}
                     </span>
-                    <span className="text-muted-foreground">{gpsVerification.message}</span>
+                    <span className="text-muted-foreground break-words">{gpsVerification.message}</span>
                     <button
                       type="button"
                       onClick={handleReverifyGps}
@@ -738,7 +738,7 @@ const StudentDashboard = () => {
                     />
                     Split fare among passengers
                   </label>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <button onClick={() => saveCurrentAsFavorite("pickup")} className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70">Save pickup as favorite</button>
                     <button onClick={() => saveCurrentAsFavorite("drop")} className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70">Save drop as favorite</button>
                   </div>

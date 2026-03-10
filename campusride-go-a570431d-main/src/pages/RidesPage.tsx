@@ -22,8 +22,8 @@ const RidesPage = () => {
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="relative z-10">
           {/* Navbar */}
-          <nav className="glass py-4 px-6 sticky top-0 z-20">
-            <div className="container mx-auto flex items-center justify-between">
+          <nav className="glass py-3 sm:py-4 px-3 sm:px-6 sticky top-0 z-20">
+            <div className="container mx-auto flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -34,7 +34,7 @@ const RidesPage = () => {
                 </motion.button>
                 <a href="/" className="flex items-center gap-2">
                   <BrandIcon className="w-9 h-9" />
-                  <span className="text-xl font-bold font-display">
+                  <span className="text-base sm:text-xl font-bold font-display">
                     Campus<span className="gradient-text">Ride</span>
                   </span>
                 </a>
@@ -42,7 +42,7 @@ const RidesPage = () => {
             </div>
           </nav>
 
-          <div className="container mx-auto px-6 py-8">
+          <div className="container mx-auto px-3 sm:px-6 py-6 sm:py-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
