@@ -8,7 +8,6 @@ import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import RideCompletionPopup from "@/components/ride/RideCompletionPopup";
 import StopTypeahead from "@/components/ride/StopTypeahead";
 import ProfileDialog from "@/components/ProfileDialog";
-import TMUCampusLeafletMap from "@/components/map/TMUCampusLeafletMap";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +37,22 @@ const toNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-type SelectedPoint = { lat: number; lng: number; label: string };
 type GpsVerificationState = {
   state: "idle" | "checking" | "verified" | "failed";
   message: string;
 };
 
-const formatPinnedLabel = (lat: number, lng: number) => `Pinned ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
+
+function resolveStop(value: string, selectedStop: CampusStop | null) {
+  if (selectedStop && selectedStop.name === value) {
+    return selectedStop;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  return CAMPUS_STOPS.find((stop) => stop.name.toLowerCase() === normalized) || null;
+}
 
 function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
   return new Promise((resolve, reject) => {
@@ -95,15 +102,12 @@ const StudentDashboard = () => {
   const [rideSecurityPhone, setRideSecurityPhone] = useState("+91 100");
   const [rideAmbulancePhone, setRideAmbulancePhone] = useState("+91 108");
   const [emergencyOpen, setEmergencyOpen] = useState(false);
-  const [mapSelectionTarget, setMapSelectionTarget] = useState<"pickup" | "drop">("pickup");
   const [cancelReasonKey, setCancelReasonKey] = useState("change_of_plans");
   const [cancelCustomReason, setCancelCustomReason] = useState("");
   const [issueRideId, setIssueRideId] = useState("");
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
-  const [pickupPoint, setPickupPoint] = useState<SelectedPoint | null>(null);
-  const [dropPoint, setDropPoint] = useState<SelectedPoint | null>(null);
   const [gpsVerification, setGpsVerification] = useState<GpsVerificationState>({
     state: "idle",
     message: "Select pickup to verify GPS",
@@ -306,63 +310,7 @@ const StudentDashboard = () => {
     setDrop(pickup);
     setPickupStop(dropStop);
     setDropStop(pickupStop);
-    setPickupPoint(dropPoint);
-    setDropPoint(pickupPoint);
     setGpsVerification({ state: "idle", message: "Select pickup to verify GPS" });
-  };
-
-  const handleLeafletPointSelect = async (point: { lat: number; lng: number }, target: "pickup" | "drop") => {
-    if (target === "pickup") {
-      setGpsVerification({ state: "checking", message: "Verifying pickup with GPS..." });
-
-      if (!isWithinCampusBoundary(point)) {
-        setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
-        toast.info("Pickup location must be inside the campus.");
-        return;
-      }
-
-      try {
-        const gps = await getCurrentPosition();
-        if (!isWithinCampusBoundary({ lat: gps.lat, lng: gps.lng })) {
-          setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-          toast.info("Pickup location must be inside the campus.");
-          return;
-        }
-
-        const pickupDistanceMeters = getDistanceMeters({ lat: gps.lat, lng: gps.lng }, point);
-        if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
-          setGpsVerification({
-            state: "failed",
-            message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
-          });
-          toast.info("Pickup location must be within 200 meters of your current GPS location.");
-          return;
-        }
-
-        setGpsVerification({
-          state: "verified",
-          message: `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
-        });
-      } catch (error) {
-        setGpsVerification({ state: "failed", message: "GPS access required for booking" });
-        toast.error("Unable to verify your location", error, "Enable location access to book rides.");
-        return;
-      }
-    }
-
-    const label = formatPinnedLabel(point.lat, point.lng);
-
-    if (target === "pickup") {
-      setPickup(label);
-      setPickupStop(null);
-      setPickupPoint({ lat: point.lat, lng: point.lng, label });
-      setMapSelectionTarget("drop");
-      return;
-    }
-
-    setDrop(label);
-    setDropStop(null);
-    setDropPoint({ lat: point.lat, lng: point.lng, label });
   };
 
   const handleFindRide = async () => {
@@ -371,19 +319,22 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!pickupPoint || !dropPoint) {
+    const resolvedPickup = resolveStop(pickup, pickupStop);
+    const resolvedDrop = resolveStop(drop, dropStop);
+
+    if (!resolvedPickup || !resolvedDrop) {
       setGpsVerification({ state: "failed", message: "Select pickup and drop first" });
-      toast.info("Select pickup and drop locations", "Please choose pickup and drop points on the map.");
+      toast.info("Select valid stops", "Choose pickup and drop-off from stop suggestions.");
       return;
     }
 
-    if (!isWithinCampusBoundary(pickupPoint)) {
+    if (!isWithinCampusBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng })) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
       toast.info("Pickup location must be inside the campus.");
       return;
     }
 
-    if (pickupPoint.lat === dropPoint.lat && pickupPoint.lng === dropPoint.lng) {
+    if (resolvedPickup.lat === resolvedDrop.lat && resolvedPickup.lng === resolvedDrop.lng) {
       setGpsVerification({ state: "failed", message: "Pickup and drop cannot be the same" });
       toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
       return;
@@ -407,7 +358,7 @@ const StudentDashboard = () => {
 
     const pickupDistanceMeters = getDistanceMeters(
       { lat: gpsLocation.lat, lng: gpsLocation.lng },
-      { lat: pickupPoint.lat, lng: pickupPoint.lng },
+      { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
     );
     if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
       setGpsVerification({
@@ -432,8 +383,8 @@ const StudentDashboard = () => {
     setBooking(true);
     try {
       const response = await apiClient.rides.book({
-        pickup: { lat: gpsLocation.lat, lng: gpsLocation.lng, label: pickupPoint.label || pickup },
-        drop: { lat: dropPoint.lat, lng: dropPoint.lng, label: dropPoint.label || drop },
+        pickup: { lat: gpsLocation.lat, lng: gpsLocation.lng, label: resolvedPickup.name || pickup },
+        drop: { lat: resolvedDrop.lat, lng: resolvedDrop.lng, label: resolvedDrop.name || drop },
         studentGps: { lat: gpsLocation.lat, lng: gpsLocation.lng, accuracy: gpsLocation.accuracy || undefined },
         passengers,
         passengerNames,
@@ -456,7 +407,9 @@ const StudentDashboard = () => {
   };
 
   const handleReverifyGps = async () => {
-    if (!pickupPoint) {
+    const resolvedPickup = resolveStop(pickup, pickupStop);
+
+    if (!resolvedPickup) {
       setGpsVerification({ state: "failed", message: "Select pickup first" });
       toast.info("Select pickup location", "Choose a pickup point before GPS verification.");
       return;
@@ -481,7 +434,7 @@ const StudentDashboard = () => {
 
     const pickupDistanceMeters = getDistanceMeters(
       { lat: gpsLocation.lat, lng: gpsLocation.lng },
-      { lat: pickupPoint.lat, lng: pickupPoint.lng },
+      { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
     );
 
     if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
@@ -515,13 +468,13 @@ const StudentDashboard = () => {
   };
 
   const saveCurrentAsFavorite = async (type: "pickup" | "drop") => {
-    const point = type === "pickup" ? pickupPoint : dropPoint;
+    const point = type === "pickup" ? resolveStop(pickup, pickupStop) : resolveStop(drop, dropStop);
     if (!point) {
       toast.info("Select a location first", `Choose a ${type} location before saving as favorite.`);
       return;
     }
 
-    const defaultLabel = type === "pickup" ? (pickup || point.label) : (drop || point.label);
+    const defaultLabel = type === "pickup" ? (pickup || point.name) : (drop || point.name);
     const label = window.prompt(`Favorite label for ${defaultLabel}`, defaultLabel);
     if (!label?.trim()) return;
 
@@ -531,7 +484,7 @@ const StudentDashboard = () => {
         location: {
           lat: point.lat,
           lng: point.lng,
-          address: point.label,
+          address: point.name,
         },
       });
       toast.success("Favorite saved", `${label.trim()} saved successfully.`);
@@ -668,13 +621,11 @@ const StudentDashboard = () => {
                         setPickup(value);
                         if (pickupStop?.name !== value) {
                           setPickupStop(null);
-                          setPickupPoint(null);
                           setGpsVerification({ state: "idle", message: "Select pickup to verify GPS" });
                         }
                       }}
                       onSelect={(stop) => {
                         setPickupStop(stop);
-                        setPickupPoint({ lat: stop.lat, lng: stop.lng, label: stop.name });
                         setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" });
                       }}
                       stops={CAMPUS_STOPS}
@@ -700,12 +651,10 @@ const StudentDashboard = () => {
                         setDrop(value);
                         if (dropStop?.name !== value) {
                           setDropStop(null);
-                          setDropPoint(null);
                         }
                       }}
                       onSelect={(stop) => {
                         setDropStop(stop);
-                        setDropPoint({ lat: stop.lat, lng: stop.lng, label: stop.name });
                       }}
                       stops={CAMPUS_STOPS}
                       minChars={2}
@@ -715,46 +664,7 @@ const StudentDashboard = () => {
                       icon={<Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
                     />
                   </div>
-                  <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">Map stop picker</p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setMapSelectionTarget("pickup")}
-                          className={`px-2 py-1 rounded-lg text-xs ${mapSelectionTarget === "pickup" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}
-                        >
-                          Pickup
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMapSelectionTarget("drop")}
-                          className={`px-2 py-1 rounded-lg text-xs ${mapSelectionTarget === "drop" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}
-                        >
-                          Drop-off
-                        </button>
-                      </div>
-                    </div>
-
-                  <div className="h-56 rounded-xl overflow-hidden">
-                    <TMUCampusLeafletMap
-                      pickupPoint={pickupPoint}
-                      dropPoint={dropPoint}
-                      selectionTarget={mapSelectionTarget}
-                      onSelectPoint={handleLeafletPointSelect}
-                      onBoundaryViolation={() => {
-                        toast.info("Pickup location must be inside the campus.");
-                      }}
-                    />
-                  </div>
-
-                    <p className="text-[11px] text-muted-foreground">
-                      Click inside the highlighted campus boundary to set {mapSelectionTarget === "pickup" ? "pickup" : "drop-off"}.
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Selected: P {pickupPoint?.label || "—"} · D {dropPoint?.label || "—"}
-                    </p>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground">Select pickup and drop-off from suggestions to continue.</p>
                   <div className="flex flex-col sm:flex-row gap-3 items-center">
                     {/* Passenger count */}
                     <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl py-2.5 px-4">
