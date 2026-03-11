@@ -19,7 +19,7 @@ import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
 import { apiClient, type AuthUser, type RideIssueDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
-import { LogOut, UserCircle2 } from "lucide-react";
+import { LogOut, UserCircle2, UserPlus } from "lucide-react";
 
 const tabs: Record<string, React.FC> = {
   overview: AdminOverview,
@@ -42,6 +42,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [pendingIssuesCount, setPendingIssuesCount] = useState(0);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [createSubAdminRequestKey, setCreateSubAdminRequestKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -97,7 +98,19 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
     window.location.assign("/");
   };
 
-  const ActiveComponent = tabs[activeTab] || AdminOverview;
+  const handleOpenCreateSubAdmin = () => {
+    setActiveTab("users");
+    setCreateSubAdminRequestKey((value) => value + 1);
+  };
+
+  const renderActiveComponent = () => {
+    if (activeTab === "users") {
+      return <AdminUsers createSubAdminRequestKey={createSubAdminRequestKey} />;
+    }
+
+    const ActiveComponent = tabs[activeTab] || AdminOverview;
+    return <ActiveComponent />;
+  };
 
   return (
     <PageTransition>
@@ -121,6 +134,15 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
                 </div>
               </div>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+                {user?.role === "admin" && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleOpenCreateSubAdmin}
+                    className="btn-primary-gradient px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" /> Create Sub-Admin
+                  </motion.button>
+                )}
                 <NotificationBell />
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -145,7 +167,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
 
             {/* Content */}
             <main className="flex-1 p-3 sm:p-6 overflow-auto">
-              <ActiveComponent />
+              {renderActiveComponent()}
             </main>
           </div>
         </div>

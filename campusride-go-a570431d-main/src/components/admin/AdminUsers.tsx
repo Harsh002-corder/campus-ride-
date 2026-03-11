@@ -5,6 +5,10 @@ import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface AdminUsersProps {
+  createSubAdminRequestKey?: number;
+}
+
 interface UserRow {
   id: string;
   name: string;
@@ -16,7 +20,7 @@ interface UserRow {
 
 const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_admin"].includes(role);
 
-const AdminUsers = () => {
+const AdminUsers = ({ createSubAdminRequestKey = 0 }: AdminUsersProps) => {
   const toast = useAppToast();
   const { user: authUser } = useAuth();
   const canCreateSubAdmin = authUser?.role === "admin";
@@ -57,6 +61,12 @@ const AdminUsers = () => {
       mounted = false;
     };
   }, [toast]);
+
+  useEffect(() => {
+    if (canCreateSubAdmin && createSubAdminRequestKey > 0) {
+      setShowCreateModal(true);
+    }
+  }, [canCreateSubAdmin, createSubAdminRequestKey]);
 
   const toggleBlockUser = async (user: UserRow) => {
     if (isAdminRole(user.role)) {

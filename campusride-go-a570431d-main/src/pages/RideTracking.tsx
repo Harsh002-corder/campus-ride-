@@ -152,7 +152,7 @@ const RideTracking = () => {
   const routeOriginRef = useRef<LatLngPoint | null>(null);
 
   const isDriverView = user?.role === "driver";
-  const backPath = user?.role === "driver" ? "/driver-dashboard" : user?.role === "super_admin" ? "/super-admin-dashboard" : ["admin", "sub_admin"].includes(user?.role || "") ? "/admin" : "/student-dashboard";
+  const backPath = user?.role === "driver" ? "/driver-dashboard" : user?.role === "super_admin" ? "/super-admin-dashboard" : user?.role === "sub_admin" ? "/sub-admin-dashboard" : user?.role === "admin" ? "/admin" : "/student-dashboard";
 
   const pickupPos = useMemo(() => (isValidLatLng(ride?.pickup) ? ride.pickup : null), [ride?.pickup]);
   const dropPos = useMemo(() => (isValidLatLng(ride?.drop) ? ride.drop : null), [ride?.drop]);
