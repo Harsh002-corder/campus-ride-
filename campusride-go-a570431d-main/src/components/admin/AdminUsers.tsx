@@ -19,7 +19,6 @@ interface UserRow {
 }
 
 const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_admin"].includes(role);
-const isMissingCreateSubAdminApi = (error: unknown) => error instanceof Error && /route not found/i.test(error.message);
 
 const AdminUsers = ({ createSubAdminRequestKey = 0 }: AdminUsersProps) => {
   const toast = useAppToast();
@@ -126,11 +125,7 @@ const AdminUsers = ({ createSubAdminRequestKey = 0 }: AdminUsersProps) => {
       setShowCreateModal(false);
       setCreateForm({ name: "", email: "", password: "", phone: "" });
     } catch (error) {
-      if (isMissingCreateSubAdminApi(error)) {
-        toast.error("Create sub-admin API not deployed", "Redeploy the backend to enable sub-admin account creation.");
-      } else {
-        toast.error("Could not create sub-admin", error);
-      }
+      toast.error("Could not create sub-admin", error, "Please verify backend deployment and try again.");
     } finally {
       setCreating(false);
     }

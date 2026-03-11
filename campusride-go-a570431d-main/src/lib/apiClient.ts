@@ -319,6 +319,10 @@ function buildTodayEarningsFromRides(rides: RideDto[]): DriverTodayEarningsDto {
   };
 }
 
+function isRouteNotFoundError(error: unknown) {
+  return error instanceof Error && /route not found/i.test(error.message || "");
+}
+
 export const apiClient = {
   auth: {
     requestSignupOtp(input: {
@@ -574,8 +578,30 @@ export const apiClient = {
     deleteUser(userId: string) {
       return request(`/users/${userId}`, { method: "DELETE" });
     },
-    createSubAdmin(input: { name: string; email: string; password: string; phone?: string | null; collegeId?: string | null }) {
-      return request(`/users/create-sub-admin`, { method: "POST", body: JSON.stringify(input) });
+    async createSubAdmin(input: { name: string; email: string; password: string; phone?: string | null; collegeId?: string | null }) {
+      const endpointCandidates = [
+        "/users/create-sub-admin",
+        "/admin/create-sub-admin",
+        "/users/create-subadmin",
+        "/admin/create-subadmin",
+      ];
+
+      let lastError: unknown = null;
+
+      for (const endpoint of endpointCandidates) {
+        try {
+          return await request(endpoint, { method: "POST", body: JSON.stringify(input) });
+        } catch (error) {
+          lastError = error;
+          if (!isRouteNotFoundError(error)) {
+            throw error;
+          }
+        }
+      }
+
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Create sub-admin route not found");
     },
   },
   settings: {
