@@ -45,7 +45,7 @@ type GpsVerificationState = {
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 // TODO: set back to false before going live
-const SKIP_GPS_VERIFICATION = true;
+const SKIP_GPS_VERIFICATION = false;
 
 function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {

@@ -53,9 +53,11 @@ async function setupPwa() {
 
   let refreshing = false;
 
+  // Auto-reload when new SW takes over (after user accepts update)
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
     refreshing = true;
+    console.log("[PWA] New service worker activated, reloading...");
     window.location.reload();
   });
 
@@ -63,14 +65,19 @@ async function setupPwa() {
     const updateServiceWorker = registerSW({
       immediate: true,
       onNeedRefresh() {
-        updateServiceWorker(true);
+        // Emit custom event instead of immediately reloading
+        // This allows React components to show a notification
+        console.log("[PWA] Update available, notifying user");
+        window.dispatchEvent(new Event("pwa-update-available"));
       },
       onRegisteredSW(_swUrl, registration) {
         if (!registration) return;
 
+        // Check for updates more frequently during development/testing
+        const checkInterval = import.meta.env.DEV ? 60 * 1000 : 60 * 60 * 1000;
         window.setInterval(() => {
           void registration.update();
-        }, 60 * 60 * 1000);
+        }, checkInterval);
       },
       onRegisterError(error) {
         console.warn("[PWA] Service worker registration failed", error);

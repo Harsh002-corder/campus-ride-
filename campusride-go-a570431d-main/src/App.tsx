@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import InstallAppButton from "@/components/InstallAppButton";
+import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -81,6 +82,11 @@ const AnimatedRoutes = () => {
   );
 };
 
+const PwaUpdateNotifier = () => {
+  usePwaUpdate();
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -90,6 +96,7 @@ const App = () => (
         <BrowserRouter>
           <AnimatedRoutes />
           <InstallAppButton />
+          <PwaUpdateNotifier />
           <Suspense fallback={null}>
             <JarviouWidget />
           </Suspense>

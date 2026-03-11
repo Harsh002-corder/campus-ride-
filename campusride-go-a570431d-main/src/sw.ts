@@ -9,6 +9,15 @@ import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
 
 declare let self: ServiceWorkerGlobalScope;
 
+// Version this cache name with each deployment to ensure old caches are cleaned up
+const CAMPUSRIDE_CACHE_VERSION = "campusride-v20260311";
+const CACHE_NAMES = {
+  STATIC_ASSETS: `${CAMPUSRIDE_CACHE_VERSION}-static-assets`,
+  MAP_UI: `${CAMPUSRIDE_CACHE_VERSION}-map-ui`,
+  API: `${CAMPUSRIDE_CACHE_VERSION}-api`,
+  PAGES: `${CAMPUSRIDE_CACHE_VERSION}-pages`,
+};
+
 const DEFAULT_API_URL = import.meta.env.PROD
   ? "https://campusride-backend.onrender.com"
   : "http://localhost:4000";
@@ -50,10 +59,34 @@ clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
+// Clean up old versioned caches during activation
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const cacheNames = await caches.keys();
+      const oldCaches = cacheNames.filter(name => {
+        // Delete all caches that don't match the current version
+        return ![
+          CACHE_NAMES.STATIC_ASSETS,
+          CACHE_NAMES.MAP_UI,
+          CACHE_NAMES.API,
+          CACHE_NAMES.PAGES,
+        ].includes(name);
+      });
+
+      return Promise.all(oldCaches.map(cacheName => {
+        console.log(`[PWA] Deleting old cache: ${cacheName}`);
+        return caches.delete(cacheName);
+      }));
+    })()
+  );
+  self.clients.claim();
+});
+
 registerRoute(
   ({ url, request }) => url.origin === self.location.origin && staticDestinations.has(request.destination),
   new CacheFirst({
-    cacheName: "campusride-static-assets",
+    cacheName: CACHE_NAMES.STATIC_ASSETS,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
       new ExpirationPlugin({
@@ -67,7 +100,7 @@ registerRoute(
 registerRoute(
   ({ url, request }) => mapUiOrigins.has(url.origin) && staticDestinations.has(request.destination),
   new CacheFirst({
-    cacheName: "campusride-map-ui",
+    cacheName: CACHE_NAMES.MAP_UI,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
       new ExpirationPlugin({
@@ -86,7 +119,7 @@ registerRoute(
 registerRoute(
   ({ url, request }) => request.method === "GET" && apiOrigins.has(url.origin) && url.pathname.startsWith("/api/"),
   new NetworkFirst({
-    cacheName: "campusride-api",
+    cacheName: CACHE_NAMES.API,
     networkTimeoutSeconds: 5,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
@@ -107,7 +140,7 @@ registerRoute(
     && !url.pathname.startsWith("/offline.html")
   ),
   new NetworkFirst({
-    cacheName: "campusride-pages",
+    cacheName: CACHE_NAMES.PAGES,
     networkTimeoutSeconds: 4,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
