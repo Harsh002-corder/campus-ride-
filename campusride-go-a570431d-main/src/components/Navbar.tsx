@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Download, Menu, X } from "lucide-react";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import BrandIcon from "@/components/BrandIcon";
 
 const navLinks = ["Home", "Features", "How It Works", "Drivers", "Contact"];
@@ -10,6 +11,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { handleBookRide } = useAuthRedirect();
+  const { canInstall, isInstalling, promptInstall } = useInstallPrompt();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -47,7 +49,20 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-3">
+          {canInstall && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={promptInstall}
+              disabled={isInstalling}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-primary/30 bg-background/80 text-foreground hover:bg-muted transition-colors disabled:opacity-70"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                {isInstalling ? "Installing..." : "Download App"}
+              </span>
+            </motion.button>
+          )}
           <motion.button whileTap={{ scale: 0.95 }} onClick={handleBookRide} className="btn-primary-gradient px-6 py-2.5 rounded-xl text-sm font-semibold">
             Book Ride
           </motion.button>
@@ -82,6 +97,22 @@ const Navbar = () => {
                   {link}
                 </a>
               ))}
+              {canInstall && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    void promptInstall();
+                    setMobileOpen(false);
+                  }}
+                  disabled={isInstalling}
+                  className="px-6 py-2.5 rounded-xl text-sm font-semibold border border-primary/30 bg-background/80 text-foreground mt-2 disabled:opacity-70"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    {isInstalling ? "Installing..." : "Download App"}
+                  </span>
+                </motion.button>
+              )}
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setMobileOpen(false); handleBookRide(); }} className="btn-primary-gradient px-6 py-2.5 rounded-xl text-sm font-semibold mt-2">
                 Book Ride
               </motion.button>

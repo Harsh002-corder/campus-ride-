@@ -52,3 +52,33 @@ Backend origin policy (in `backend/.env`):
 ```sh
 npm run build
 ```
+
+## PWA deployment on Vercel
+
+CampusRide now ships as an installable Progressive Web App.
+
+Features included:
+
+- Web app manifest at `/manifest.webmanifest`
+- Auto-updating service worker with offline shell support
+- Offline fallback page at `/offline.html`
+- Install prompt UI for Chrome on Android and desktop
+- Safari basic support through manifest and Apple mobile web app meta tags
+
+Deployment checklist:
+
+1. Set `VITE_API_URL` to your production backend origin, for example `https://api.your-domain.com`.
+2. Run `npm install` so `vite-plugin-pwa` is available locally and in CI.
+3. Run `npm run build` and verify the generated `dist/` includes `manifest.webmanifest`, `offline.html`, and the service worker bundle.
+4. Deploy the frontend build to Vercel as a static Vite app.
+5. Keep backend live tracking on your cloud backend; the service worker intentionally skips caching live ride tracking and socket traffic.
+
+Install behavior by platform:
+
+- Android Chrome: install prompt appears from the in-app Install App button.
+- Desktop Chrome: install prompt appears when Chrome allows installation.
+- Safari: users can use Share > Add to Home Screen; Safari does not fire `beforeinstallprompt`.
+
+Future push notifications:
+
+- The service worker includes `push` and `notificationclick` handlers so backend notification events like driver accepted ride, driver arrived, and ride completed can be wired in later without reworking the PWA foundation.
