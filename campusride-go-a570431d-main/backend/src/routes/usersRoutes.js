@@ -14,7 +14,7 @@ import {
   updateMyProfile,
   updateProfileSchema,
 } from "../controllers/usersController.js";
-import { ADMIN_DASHBOARD_ROLES, ROLES, SUPER_ADMIN_ROLES } from "../constants/roles.js";
+import { ADMIN_DASHBOARD_ROLES, ROLES } from "../constants/roles.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 
@@ -29,7 +29,7 @@ router.post("/me/favorites", validate(createFavoriteSchema), createFavorite);
 router.delete("/me/favorites/:favoriteId", deleteFavorite);
 
 router.get("/", requireRole(...ADMIN_DASHBOARD_ROLES), listUsers);
-router.post("/create-sub-admin", requireRole(ROLES.ADMIN, ROLES.SUPER_ADMIN), validate(createSubAdminSchema), createSubAdmin);
+router.post("/create-sub-admin", requireRole(ROLES.ADMIN), validate(createSubAdminSchema), createSubAdmin);
 router.patch("/:userId", requireRole(...ADMIN_DASHBOARD_ROLES), validate(adminUpdateUserSchema), adminUpdateUser);
 router.delete("/:userId", requireRole(...ADMIN_DASHBOARD_ROLES), adminDeleteUser);
 

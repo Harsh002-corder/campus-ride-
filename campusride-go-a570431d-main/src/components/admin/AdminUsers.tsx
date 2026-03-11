@@ -19,7 +19,7 @@ const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_adm
 const AdminUsers = () => {
   const toast = useAppToast();
   const { user: authUser } = useAuth();
-  const canCreateSubAdmin = authUser?.role === "admin" || authUser?.role === "super_admin";
+  const canCreateSubAdmin = authUser?.role === "admin";
 
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -256,7 +256,7 @@ const AdminUsers = () => {
                   <h2 className="text-lg font-bold font-display">Create Sub-Admin</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">The new account will have sub-admin dashboard access.</p>
                 </div>
-                <button onClick={() => setShowCreateModal(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                <button onClick={() => setShowCreateModal(false)} title="Close" className="p-1.5 rounded-lg hover:bg-muted transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>

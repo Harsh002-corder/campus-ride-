@@ -34,8 +34,8 @@ export const createSubAdminSchema = z.object({
 });
 
 export const createSubAdmin = asyncHandler(async (req, res) => {
-  if (!SUPER_ADMIN_ROLES.includes(req.user.role)) {
-    throw new AppError(403, "Only admin or super admin can create sub-admin accounts");
+  if (req.user.role !== ROLES.ADMIN) {
+    throw new AppError(403, "Only admin can create sub-admin accounts");
   }
 
   const { name, email, password, phone, collegeId } = req.body;

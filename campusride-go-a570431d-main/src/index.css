@@ -104,6 +104,23 @@
 }
 
 @layer components {
+  .hero-bg {
+    background: var(--gradient-hero);
+  }
+
+  .hero-glow-primary {
+    background: var(--gradient-glow);
+  }
+
+  .hero-glow-secondary {
+    background: radial-gradient(ellipse, hsl(263, 70%, 50%, 0.2), transparent 70%);
+    animation-delay: 1.5s;
+  }
+
+  .card-glow-overlay {
+    background: var(--gradient-glow);
+  }
+
   .glass {
     background: var(--glass-bg);
     -webkit-backdrop-filter: blur(20px);
