@@ -43,6 +43,7 @@ type GpsVerificationState = {
 };
 
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
+const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 
 function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {
@@ -410,7 +411,10 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
+    const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
+      || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
+
+    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -420,7 +424,7 @@ const StudentDashboard = () => {
       { lat: gpsLocation.lat, lng: gpsLocation.lng },
       { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
     );
-    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
+    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
       setGpsVerification({
         state: "failed",
         message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
@@ -431,8 +435,14 @@ const StudentDashboard = () => {
 
     setGpsVerification({
       state: "verified",
-      message: `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
+      message: isCoarseGps
+        ? "Low GPS accuracy detected; pickup stop verification accepted"
+        : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
     });
+
+    if (isCoarseGps) {
+      toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
+    }
 
     const passengerNames = passengerNamesText
       .split(",")
@@ -443,7 +453,7 @@ const StudentDashboard = () => {
     setBooking(true);
     try {
       const response = await apiClient.rides.book({
-        pickup: { lat: gpsLocation.lat, lng: gpsLocation.lng, label: resolvedPickup.name || pickup },
+        pickup: { lat: resolvedPickup.lat, lng: resolvedPickup.lng, label: resolvedPickup.name || pickup },
         drop: { lat: resolvedDrop.lat, lng: resolvedDrop.lng, label: resolvedDrop.name || drop },
         studentGps: { lat: gpsLocation.lat, lng: gpsLocation.lng, accuracy: gpsLocation.accuracy || undefined },
         passengers,
@@ -486,7 +496,10 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
+    const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
+      || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
+
+    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -497,7 +510,7 @@ const StudentDashboard = () => {
       { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
     );
 
-    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
+    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
       setGpsVerification({
         state: "failed",
         message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
@@ -508,8 +521,15 @@ const StudentDashboard = () => {
 
     setGpsVerification({
       state: "verified",
-      message: `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
+      message: isCoarseGps
+        ? "Low GPS accuracy detected; pickup stop verification accepted"
+        : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
     });
+    if (isCoarseGps) {
+      toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
+      return;
+    }
+
     toast.success("GPS verified", "Pickup is within 200m of your current location.");
   };
 
