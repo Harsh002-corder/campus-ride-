@@ -159,6 +159,7 @@ const StudentDashboard = () => {
   const [runtimeStops, setRuntimeStops] = useState<CampusStop[]>(CAMPUS_STOPS);
   const [campusBoundary, setCampusBoundary] = useState(CAMPUS_BOUNDARY_POLYGON);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [outsideCampusAlertOpen, setOutsideCampusAlertOpen] = useState(false);
   const [cancelReasonKey, setCancelReasonKey] = useState("change_of_plans");
   const [cancelCustomReason, setCancelCustomReason] = useState("");
   const [issueRideId, setIssueRideId] = useState("");
@@ -393,7 +394,7 @@ const StudentDashboard = () => {
 
     if (!SKIP_GPS_VERIFICATION && !isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
-      toast.info("Pickup location must be inside the campus.");
+      setOutsideCampusAlertOpen(true);
       return;
     }
 
@@ -424,7 +425,7 @@ const StudentDashboard = () => {
 
       if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
         setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-        toast.info("Pickup location must be inside the campus.");
+        setOutsideCampusAlertOpen(true);
         return;
       }
 
@@ -510,7 +511,7 @@ const StudentDashboard = () => {
 
     if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-      toast.info("Pickup location must be inside the campus.");
+      setOutsideCampusAlertOpen(true);
       return;
     }
 
@@ -1216,6 +1217,49 @@ const StudentDashboard = () => {
               className="px-4 py-2 rounded-xl text-sm bg-muted/50 hover:bg-muted text-muted-foreground transition-colors"
             >
               Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={outsideCampusAlertOpen} onOpenChange={setOutsideCampusAlertOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-destructive" />
+              Outside Campus
+            </DialogTitle>
+            <DialogDescription>
+              You are currently outside the campus area.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm text-destructive font-medium mb-2">Location Verification Failed</p>
+              <p className="text-xs text-muted-foreground">
+                Campus Ride is only available for locations within the TMU campus boundary. Your current GPS location or selected pickup point is outside the campus area.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">What you can do:</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>✓ Move to a location inside the campus boundary</li>
+                <li>✓ Ensure your GPS is enabled and up-to-date</li>
+                <li>✓ Select a pickup point from valid campus stops</li>
+                <li>✓ Wait for better GPS signal (if accuracy is low)</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setOutsideCampusAlertOpen(false)}
+              className="px-4 py-2 rounded-xl text-sm bg-primary hover:bg-primary/90 text-primary-foreground transition-colors font-medium"
+            >
+              Got it
             </button>
           </DialogFooter>
         </DialogContent>
