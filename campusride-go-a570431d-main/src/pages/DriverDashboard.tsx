@@ -40,7 +40,9 @@ const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
   const navigate = useNavigate();
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(
+    () => sessionStorage.getItem("driver_is_online") === "true",
+  );
   const [availableRides, setAvailableRides] = useState<RideDto[]>([]);
   const [myRides, setMyRides] = useState<RideDto[]>([]);
   const [onlineBusy, setOnlineBusy] = useState(false);
@@ -206,7 +208,9 @@ const DriverDashboard = () => {
         throw new Error("Failed to load core driver ride data");
       }
 
-      setIsOnline(Boolean(profile.user?.isOnline));
+      const onlineStatus = Boolean(profile.user?.isOnline);
+      sessionStorage.setItem("driver_is_online", String(onlineStatus));
+      setIsOnline(onlineStatus);
       setMyRides(toQueueRides(mine.rides || []));
       setAvailableRides(toIncomingRequestRides(available.rides || []));
       setVerificationStatus(profile.user?.driverVerificationStatus || verification?.verification?.status || "not_submitted");
@@ -439,8 +443,10 @@ const DriverDashboard = () => {
   const toggleOnline = async () => {
     setOnlineBusy(true);
     try {
-      await apiClient.drivers.setOnline(!isOnline);
-      setIsOnline(!isOnline);
+      const nextOnline = !isOnline;
+      await apiClient.drivers.setOnline(nextOnline);
+      sessionStorage.setItem("driver_is_online", String(nextOnline));
+      setIsOnline(nextOnline);
       await loadData();
     } catch (error) {
       toast.error("Could not update online status", error);
