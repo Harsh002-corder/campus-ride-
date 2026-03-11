@@ -1,40 +1,38 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useJsApiLoader, GoogleMap, Marker, DirectionsRenderer, Polygon } from "@react-google-maps/api";
+import L from "leaflet";
+import { CircleMarker, MapContainer, Marker, Polygon, Polyline, TileLayer, useMap } from "react-leaflet";
 import BrandIcon from "@/components/BrandIcon";
-import { ArrowLeft, Clock, Phone, MessageCircle, User, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Clock, MessageCircle, Phone, User, Eye, EyeOff, CarFront } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { CAMPUS_BOUNDARY_POLYGON, CAMPUS_MAP_CENTER, isWithinCampusBoundary } from "@/lib/campusBoundary";
 import { getSocketClient, getSocketConnectErrorMessage } from "@/lib/socketClient";
 
-const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() || "";
+type MapMode = "searching" | "accepted" | "driver_arriving" | "ride_started" | "completed";
 
-const libraries: ("places" | "geometry" | "drawing")[] = ["places", "geometry"];
-const mapContainerStyle = { width: "100%", height: "100%" };
+type LatLngPoint = { lat: number; lng: number };
 
-const mapOptions: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  fullscreenControl: true,
-  streetViewControl: false,
-  mapTypeControl: false,
-};
-
-const campusBoundaryOptions: google.maps.PolygonOptions = {
-  fillColor: "#10b981",
-  fillOpacity: 0.08,
-  strokeColor: "#10b981",
-  strokeOpacity: 0.65,
-  strokeWeight: 2,
-  clickable: false,
-  zIndex: 1,
+type DriverLocationSocketPayload = {
+  rideId: string;
+  driverId?: string | null;
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speed?: number | null;
+  timestamp?: string;
+  etaMinutes?: number | null;
+  etaDistanceKm?: number | null;
+  status?: RideDto["status"];
+  mapMode?: MapMode;
 };
 
 const activeStatuses: RideDto["status"][] = ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"];
+const DRIVER_SOCKET_EMIT_INTERVAL_MS = 4000;
+const DRIVER_API_SYNC_INTERVAL_MS = 15000;
 
-const isValidLatLng = (value: unknown): value is { lat: number; lng: number } => {
+const isValidLatLng = (value: unknown): value is LatLngPoint => {
   if (!value || typeof value !== "object") return false;
   const lat = (value as { lat?: unknown }).lat;
   const lng = (value as { lng?: unknown }).lng;
@@ -43,32 +41,124 @@ const isValidLatLng = (value: unknown): value is { lat: number; lng: number } =>
 
 const toPhoneDigits = (value?: string | null) => (value || "").replace(/\D/g, "");
 
+const toRad = (value: number) => (value * Math.PI) / 180;
+const toDeg = (value: number) => (value * 180) / Math.PI;
+
+const distanceKm = (from: LatLngPoint | null, to: LatLngPoint | null) => {
+  if (!from || !to) return null;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const bearingDeg = (from: LatLngPoint, to: LatLngPoint) => {
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  const brng = (toDeg(Math.atan2(y, x)) + 360) % 360;
+  return brng;
+};
+
+const interpolatePoint = (from: LatLngPoint, to: LatLngPoint, progress: number): LatLngPoint => ({
+  lat: from.lat + (to.lat - from.lat) * progress,
+  lng: from.lng + (to.lng - from.lng) * progress,
+});
+
+const getMapMode = (status?: RideDto["status"]): MapMode => {
+  if (status === "pending" || status === "requested" || status === "scheduled") return "searching";
+  if (status === "accepted") return "driver_arriving";
+  if (status === "in_progress" || status === "ongoing") return "ride_started";
+  if (status === "completed" || status === "cancelled") return "completed";
+  return "accepted";
+};
+
+const createVehicleIcon = (heading = 0) => L.divIcon({
+  className: "driver-vehicle-icon",
+  html: `<div style="width:34px;height:34px;border-radius:999px;background:#2563eb;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(0,0,0,.28);transform:rotate(${heading}deg);transition:transform 180ms linear;"><span style="display:block;color:#fff;font-size:16px;line-height:1;">?</span></div>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+});
+
+const createPinIcon = (color: string, label: string) => L.divIcon({
+  className: "ride-pin-icon",
+  html: `<div style="width:26px;height:26px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid rgba(255,255,255,.85);box-shadow:0 6px 12px rgba(0,0,0,.22);">${label}</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+function FitBounds({ points }: { points: LatLngPoint[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!points.length) return;
+    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number]));
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
+  }, [map, points]);
+
+  return null;
+}
+
+async function fetchDrivingRoute(origin: LatLngPoint, destination: LatLngPoint) {
+  const response = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`,
+  );
+  const payload = await response.json();
+  const route = payload?.routes?.[0];
+  if (!route?.geometry?.coordinates?.length) {
+    throw new Error("No route geometry");
+  }
+
+  const path = route.geometry.coordinates.map((coord: [number, number]) => ({ lat: coord[1], lng: coord[0] }));
+  return {
+    path,
+    distanceKm: Number((Number(route.distance || 0) / 1000).toFixed(2)),
+    etaMinutes: Math.max(1, Math.round(Number(route.duration || 0) / 60)),
+  };
+}
+
 const RideTracking = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const { user } = useAuth();
 
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const lastDriverSyncAtRef = useRef(0);
-  const syncingDriverLocationRef = useRef(false);
-
   const [ride, setRide] = useState<RideDto | null>(null);
-  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [studentPos, setStudentPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [devicePos, setDevicePos] = useState<{ lat: number; lng: number } | null>(null);
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-
   const [rideError, setRideError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [geofenceWarning, setGeofenceWarning] = useState<string | null>(null);
   const [socketInfo, setSocketInfo] = useState<string | null>(null);
+  const [geofenceWarning, setGeofenceWarning] = useState<string | null>(null);
   const [isRideInfoVisible, setIsRideInfoVisible] = useState(true);
+
+  const [driverTargetPos, setDriverTargetPos] = useState<LatLngPoint | null>(null);
+  const [driverRenderPos, setDriverRenderPos] = useState<LatLngPoint | null>(null);
+  const [driverHeading, setDriverHeading] = useState(0);
+  const [studentPos, setStudentPos] = useState<LatLngPoint | null>(null);
+  const [devicePos, setDevicePos] = useState<LatLngPoint | null>(null);
+  const [mapMode, setMapMode] = useState<MapMode>("searching");
+  const [routePath, setRoutePath] = useState<LatLngPoint[]>([]);
+  const [liveEtaMinutes, setLiveEtaMinutes] = useState<number | null>(null);
+  const [liveDistanceKm, setLiveDistanceKm] = useState<number | null>(null);
+  const [pulseRadius, setPulseRadius] = useState(12);
+
+  const animationFrameRef = useRef<number | null>(null);
+  const driverSocketEmitAtRef = useRef(0);
+  const driverApiSyncAtRef = useRef(0);
+  const routeOriginRef = useRef<LatLngPoint | null>(null);
 
   const isDriverView = user?.role === "driver";
   const backPath = user?.role === "driver" ? "/driver-dashboard" : user?.role === "super_admin" ? "/super-admin-dashboard" : ["admin", "sub_admin"].includes(user?.role || "") ? "/admin" : "/student-dashboard";
-  const pickupPos = isValidLatLng(ride?.pickup) ? ride.pickup : null;
-  const dropPos = isValidLatLng(ride?.drop) ? ride.drop : null;
+
+  const pickupPos = useMemo(() => (isValidLatLng(ride?.pickup) ? ride.pickup : null), [ride?.pickup]);
+  const dropPos = useMemo(() => (isValidLatLng(ride?.drop) ? ride.drop : null), [ride?.drop]);
+
+  const rideStatus = ride?.status;
+
   const contactRoleLabel = isDriverView ? "Student" : "Driver";
   const contactPerson = isDriverView ? ride?.student : ride?.driver;
   const contactDisplayName = contactPerson?.name || `${contactRoleLabel} not assigned`;
@@ -76,33 +166,17 @@ const RideTracking = () => {
   const contactPhoneDigits = toPhoneDigits(contactPerson?.phone);
   const canContactPerson = contactPhoneDigits.length >= 10;
   const callHref = canContactPerson ? `tel:${contactPhoneDigits}` : undefined;
-  const chatHref = canContactPerson
-    ? `sms:${contactPhoneDigits}?body=${encodeURIComponent(`Hi ${contactDisplayName}, I am tracking this ride.`)}`
-    : undefined;
-  const rideEtaText = typeof ride?.etaMinutes === "number"
-    ? `${ride.etaMinutes} min${ride.etaMinutes === 1 ? "" : "s"}`
-    : ride?.status === "in_progress" || ride?.status === "ongoing"
-      ? "Arriving soon"
-      : "Calculating...";
-  const statusText = ride?.status === "in_progress" || ride?.status === "ongoing"
-    ? "Ride Ongoing"
-    : ride?.status === "accepted"
+  const chatHref = canContactPerson ? `sms:${contactPhoneDigits}?body=${encodeURIComponent(`Hi ${contactDisplayName}, I am tracking this ride.`)}` : undefined;
+
+  const statusText = mapMode === "searching"
+    ? "Searching Driver"
+    : mapMode === "driver_arriving"
       ? "Driver Arriving"
-      : ride?.status === "pending" || ride?.status === "requested"
-        ? "Booked"
-        : ride?.status === "scheduled"
-          ? "Scheduled"
+      : mapMode === "ride_started"
+        ? "Ride In Progress"
+        : mapMode === "completed"
+          ? "Ride Completed"
           : "Ride Active";
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries,
-  });
-
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    console.log("Map loaded");
-    mapRef.current = map;
-  }, []);
 
   const loadRide = useCallback(async () => {
     const loadFromMyRides = async () => {
@@ -114,17 +188,19 @@ const RideTracking = () => {
 
       setRide(selectedRide);
       setRideError(selectedRide ? null : "No active ride found.");
-
-      if (isValidLatLng(selectedRide?.driverLocation)) {
-        setDriverPos(selectedRide.driverLocation);
-      } else {
-        setDriverPos(null);
-      }
-
-      if (isValidLatLng(selectedRide?.studentLocation)) {
-        setStudentPos(selectedRide.studentLocation);
-      } else {
-        setStudentPos(null);
+      if (selectedRide) {
+        setMapMode(getMapMode(selectedRide.status));
+        if (isValidLatLng(selectedRide.driverLocation)) {
+          setDriverTargetPos(selectedRide.driverLocation);
+          setLiveEtaMinutes(typeof selectedRide.etaMinutes === "number" ? selectedRide.etaMinutes : null);
+          setLiveDistanceKm(typeof selectedRide.etaDistanceKm === "number" ? selectedRide.etaDistanceKm : null);
+          if (typeof selectedRide.driverLocation.heading === "number") {
+            setDriverHeading(selectedRide.driverLocation.heading);
+          }
+        }
+        if (isValidLatLng(selectedRide.studentLocation)) {
+          setStudentPos(selectedRide.studentLocation);
+        }
       }
     };
 
@@ -135,16 +211,19 @@ const RideTracking = () => {
           const foundRide = response.ride || null;
           setRide(foundRide);
           setRideError(foundRide ? null : "Ride not found.");
-          if (isValidLatLng(foundRide?.driverLocation)) {
-            setDriverPos(foundRide.driverLocation);
-          } else {
-            setDriverPos(null);
-          }
-
-          if (isValidLatLng(foundRide?.studentLocation)) {
-            setStudentPos(foundRide.studentLocation);
-          } else {
-            setStudentPos(null);
+          if (foundRide) {
+            setMapMode(getMapMode(foundRide.status));
+            if (isValidLatLng(foundRide.driverLocation)) {
+              setDriverTargetPos(foundRide.driverLocation);
+              setLiveEtaMinutes(typeof foundRide.etaMinutes === "number" ? foundRide.etaMinutes : null);
+              setLiveDistanceKm(typeof foundRide.etaDistanceKm === "number" ? foundRide.etaDistanceKm : null);
+              if (typeof foundRide.driverLocation.heading === "number") {
+                setDriverHeading(foundRide.driverLocation.heading);
+              }
+            }
+            if (isValidLatLng(foundRide.studentLocation)) {
+              setStudentPos(foundRide.studentLocation);
+            }
           }
           return;
         } catch {
@@ -164,23 +243,74 @@ const RideTracking = () => {
   }, [loadRide]);
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
+    const pollId = window.setInterval(() => {
       void loadRide();
-    }, 5000);
+    }, 8000);
 
     return () => {
-      window.clearInterval(intervalId);
+      window.clearInterval(pollId);
     };
   }, [loadRide]);
 
   useEffect(() => {
+    if (!driverTargetPos) {
+      setDriverRenderPos(null);
+      return;
+    }
+
+    const start = driverRenderPos || driverTargetPos;
+    const end = driverTargetPos;
+    const startHeading = driverHeading;
+    const endHeading = typeof (ride?.driverLocation as { heading?: number } | undefined)?.heading === "number"
+      ? Number((ride?.driverLocation as { heading?: number }).heading)
+      : bearingDeg(start, end);
+
+    if (!driverRenderPos) {
+      setDriverRenderPos(driverTargetPos);
+      setDriverHeading(endHeading);
+      return;
+    }
+
+    const duration = 1200;
+    const animationStart = performance.now();
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - animationStart) / duration);
+      setDriverRenderPos(interpolatePoint(start, end, progress));
+      setDriverHeading(startHeading + (endHeading - startHeading) * progress);
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [driverTargetPos]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setPulseRadius((prev) => (prev >= 18 ? 12 : prev + 1));
+    }, 160);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
     const socket = getSocketClient();
-    const rideIdForRoom = ride?.id || id;
+    const roomRideId = ride?.id || id;
 
     const onConnect = () => {
       setSocketInfo("Realtime connected");
-      if (rideIdForRoom) {
-        socket.emit("ride:join", rideIdForRoom);
+      if (roomRideId) {
+        socket.emit("ride:join", roomRideId);
       }
     };
 
@@ -195,197 +325,213 @@ const RideTracking = () => {
       }
 
       setRide(updatedRide);
+      setMapMode(getMapMode(updatedRide.status));
       setRideError(null);
 
       if (isValidLatLng(updatedRide.driverLocation)) {
-        setDriverPos(updatedRide.driverLocation);
-      } else {
-        setDriverPos(null);
+        setDriverTargetPos(updatedRide.driverLocation);
+        if (typeof updatedRide.driverLocation.heading === "number") {
+          setDriverHeading(updatedRide.driverLocation.heading);
+        }
       }
 
       if (isValidLatLng(updatedRide.studentLocation)) {
         setStudentPos(updatedRide.studentLocation);
-      } else {
-        setStudentPos(null);
+      }
+
+      setLiveEtaMinutes(typeof updatedRide.etaMinutes === "number" ? updatedRide.etaMinutes : null);
+      setLiveDistanceKm(typeof updatedRide.etaDistanceKm === "number" ? updatedRide.etaDistanceKm : null);
+    };
+
+    const onDriverLocation = (locationData: DriverLocationSocketPayload) => {
+      const expectedRideId = ride?.id || id;
+      if (!locationData?.rideId || (expectedRideId && locationData.rideId !== expectedRideId)) {
+        return;
+      }
+
+      setDriverTargetPos({ lat: locationData.lat, lng: locationData.lng });
+      if (typeof locationData.heading === "number") {
+        setDriverHeading(locationData.heading);
+      }
+      if (typeof locationData.etaMinutes === "number") {
+        setLiveEtaMinutes(locationData.etaMinutes);
+      }
+      if (typeof locationData.etaDistanceKm === "number") {
+        setLiveDistanceKm(locationData.etaDistanceKm);
       }
     };
 
     socket.on("connect", onConnect);
     socket.on("connect_error", onConnectError);
     socket.on("ride:updated", onRideUpdated);
+    socket.on("driver-location", onDriverLocation);
 
     if (socket.connected) {
       onConnect();
     }
 
     return () => {
-      if (rideIdForRoom) {
-        socket.emit("ride:leave", rideIdForRoom);
+      if (roomRideId) {
+        socket.emit("ride:leave", roomRideId);
       }
       socket.off("connect", onConnect);
       socket.off("connect_error", onConnectError);
       socket.off("ride:updated", onRideUpdated);
+      socket.off("driver-location", onDriverLocation);
     };
   }, [id, ride?.id]);
 
   useEffect(() => {
-    if (!isLoaded || typeof window === "undefined" || !window.google?.maps) {
+    if (!rideStatus || !ride?.id) {
       return;
     }
 
-    const directionsService = new google.maps.DirectionsService();
-    if (!pickupPos || !dropPos) {
-      setDirections(null);
-      return;
-    }
-
-    directionsService.route(
-      {
-        origin: pickupPos,
-        destination: dropPos,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          const hasOutsidePoint = (result.routes?.[0]?.overview_path || []).some(
-            (point) => !isWithinCampusBoundary({ lat: point.lat(), lng: point.lng() }),
-          );
-
-          if (hasOutsidePoint) {
-            setDirections(null);
-            setRouteError("Suggested route goes outside campus boundary.");
-            return;
-          }
-
-          setDirections(result);
-          setRouteError(null);
-        } else {
-          setRouteError("Could not draw route right now.");
-        }
-      },
-    );
-  }, [dropPos, isLoaded, pickupPos]);
-
-  useEffect(() => {
-    if (isValidLatLng(ride?.driverLocation) && !isWithinCampusBoundary({ lat: ride.driverLocation.lat, lng: ride.driverLocation.lng })) {
-      setGeofenceWarning("Warning: driver location moved outside campus boundary.");
-      return;
-    }
-
-    if (driverPos && !isWithinCampusBoundary({ lat: driverPos.lat, lng: driverPos.lng })) {
-      setGeofenceWarning("Warning: driver location moved outside campus boundary.");
-      return;
-    }
-
-    setGeofenceWarning(null);
-  }, [driverPos, ride?.driverLocation]);
-
-  useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return;
     }
 
+    const socket = getSocketClient();
+
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
-        const current = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-
+        const current = { lat: position.coords.latitude, lng: position.coords.longitude };
         setDevicePos(current);
         setGeoError(null);
 
-        const shouldSyncRideGps = Boolean(
-          ride?.id
-            && (ride.status === "accepted" || ride.status === "in_progress" || ride.status === "ongoing")
-            && (user?.role === "driver" || user?.role === "student"),
-        );
-
-        if (!shouldSyncRideGps) {
-          return;
+        if (!isWithinCampusBoundary(current)) {
+          setGeofenceWarning("Location is outside campus boundary.");
+        } else {
+          setGeofenceWarning(null);
         }
 
-        const now = Date.now();
-        if (now - lastDriverSyncAtRef.current < 5000 || syncingDriverLocationRef.current) {
-          return;
-        }
+        const nowMs = Date.now();
 
-        lastDriverSyncAtRef.current = now;
-        syncingDriverLocationRef.current = true;
+        if (isDriverView && ["accepted", "in_progress", "ongoing"].includes(rideStatus)) {
+          if (nowMs - driverSocketEmitAtRef.current >= DRIVER_SOCKET_EMIT_INTERVAL_MS) {
+            const heading = typeof position.coords.heading === "number" && Number.isFinite(position.coords.heading)
+              ? position.coords.heading
+              : undefined;
+            const speedKmh = typeof position.coords.speed === "number" && Number.isFinite(position.coords.speed) && position.coords.speed >= 0
+              ? position.coords.speed * 3.6
+              : undefined;
 
-        try {
-          await apiClient.rides.updateLocation(ride.id, current.lat, current.lng);
-          if (isDriverView) {
-            setDriverPos(current);
-          } else {
-            setStudentPos(current);
+            socket.emit("driver-location-update", {
+              driverId: user?.id,
+              rideId: ride.id,
+              lat: current.lat,
+              lng: current.lng,
+              heading,
+              speed: speedKmh,
+              timestamp: new Date(nowMs).toISOString(),
+            });
+
+            driverSocketEmitAtRef.current = nowMs;
           }
-        } catch {
-          setSocketInfo("Realtime unavailable, GPS sync retrying");
-        } finally {
-          syncingDriverLocationRef.current = false;
+
+          if (nowMs - driverApiSyncAtRef.current >= DRIVER_API_SYNC_INTERVAL_MS) {
+            try {
+              await apiClient.rides.updateLocation(ride.id, current.lat, current.lng, {
+                heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
+                speed: typeof position.coords.speed === "number" && position.coords.speed >= 0
+                  ? position.coords.speed * 3.6
+                  : undefined,
+                timestamp: new Date(nowMs).toISOString(),
+              });
+              driverApiSyncAtRef.current = nowMs;
+            } catch {
+              setSocketInfo("Realtime location sync degraded; retrying...");
+            }
+          }
+
+          setDriverTargetPos(current);
+          return;
+        }
+
+        if (!isDriverView && ["accepted", "in_progress", "ongoing"].includes(rideStatus) && ride?.id) {
+          try {
+            await apiClient.rides.updateLocation(ride.id, current.lat, current.lng, {
+              timestamp: new Date(nowMs).toISOString(),
+            });
+            setStudentPos(current);
+          } catch {
+            setSocketInfo("Student location sync pending...");
+          }
         }
       },
       () => {
         setGeoError("GPS permission denied or unavailable.");
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 },
+      { enableHighAccuracy: true, timeout: 9000, maximumAge: 2500 },
     );
 
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [isDriverView, ride?.id, ride?.status, user?.role]);
+  }, [isDriverView, ride?.id, rideStatus, user?.id]);
 
   useEffect(() => {
-    if (ride?.driverLocation && isValidLatLng(ride.driverLocation) && !isDriverView) {
-      setDriverPos(ride.driverLocation);
-    }
+    if (!driverRenderPos) return;
 
-    if (ride?.studentLocation && isValidLatLng(ride.studentLocation) && isDriverView) {
-      setStudentPos(ride.studentLocation);
-    }
-  }, [isDriverView, ride?.driverLocation, ride?.studentLocation]);
-
-  useEffect(() => {
-    if (!mapRef.current || !isLoaded || typeof window === "undefined" || !window.google?.maps) {
+    if (!isWithinCampusBoundary(driverRenderPos)) {
+      setGeofenceWarning("Warning: driver location moved outside campus boundary.");
       return;
     }
 
-    const bounds = new google.maps.LatLngBounds();
-    let hasBounds = false;
-    if (pickupPos) {
-      bounds.extend(pickupPos);
-      hasBounds = true;
-    }
-    if (dropPos) {
-      bounds.extend(dropPos);
-      hasBounds = true;
-    }
-    if (driverPos) {
-      bounds.extend(driverPos);
-      hasBounds = true;
-    }
-    if (studentPos) {
-      bounds.extend(studentPos);
-      hasBounds = true;
-    }
-    if (!hasBounds) {
+    setGeofenceWarning(null);
+  }, [driverRenderPos]);
+
+  useEffect(() => {
+    const origin = mapMode === "driver_arriving"
+      ? driverRenderPos
+      : mapMode === "ride_started"
+        ? pickupPos
+        : null;
+
+    const destination = mapMode === "driver_arriving"
+      ? pickupPos
+      : mapMode === "ride_started"
+        ? dropPos
+        : null;
+
+    if (!origin || !destination) {
+      setRoutePath([]);
+      if (mapMode === "completed") {
+        setRouteError(null);
+      }
       return;
     }
-    mapRef.current.fitBounds(bounds, 80);
-  }, [driverPos, studentPos, dropPos, isLoaded, pickupPos]);
 
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="card-glass max-w-lg w-full text-center">
-          <h1 className="text-lg font-semibold mb-2">Map failed to load</h1>
-          <p className="text-sm text-muted-foreground">Missing VITE_GOOGLE_MAPS_API_KEY in your environment.</p>
-        </div>
-      </div>
-    );
-  }
+    const deviationKm = distanceKm(routeOriginRef.current, origin);
+    const shouldRecalculate = mapMode === "ride_started"
+      || !routeOriginRef.current
+      || typeof deviationKm !== "number"
+      || deviationKm > 0.12;
+
+    if (!shouldRecalculate) {
+      return;
+    }
+
+    let active = true;
+    routeOriginRef.current = origin;
+
+    fetchDrivingRoute(origin, destination)
+      .then((route) => {
+        if (!active) return;
+        setRoutePath(route.path.filter((point) => isWithinCampusBoundary(point) || mapMode === "ride_started"));
+        setRouteError(null);
+        setLiveDistanceKm(route.distanceKm);
+        setLiveEtaMinutes(route.etaMinutes);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRoutePath([origin, destination]);
+        setRouteError("Route service unavailable. Showing direct path.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [mapMode, driverRenderPos, pickupPos, dropPos]);
 
   if (!ride) {
     return (
@@ -406,57 +552,82 @@ const RideTracking = () => {
     );
   }
 
-  const ownPos = isDriverView ? driverPos : studentPos;
-  const counterpartPos = isDriverView ? studentPos : driverPos;
+  const ownPos = isDriverView ? (driverRenderPos || devicePos) : (studentPos || devicePos);
+  const counterpartPos = isDriverView ? studentPos : driverRenderPos;
   const counterpartLabel = isDriverView ? "Student" : "Driver";
 
+  const pointsForBounds = [pickupPos, dropPos, ownPos, counterpartPos].filter((point): point is LatLngPoint => Boolean(point));
   const mapCenter = pickupPos || dropPos || ownPos || counterpartPos || CAMPUS_MAP_CENTER;
+
+  const pickupDistanceKm = distanceKm(driverRenderPos, pickupPos);
+  const dropDistanceKm = distanceKm(driverRenderPos, dropPos);
+
+  const rideEtaText = typeof liveEtaMinutes === "number"
+    ? `${liveEtaMinutes} min${liveEtaMinutes === 1 ? "" : "s"}`
+    : typeof ride?.etaMinutes === "number"
+      ? `${ride.etaMinutes} min${ride.etaMinutes === 1 ? "" : "s"}`
+      : "Calculating...";
+
+  const vehicleType = (ride as unknown as { driver?: { vehicleType?: string; vehicleNumber?: string } }).driver?.vehicleType || "Campus Cab";
+  const vehicleNumber = (ride as unknown as { driver?: { vehicleType?: string; vehicleNumber?: string } }).driver?.vehicleNumber || "Not provided";
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 z-0">
-        {!isLoaded && !loadError && (
-          <div className="w-full h-full flex items-center justify-center bg-background">
-            <div className="card-glass text-center">
-              <p className="text-base font-medium">Loading map...</p>
-              <p className="text-xs text-muted-foreground mt-1">Please wait while Google Maps initializes.</p>
-            </div>
-          </div>
-        )}
+        <MapContainer
+          center={[mapCenter.lat, mapCenter.lng]}
+          zoom={15}
+          className="w-full h-full"
+          scrollWheelZoom
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        {loadError && (
-          <div className="w-full h-full flex items-center justify-center bg-background p-6">
-            <div className="card-glass text-center max-w-lg">
-              <p className="text-base font-semibold">Map failed to load</p>
-              <p className="text-sm text-muted-foreground mt-1">Please verify your API key and Maps JavaScript API settings.</p>
-            </div>
-          </div>
-        )}
+          <FitBounds points={pointsForBounds} />
 
-        {isLoaded && !loadError && (
-          <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            zoom={15}
-            center={mapCenter}
-            options={mapOptions}
-            onLoad={onMapLoad}
-          >
-            <Polygon paths={CAMPUS_BOUNDARY_POLYGON} options={campusBoundaryOptions} />
-            {directions && (
-              <DirectionsRenderer
-                directions={directions}
-                options={{
-                  suppressMarkers: true,
-                }}
-              />
-            )}
+          <Polygon
+            positions={CAMPUS_BOUNDARY_POLYGON.map((point) => [point.lat, point.lng] as [number, number])}
+            pathOptions={{
+              color: "#10b981",
+              weight: 2,
+              fillColor: "#10b981",
+              fillOpacity: 0.08,
+            }}
+          />
 
-            {pickupPos && <Marker position={pickupPos} title={`Pickup - ${ride.pickup?.label || "Pickup"}`} />}
-            {dropPos && <Marker position={dropPos} title={`Drop - ${ride.drop?.label || "Drop"}`} />}
-            {counterpartPos && <Marker position={counterpartPos} title={counterpartLabel} label={isDriverView ? "S" : "D"} />}
-            {(ownPos || devicePos) && <Marker position={ownPos || devicePos} title={isDriverView ? "You (Driver)" : "You"} label="Y" />}
-          </GoogleMap>
-        )}
+          {pickupPos && <Marker position={[pickupPos.lat, pickupPos.lng]} icon={createPinIcon("#16a34a", "P")} />}
+          {dropPos && <Marker position={[dropPos.lat, dropPos.lng]} icon={createPinIcon("#dc2626", "D")} />}
+
+          {counterpartPos && (
+            <Marker
+              position={[counterpartPos.lat, counterpartPos.lng]}
+              icon={createPinIcon("#f59e0b", counterpartLabel === "Driver" ? "R" : "S")}
+            />
+          )}
+
+          {ownPos && <Marker position={[ownPos.lat, ownPos.lng]} icon={createPinIcon("#2563eb", "Y")} />}
+
+          {driverRenderPos && (
+            <Marker position={[driverRenderPos.lat, driverRenderPos.lng]} icon={createVehicleIcon(driverHeading)} />
+          )}
+
+          {routePath.length >= 2 && (
+            <Polyline
+              positions={routePath.map((point) => [point.lat, point.lng] as [number, number])}
+              pathOptions={{ color: mapMode === "ride_started" ? "#2563eb" : "#14b8a6", weight: 5, opacity: 0.8 }}
+            />
+          )}
+
+          {mapMode === "searching" && pickupPos && (
+            <CircleMarker
+              center={[pickupPos.lat, pickupPos.lng]}
+              radius={pulseRadius}
+              pathOptions={{ color: "#22c55e", fillOpacity: 0.2, weight: 2 }}
+            />
+          )}
+        </MapContainer>
       </div>
 
       <div className="relative z-10 p-3 sm:p-4 flex items-center justify-between gap-2">
@@ -470,11 +641,7 @@ const RideTracking = () => {
           <ArrowLeft className="w-5 h-5" />
         </motion.button>
 
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 min-w-0"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass px-3 sm:px-4 py-2 rounded-xl flex items-center gap-2 min-w-0">
           <BrandIcon className="w-7 h-7 rounded-lg" />
           <span className="font-bold font-display text-xs sm:text-sm truncate">
             Campus<span className="gradient-text">Ride</span>
@@ -502,159 +669,93 @@ const RideTracking = () => {
             transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.1 }}
             className="glass rounded-t-3xl p-4 sm:p-6 space-y-4 sm:space-y-5"
           >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold uppercase tracking-widest ${(ride?.status === "in_progress" || ride?.status === "ongoing") ? "text-green-400" : "text-blue-400"}`}>
-                ● {statusText}
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold uppercase tracking-widest ${mapMode === "ride_started" ? "text-green-400" : "text-blue-400"}`}>
+                ? {statusText}
               </span>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              {ride.status !== "cancelled" && ride.status !== "completed" && Boolean(ride.verificationCode) && (
-                <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
-                  Code: {ride.verificationCode}
-                </span>
-              )}
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="w-3.5 h-3.5" />
-                <span>ETA {rideEtaText}</span>
-              </div>
-            </div>
-          </div>
-
-          {ride?.isDelayed && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2">
-              <p className="text-xs font-semibold text-amber-400">Delay alert</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{ride.delayReason || "Your ride is delayed. Please stay on this screen for live updates."}</p>
-            </div>
-          )}
-
-          {geofenceWarning && (
-            <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2">
-              <p className="text-xs font-semibold text-destructive">Campus boundary warning</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{geofenceWarning}</p>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-            <p className="text-xs font-semibold mb-2">Ride Timeline</p>
-            <div className="space-y-2">
-              {(ride?.timeline || []).map((step) => (
-                <div key={step.key} className="flex items-start gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full mt-1 ${step.reached ? "bg-primary" : "bg-muted-foreground/40"}`} />
-                  <div>
-                    <p className={`text-xs ${step.reached ? "text-foreground" : "text-muted-foreground"}`}>{step.label}</p>
-                    {step.timestamp && <p className="text-[11px] text-muted-foreground">{new Date(step.timestamp).toLocaleString()}</p>}
-                  </div>
+              <div className="flex flex-col items-end gap-1">
+                {ride.status !== "cancelled" && ride.status !== "completed" && Boolean(ride.verificationCode) && (
+                  <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
+                    Code: {ride.verificationCode}
+                  </span>
+                )}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>ETA {rideEtaText}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <div className="w-0.5 h-6 bg-border" />
-              <div className="w-3 h-3 rounded-full bg-destructive" />
-            </div>
-            <div className="flex flex-col gap-3 flex-1">
-              <div>
-                <p className="text-xs text-muted-foreground">Pickup</p>
-                <p className="text-sm font-semibold">{ride.pickup?.label || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Drop-off</p>
-                <p className="text-sm font-semibold">{ride.drop?.label || "—"}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Fare</p>
-              <p className="text-base font-bold gradient-text">{typeof ride.fareBreakdown?.totalFare === "number" ? `₹${ride.fareBreakdown.totalFare}` : "—"}</p>
-              {typeof ride.etaDistanceKm === "number" && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">{ride.etaDistanceKm.toFixed(1)} km left</p>
-              )}
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between glass rounded-xl p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
-                <User className="w-5 h-5 text-primary-foreground" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                <p className="text-muted-foreground">Distance to Pickup</p>
+                <p className="font-semibold text-foreground">{typeof pickupDistanceKm === "number" ? `${Math.round(pickupDistanceKm * 1000)} m` : "-"}</p>
               </div>
-              <div>
-                <p className="font-semibold text-sm">{contactRoleLabel}: {contactDisplayName}</p>
-                <p className="text-xs text-muted-foreground">{contactPhoneRaw}</p>
-                <p className="text-xs text-muted-foreground mt-1">Driver: {ride.driver?.name || "Not assigned"}</p>
-                <p className="text-xs text-muted-foreground">Student: {ride.student?.name || "Not available"}</p>
+              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                <p className="text-muted-foreground">Distance to Drop</p>
+                <p className="font-semibold text-foreground">{typeof dropDistanceKm === "number" ? `${dropDistanceKm.toFixed(2)} km` : "-"}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                <p className="text-muted-foreground">Live ETA</p>
+                <p className="font-semibold text-foreground">{rideEtaText}</p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                <p className="text-muted-foreground">Map Mode</p>
+                <p className="font-semibold text-foreground capitalize">{mapMode.replace("_", " ")}</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              {callHref ? (
-                <motion.a
-                  whileTap={{ scale: 0.92 }}
-                  href={callHref}
-                  className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors"
-                  title="Call driver"
-                >
-                  <Phone className="w-4 h-4" />
-                </motion.a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed"
-                  title="Call unavailable"
-                >
-                  <Phone className="w-4 h-4" />
-                </button>
-              )}
-              {chatHref ? (
-                <motion.a
-                  whileTap={{ scale: 0.92 }}
-                  href={chatHref}
-                  className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors"
-                  title="Message driver"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </motion.a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed"
-                  title="Chat unavailable"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </button>
-              )}
+
+            <div className="flex items-center justify-between glass rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{contactRoleLabel}: {contactDisplayName}</p>
+                  <p className="text-xs text-muted-foreground">{contactPhoneRaw}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Vehicle: {vehicleType}</p>
+                  <p className="text-xs text-muted-foreground">Number: {vehicleNumber}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {callHref ? (
+                  <motion.a whileTap={{ scale: 0.92 }} href={callHref} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors" title="Call driver">
+                    <Phone className="w-4 h-4" />
+                  </motion.a>
+                ) : (
+                  <button type="button" disabled className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed" title="Call unavailable">
+                    <Phone className="w-4 h-4" />
+                  </button>
+                )}
+                {chatHref ? (
+                  <motion.a whileTap={{ scale: 0.92 }} href={chatHref} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors" title="Message driver">
+                    <MessageCircle className="w-4 h-4" />
+                  </motion.a>
+                ) : (
+                  <button type="button" disabled className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed" title="Chat unavailable">
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-center gap-4 sm:gap-6 text-xs text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full inline-block bg-green-500" /> Pickup
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full inline-block bg-primary" /> {counterpartLabel}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full inline-block bg-blue-400" /> You
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full inline-block bg-destructive" /> Drop-off
-            </span>
-          </div>
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <CarFront className="w-4 h-4 text-primary" />
+                <p className="text-xs font-semibold">Live Tracking Panel</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Driver movement is updated via Socket.IO and animated locally for smooth motion.</p>
+            </div>
 
-          <div className="text-[11px] text-muted-foreground text-center space-y-1">
-            <p>
-              Tracking route between {ride.pickup?.label || "—"} and {ride.drop?.label || "—"}
-              {id ? ` · Ride ${id}` : ""}
-            </p>
-            {rideError && <p>{rideError}</p>}
-            {routeError && <p>{routeError}</p>}
-            {geoError && <p>{geoError}</p>}
-            {geofenceWarning && <p>{geofenceWarning}</p>}
-            {socketInfo && <p>{socketInfo}</p>}
-          </div>
+            <div className="text-[11px] text-muted-foreground text-center space-y-1">
+              <p>Tracking ride {ride.id}</p>
+              {rideError && <p>{rideError}</p>}
+              {routeError && <p>{routeError}</p>}
+              {geoError && <p>{geoError}</p>}
+              {geofenceWarning && <p>{geofenceWarning}</p>}
+              {socketInfo && <p>{socketInfo}</p>}
+              {typeof liveDistanceKm === "number" && <p>Route distance: {liveDistanceKm.toFixed(2)} km</p>}
+            </div>
           </motion.div>
         </div>
       )}

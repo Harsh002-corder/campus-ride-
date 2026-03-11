@@ -85,7 +85,7 @@ export interface RideDto {
   cancellationReasonKey?: string | null;
   cancellationCustomReason?: string | null;
   cancelledBy: string | null;
-  driverLocation?: { lat: number; lng: number; updatedAt?: string } | null;
+  driverLocation?: { lat: number; lng: number; heading?: number | null; speed?: number | null; updatedAt?: string } | null;
   studentLocation?: { lat: number; lng: number; updatedAt?: string } | null;
   etaMinutes?: number | null;
   etaDistanceKm?: number | null;
@@ -328,8 +328,11 @@ export const apiClient = {
     cancel(rideId: string, input: { reason?: string; reasonKey?: string; customReason?: string }) {
       return request(`/rides/${rideId}/cancel`, { method: "POST", body: JSON.stringify(input) });
     },
-    updateLocation(rideId: string, lat: number, lng: number) {
-      return request(`/rides/${rideId}/location`, { method: "POST", body: JSON.stringify({ lat, lng }) });
+    updateLocation(rideId: string, lat: number, lng: number, extra?: { heading?: number; speed?: number; timestamp?: string }) {
+      return request(`/rides/${rideId}/location`, {
+        method: "POST",
+        body: JSON.stringify({ lat, lng, ...(extra || {}) }),
+      });
     },
   },
   public: {

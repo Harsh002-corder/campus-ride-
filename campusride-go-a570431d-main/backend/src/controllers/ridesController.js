@@ -293,6 +293,9 @@ export const verifyRideSchema = z.object({
 export const driverLocationSchema = z.object({
   lat: z.number(),
   lng: z.number(),
+  heading: z.number().min(0).max(360).optional(),
+  speed: z.number().min(0).optional(),
+  timestamp: z.string().datetime().optional(),
 });
 
 export const rideFeedbackSchema = z.object({
@@ -1093,6 +1096,9 @@ export const updateDriverLocation = asyncHandler(async (req, res) => {
     }
   }
 
+  const locationTimestamp = req.body.timestamp ? new Date(req.body.timestamp) : now;
+  const normalizedUpdatedAt = Number.isNaN(locationTimestamp.getTime()) ? now : locationTimestamp;
+
   const updatedRide = await Ride.findOneAndUpdate(
     { _id: rideId },
     {
@@ -1100,13 +1106,31 @@ export const updateDriverLocation = asyncHandler(async (req, res) => {
         [isDriver ? "driverLocation" : "studentLocation"]: {
           lat: req.body.lat,
           lng: req.body.lng,
-          updatedAt: now,
+          ...(isDriver ? { heading: typeof req.body.heading === "number" ? req.body.heading : null } : {}),
+          ...(isDriver ? { speed: typeof req.body.speed === "number" ? req.body.speed : null } : {}),
+          updatedAt: normalizedUpdatedAt,
         },
         updatedAt: now,
       },
     },
     { new: true, lean: true },
   );
+
+  if (isDriver) {
+    await User.updateOne(
+      { _id: new mongoose.Types.ObjectId(req.user.id) },
+      {
+        $set: {
+          currentLocation: { lat: req.body.lat, lng: req.body.lng, updatedAt: normalizedUpdatedAt },
+          currentLocationGeo: {
+            type: "Point",
+            coordinates: [req.body.lng, req.body.lat],
+          },
+          updatedAt: now,
+        },
+      },
+    );
+  }
 
   const populated = await Ride.findById(updatedRide._id)
     .populate("studentId", "name email phone")
