@@ -202,8 +202,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
     const shouldRetryWithFallback = index === 0
       && bases.length > 1
-      && response.status === 404
-      && payload?.error === "Route not found";
+      && (
+        (response.status === 404 && payload?.error === "Route not found")
+        || (response.status === 401 && payload?.error === "Missing Bearer token")
+        || response.status === 405
+      );
 
     if (!shouldRetryWithFallback) {
       throw new Error(lastErrorMessage);
