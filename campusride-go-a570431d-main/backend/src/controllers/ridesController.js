@@ -193,6 +193,28 @@ function isWithinBoundary(point, polygon = CAMPUS_BOUNDARY_POLYGON) {
   return insideBounds && pointInPolygon(point, polygon);
 }
 
+function getTodayDateRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}
+
+function getRideFinancials(ride) {
+  const totalFare = Number(ride?.fareBreakdown?.totalFare || 0);
+  const platformFee = Number(ride?.fareBreakdown?.platformFee || 0);
+  const driverEarning = Number((totalFare - platformFee).toFixed(2));
+
+  return {
+    totalFare: Number(totalFare.toFixed(2)),
+    platformFee: Number(platformFee.toFixed(2)),
+    driverEarning,
+  };
+}
+
 async function getRideRuntimeSettings(collegeId = null) {
   const keys = Object.values(RIDE_SETTING_KEYS);
   const rows = await Setting.find({ key: { $in: keys } }).lean();
@@ -501,6 +523,62 @@ export const listRideHistory = asyncHandler(async (req, res) => {
     .lean();
 
   res.json({ rides: rides.map(serializeRide) });
+});
+
+export const getDriverTodayEarnings = asyncHandler(async (req, res) => {
+  if (req.user.role !== ROLES.DRIVER) {
+    throw new AppError(403, "Only drivers can view today earnings");
+  }
+
+  const { start, end } = getTodayDateRange();
+  const driverId = new mongoose.Types.ObjectId(req.user.id);
+
+  const rides = await Ride.find({
+    driverId,
+    status: RIDE_STATUS.COMPLETED,
+    completedAt: { $gte: start, $lt: end },
+  })
+    .populate("studentId", "name email phone")
+    .populate("driverId", "name email phone")
+    .sort({ completedAt: -1 })
+    .lean();
+
+  const serializedRides = rides.map((ride) => {
+    const serialized = serializeRide(ride);
+    const financials = getRideFinancials(ride);
+
+    return {
+      ...serialized,
+      rideTime: serialized.completedAt || serialized.updatedAt || serialized.createdAt,
+      totalFare: financials.totalFare,
+      platformFee: financials.platformFee,
+      driverEarning: financials.driverEarning,
+    };
+  });
+
+  const summary = serializedRides.reduce((accumulator, ride) => ({
+    totalEarnings: accumulator.totalEarnings + ride.totalFare,
+    platformCharges: accumulator.platformCharges + ride.platformFee,
+    netDriverEarnings: accumulator.netDriverEarnings + ride.driverEarning,
+    completedRides: accumulator.completedRides + 1,
+  }), {
+    totalEarnings: 0,
+    platformCharges: 0,
+    netDriverEarnings: 0,
+    completedRides: 0,
+  });
+
+  res.json({
+    summary: {
+      totalEarnings: Number(summary.totalEarnings.toFixed(2)),
+      platformCharges: Number(summary.platformCharges.toFixed(2)),
+      netDriverEarnings: Number(summary.netDriverEarnings.toFixed(2)),
+      completedRides: summary.completedRides,
+      currency: serializedRides[0]?.fareBreakdown?.currency || "INR",
+      date: start.toISOString(),
+    },
+    rides: serializedRides,
+  });
 });
 
 export const listAvailableRides = asyncHandler(async (req, res) => {

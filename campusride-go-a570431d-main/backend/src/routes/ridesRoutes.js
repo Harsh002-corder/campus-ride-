@@ -10,6 +10,7 @@ import {
   driverLocationSchema,
   estimateFare,
   fareEstimateSchema,
+  getDriverTodayEarnings,
   getRideById,
   listRideHistory,
   listAvailableRides,
@@ -35,6 +36,7 @@ router.post("/fare-estimate", requireRole(ROLES.STUDENT), validate(fareEstimateS
 router.get("/my", listMyRides);
 router.get("/history", listRideHistory);
 router.get("/available", requireRole(ROLES.DRIVER), listAvailableRides);
+router.get("/driver/today-earnings", requireRole(ROLES.DRIVER), getDriverTodayEarnings);
 router.get("/:rideId", getRideById);
 router.get("/:rideId/invoice", downloadRideInvoice);
 router.post("/:rideId/accept", requireRole(ROLES.DRIVER), acceptRide);

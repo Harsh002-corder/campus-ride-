@@ -107,6 +107,25 @@ export interface RideDto {
   updatedAt: string;
 }
 
+export interface DriverTodayEarningsRideDto extends RideDto {
+  rideTime: string | null;
+  totalFare: number;
+  platformFee: number;
+  driverEarning: number;
+}
+
+export interface DriverTodayEarningsDto {
+  summary: {
+    totalEarnings: number;
+    platformCharges: number;
+    netDriverEarnings: number;
+    completedRides: number;
+    currency: string;
+    date: string;
+  };
+  rides: DriverTodayEarningsRideDto[];
+}
+
 export interface RideIssueDto {
   id: string;
   ride?: {
@@ -326,6 +345,9 @@ export const apiClient = {
     },
     available() {
       return request<{ rides: RideDto[] }>("/rides/available");
+    },
+    todayEarnings() {
+      return request<DriverTodayEarningsDto>("/rides/driver/today-earnings");
     },
     accept(rideId: string) {
       return request(`/rides/${rideId}/accept`, { method: "POST" });

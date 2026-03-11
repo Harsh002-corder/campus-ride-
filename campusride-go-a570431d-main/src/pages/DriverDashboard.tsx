@@ -36,6 +36,13 @@ const toQueueRides = (rides: RideDto[]) => rides
 
 type RideActionType = "accept" | "decline" | "start" | "complete" | "cancel";
 
+type TodayEarningsSummary = {
+  totalEarnings: number;
+  platformCharges: number;
+  netDriverEarnings: number;
+  completedRides: number;
+};
+
 const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
@@ -64,6 +71,12 @@ const DriverDashboard = () => {
   const [verificationModalCode, setVerificationModalCode] = useState("");
   const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
   const [rideSearch, setRideSearch] = useState("");
+  const [todayEarnings, setTodayEarnings] = useState<TodayEarningsSummary>({
+    totalEarnings: 0,
+    platformCharges: 0,
+    netDriverEarnings: 0,
+    completedRides: 0,
+  });
   const newRequestPopupTimerRef = useRef<number | null>(null);
 
   const cancellationReasons = [
@@ -190,10 +203,11 @@ const DriverDashboard = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [profileResult, mineResult, availableResult, verificationResult, settingsResult] = await Promise.allSettled([
+      const [profileResult, mineResult, availableResult, earningsResult, verificationResult, settingsResult] = await Promise.allSettled([
         apiClient.users.me() as Promise<{ user: { isOnline?: boolean; driverVerificationStatus?: "pending" | "approved" | "rejected" } }>,
         apiClient.rides.my(),
         apiClient.rides.available(),
+        apiClient.rides.todayEarnings(),
         apiClient.drivers.verification(),
         apiClient.settings.list() as Promise<{ settings?: Array<{ key: string; value: unknown }> }>,
       ]);
@@ -201,6 +215,7 @@ const DriverDashboard = () => {
       const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
       const mine = mineResult.status === "fulfilled" ? mineResult.value : null;
       const available = availableResult.status === "fulfilled" ? availableResult.value : null;
+  const earnings = earningsResult.status === "fulfilled" ? earningsResult.value : null;
       const verification = verificationResult.status === "fulfilled" ? verificationResult.value : null;
       const settingsResponse = settingsResult.status === "fulfilled" ? settingsResult.value : null;
 
@@ -213,6 +228,12 @@ const DriverDashboard = () => {
       setIsOnline(onlineStatus);
       setMyRides(toQueueRides(mine.rides || []));
       setAvailableRides(toIncomingRequestRides(available.rides || []));
+      setTodayEarnings(earnings?.summary || {
+        totalEarnings: 0,
+        platformCharges: 0,
+        netDriverEarnings: 0,
+        completedRides: 0,
+      });
       setVerificationStatus(profile.user?.driverVerificationStatus || verification?.verification?.status || "not_submitted");
       setVerificationNotes(verification?.verification?.reviewNotes || "");
 
@@ -410,11 +431,13 @@ const DriverDashboard = () => {
   }, [activeRides.length, myRides]);
 
   const estimatedEarnings = useMemo(() => {
-    const ratePerCompletedRide = 50;
-    return stats.completed * ratePerCompletedRide;
-  }, [stats.completed]);
+    return myRides
+      .filter((ride) => ride.status === "completed")
+      .reduce((total, ride) => total + Number(ride.fareBreakdown?.totalFare || 0) - Number(ride.fareBreakdown?.platformFee || 0), 0)
+      .toFixed(2);
+  }, [myRides]);
 
-  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings") => {
+  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings" | "today-earnings") => {
     if (key === "total" || key === "today") {
       navigate("/rides", { state: { tab: "all" } });
       return;
@@ -431,6 +454,11 @@ const DriverDashboard = () => {
 
     if (key === "completed" || key === "earnings") {
       navigate("/rides", { state: { tab: "completed" } });
+      return;
+    }
+
+    if (key === "today-earnings") {
+      navigate("/driver-dashboard/today-earnings");
     }
   };
 
@@ -839,18 +867,19 @@ const DriverDashboard = () => {
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-6 gap-4">
               {[
                 { key: "total", icon: Wallet, label: "Total Rides", value: String(stats.total), change: "all time" },
                 { key: "today", icon: Navigation, label: "Rides Today", value: String(stats.today), change: "today" },
                 { key: "active", icon: Users, label: "Active", value: String(stats.active), change: "in progress" },
                 { key: "completed", icon: Star, label: "Completed", value: String(stats.completed), change: "finished" },
-                { key: "earnings", icon: Wallet, label: "Earnings", value: `₹${estimatedEarnings}`, change: "estimated" },
+                { key: "earnings", icon: Wallet, label: "Earnings", value: `₹${estimatedEarnings}`, change: "net total" },
+                { key: "today-earnings", icon: TrendingUp, label: "Today Earnings", value: `₹${todayEarnings.netDriverEarnings.toFixed(2)}`, change: `${todayEarnings.completedRides} completed` },
               ].map((s, i) => (
                 <motion.div
                   key={s.label}
                   {...card(i + 1)}
-                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings")}
+                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "today-earnings")}
                   className="card-glass cursor-pointer"
                 >
                   <div className="flex items-center gap-3 mb-3">
