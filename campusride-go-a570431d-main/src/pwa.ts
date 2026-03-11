@@ -65,10 +65,15 @@ async function setupPwa() {
     const updateServiceWorker = registerSW({
       immediate: true,
       onNeedRefresh() {
-        // Emit custom event instead of immediately reloading
-        // This allows React components to show a notification
+        // Emit custom event with updater callback so UI can trigger skipWaiting.
         console.log("[PWA] Update available, notifying user");
-        window.dispatchEvent(new Event("pwa-update-available"));
+        window.dispatchEvent(new CustomEvent("pwa-update-available", {
+          detail: {
+            applyUpdate: () => {
+              void updateServiceWorker(true);
+            },
+          },
+        }));
       },
       onRegisteredSW(_swUrl, registration) {
         if (!registration) return;

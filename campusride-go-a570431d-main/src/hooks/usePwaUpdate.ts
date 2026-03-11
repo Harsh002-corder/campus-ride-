@@ -14,9 +14,12 @@ export const usePwaUpdate = () => {
       return;
     }
 
-    const handleUpdateAvailable = () => {
+    const handleUpdateAvailable = (event: Event) => {
       if (updateCheckInProgressRef.current) return;
       updateCheckInProgressRef.current = true;
+
+      const applyUpdate =
+        (event as CustomEvent<{ applyUpdate?: () => void }>).detail?.applyUpdate;
 
       toast({
         title: "Update Available",
@@ -24,6 +27,10 @@ export const usePwaUpdate = () => {
         action: {
           label: "Refresh",
           onClick: () => {
+            if (typeof applyUpdate === "function") {
+              applyUpdate();
+              return;
+            }
             window.location.reload();
           },
         },
