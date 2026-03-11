@@ -38,34 +38,11 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-
-          if (id.includes("react") || id.includes("scheduler")) {
-            return "react-vendor";
-          }
-
-          if (id.includes("@react-google-maps") || id.includes("react-leaflet") || id.includes("leaflet")) {
-            return "maps-vendor";
-          }
-
-          if (id.includes("socket.io-client") || id.includes("engine.io-client")) {
-            return "realtime-vendor";
-          }
-
-          if (id.includes("@radix-ui") || id.includes("framer-motion") || id.includes("recharts")) {
-            return "ui-vendor";
-          }
-
-          return "vendor";
-        },
-      },
-    },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react/jsx-runtime"],
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
