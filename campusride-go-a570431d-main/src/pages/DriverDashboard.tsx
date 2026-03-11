@@ -12,6 +12,7 @@ import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
 import { apiClient, type AuthUser, type RideDto } from "@/lib/apiClient";
+import { buildTodayEarningsFromRides } from "@/lib/driverEarnings";
 import { getSocketClient } from "@/lib/socketClient";
 import {
   Navigation, Wallet, Users, LogOut, Power,
@@ -203,11 +204,10 @@ const DriverDashboard = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [profileResult, mineResult, availableResult, earningsResult, verificationResult, settingsResult] = await Promise.allSettled([
+      const [profileResult, mineResult, availableResult, verificationResult, settingsResult] = await Promise.allSettled([
         apiClient.users.me() as Promise<{ user: { isOnline?: boolean; driverVerificationStatus?: "pending" | "approved" | "rejected" } }>,
         apiClient.rides.my(),
         apiClient.rides.available(),
-        apiClient.rides.todayEarnings(),
         apiClient.drivers.verification(),
         apiClient.settings.list() as Promise<{ settings?: Array<{ key: string; value: unknown }> }>,
       ]);
@@ -215,7 +215,6 @@ const DriverDashboard = () => {
       const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
       const mine = mineResult.status === "fulfilled" ? mineResult.value : null;
       const available = availableResult.status === "fulfilled" ? availableResult.value : null;
-  const earnings = earningsResult.status === "fulfilled" ? earningsResult.value : null;
       const verification = verificationResult.status === "fulfilled" ? verificationResult.value : null;
       const settingsResponse = settingsResult.status === "fulfilled" ? settingsResult.value : null;
 
@@ -226,9 +225,10 @@ const DriverDashboard = () => {
       const onlineStatus = Boolean(profile.user?.isOnline);
       sessionStorage.setItem("driver_is_online", String(onlineStatus));
       setIsOnline(onlineStatus);
-      setMyRides(toQueueRides(mine.rides || []));
+      const myRideList = toQueueRides(mine.rides || []);
+      setMyRides(myRideList);
       setAvailableRides(toIncomingRequestRides(available.rides || []));
-      setTodayEarnings(earnings?.summary || {
+      setTodayEarnings(buildTodayEarningsFromRides(myRideList).summary || {
         totalEarnings: 0,
         platformCharges: 0,
         netDriverEarnings: 0,

@@ -7,6 +7,7 @@ import PageTransition from "@/components/PageTransition";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { apiClient, type DriverTodayEarningsDto, type DriverTodayEarningsRideDto } from "@/lib/apiClient";
+import { buildTodayEarningsFromRides } from "@/lib/driverEarnings";
 import { ArrowLeft, BadgePercent, CircleDollarSign, Clock3, Navigation, ReceiptText, Wallet } from "lucide-react";
 
 const emptySummary: DriverTodayEarningsDto["summary"] = {
@@ -43,9 +44,10 @@ const DriverTodayEarnings = () => {
   const loadEarnings = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiClient.rides.todayEarnings();
-      setSummary(response.summary || emptySummary);
-      setRides(response.rides || []);
+      const response = await apiClient.rides.my();
+      const todayEarnings = buildTodayEarningsFromRides(response.rides || []);
+      setSummary(todayEarnings.summary || emptySummary);
+      setRides(todayEarnings.rides || []);
     } catch (error) {
       toast.error("Unable to load today earnings", error, "Please try again in a moment.");
     } finally {
