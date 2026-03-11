@@ -3,8 +3,8 @@
 import { clientsClaim } from "workbox-core";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
-import { NavigationRoute, registerRoute, setCatchHandler } from "workbox-routing";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import { registerRoute, setCatchHandler } from "workbox-routing";
 import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -98,11 +98,26 @@ registerRoute(
   }),
 );
 
-const appShellHandler = createHandlerBoundToURL("/index.html");
-
-registerRoute(new NavigationRoute(appShellHandler, {
-  denylist: [/^\/api\//, /^\/socket\.io\//, /^\/offline\.html$/],
-}));
+// Keep navigations fresh after deployments to avoid stale HTML referencing removed chunks.
+registerRoute(
+  ({ request, url }) => (
+    request.mode === "navigate"
+    && !url.pathname.startsWith("/api/")
+    && !url.pathname.startsWith("/socket.io/")
+    && !url.pathname.startsWith("/offline.html")
+  ),
+  new NetworkFirst({
+    cacheName: "campusride-pages",
+    networkTimeoutSeconds: 4,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 30,
+        maxAgeSeconds: 60 * 60 * 24,
+      }),
+    ],
+  }),
+);
 
 setCatchHandler(async ({ event }) => {
   if (event.request.destination === "document") {
