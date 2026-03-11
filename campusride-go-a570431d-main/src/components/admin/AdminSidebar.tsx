@@ -91,7 +91,7 @@ export function AdminSidebar({
           <SidebarGroupContent>
             <div className="px-4 space-y-3">
               <div className="bg-muted/30 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground">Today's Revenue</p>
+                <p className="text-xs text-muted-foreground">Total Ride Amount</p>
                 <p className="text-lg font-bold font-display gradient-text">{formattedRevenue}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3">

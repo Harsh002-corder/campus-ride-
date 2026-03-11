@@ -58,7 +58,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
         const pending = (issuesResponse.issues || []).filter((issue) => issue.status === "open" || issue.status === "in_review").length;
         setPendingIssuesCount(pending);
         setSidebarAnalytics({
-          todayRevenue: analyticsResponse.metrics?.todayRevenue ?? 0,
+          todayRevenue: analyticsResponse.metrics?.totalRevenue ?? analyticsResponse.metrics?.todayRevenue ?? 0,
           activeUsers: analyticsResponse.metrics?.activeUsers ?? analyticsResponse.metrics?.totalUsers ?? 0,
           onlineUsers: analyticsResponse.metrics?.onlineUsers ?? 0,
           onlineDrivers: analyticsResponse.metrics?.onlineDrivers ?? 0,
