@@ -15,7 +15,10 @@ function isTrustedVercelOrigin(origin) {
   if (!origin) return false;
   try {
     const parsed = new URL(origin);
-    return parsed.protocol === "https:" && /\.vercel\.app$/i.test(parsed.hostname);
+    if (parsed.protocol !== "https:") return false;
+    if (/\.vercel\.app$/i.test(parsed.hostname)) return true;
+    if (/^(?:www\.)?campusride\.tech$/i.test(parsed.hostname)) return true;
+    return false;
   } catch {
     return false;
   }
