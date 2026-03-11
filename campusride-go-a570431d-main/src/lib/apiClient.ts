@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/config/api";
+import { API_BASE_URL, FALLBACK_API_BASE_URL } from "@/config/api";
 
 export type UserRole = "student" | "driver" | "admin" | "super_admin" | "sub_admin";
 
@@ -163,6 +163,11 @@ export function clearAuthToken() {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const bases = [API_BASE_URL];
+  if (FALLBACK_API_BASE_URL && FALLBACK_API_BASE_URL !== API_BASE_URL) {
+    bases.push(FALLBACK_API_BASE_URL);
+  }
+
   const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -173,22 +178,39 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let lastErrorMessage = "Request failed";
 
-  const payload = await response.json().catch(() => ({}));
+  for (let index = 0; index < bases.length; index += 1) {
+    const baseUrl = bases[index];
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+    });
 
-  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      return payload as T;
+    }
+
     const fieldErrors = payload?.details?.fieldErrors as Record<string, string[]> | undefined;
     const firstFieldError = fieldErrors
       ? Object.values(fieldErrors).flat().find((message) => typeof message === "string" && message.length > 0)
       : undefined;
-    throw new Error(firstFieldError || payload.error || "Request failed");
+
+    lastErrorMessage = firstFieldError || payload.error || "Request failed";
+
+    const shouldRetryWithFallback = index === 0
+      && bases.length > 1
+      && response.status === 404
+      && payload?.error === "Route not found";
+
+    if (!shouldRetryWithFallback) {
+      throw new Error(lastErrorMessage);
+    }
   }
 
-  return payload as T;
+  throw new Error(lastErrorMessage);
 }
 
 async function requestBlob(path: string, init: RequestInit = {}): Promise<Blob> {
