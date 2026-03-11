@@ -61,6 +61,7 @@ const REQUESTED_LIKE_STATUSES = [RIDE_STATUS.REQUESTED, "requested"];
 const ONGOING_LIKE_STATUSES = [RIDE_STATUS.ONGOING, "ongoing"];
 const ENFORCE_CAMPUS_BOUNDARY = true;
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
+const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 
 function isRequestedLikeStatus(status) {
   return REQUESTED_LIKE_STATUSES.includes(status);
@@ -95,7 +96,10 @@ function assertPickupGpsVerification(pickup, studentGps, boundaryPolygon) {
     throw new AppError(400, "Enable GPS location to verify your pickup point.");
   }
 
-  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinBoundary(studentGps, boundaryPolygon)) {
+  const accuracy = Number(studentGps.accuracy);
+  const isCoarseGps = !Number.isFinite(accuracy) || accuracy > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
+
+  if (ENFORCE_CAMPUS_BOUNDARY && !isWithinBoundary(studentGps, boundaryPolygon) && !isCoarseGps) {
     throw new AppError(400, "Pickup location must be inside the campus.");
   }
 
@@ -104,7 +108,7 @@ function assertPickupGpsVerification(pickup, studentGps, boundaryPolygon) {
     { lat: pickup.lat, lng: pickup.lng },
   );
 
-  if (meters > MAX_PICKUP_GPS_DISTANCE_METERS) {
+  if (meters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
     throw new AppError(400, "Pickup location must be within 200 meters of your current GPS location.");
   }
 }
