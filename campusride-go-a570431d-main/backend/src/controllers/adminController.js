@@ -16,6 +16,9 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
 
   const [
     totalUsers,
+    activeUsers,
+    onlineUsers,
+    onlineDrivers,
     totalStudents,
     totalDrivers,
     pendingDrivers,
@@ -28,6 +31,9 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     cancellations,
   ] = await Promise.all([
     User.countDocuments(userScope),
+    User.countDocuments({ ...userScope, isActive: true }),
+    User.countDocuments({ ...userScope, isOnline: true }),
+    User.countDocuments({ ...userScope, role: ROLES.DRIVER, isOnline: true }),
     User.countDocuments({ ...userScope, role: ROLES.STUDENT }),
     User.countDocuments({ ...userScope, role: ROLES.DRIVER }),
     User.countDocuments({ ...userScope, role: ROLES.DRIVER, driverApprovalStatus: "pending" }),
@@ -40,7 +46,7 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
     Ride.find({ ...rideScope, status: RIDE_STATUS.CANCELLED }).sort({ cancelledAt: -1 }).limit(100).lean(),
   ]);
 
-  const [driverPerformanceAgg, revenueAgg, peakHoursAgg] = await Promise.all([
+  const [driverPerformanceAgg, revenueAgg, todayRevenueAgg, peakHoursAgg] = await Promise.all([
     Ride.aggregate([
       { $match: { status: RIDE_STATUS.COMPLETED, driverId: { $ne: null } } },
       ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
@@ -75,6 +81,29 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
         },
       },
     ]),
+    (() => {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const startOfTomorrow = new Date(startOfToday);
+      startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+      return Ride.aggregate([
+        {
+          $match: {
+            status: RIDE_STATUS.COMPLETED,
+            completedAt: { $gte: startOfToday, $lt: startOfTomorrow },
+          },
+        },
+        ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
+        {
+          $group: {
+            _id: null,
+            todayRevenue: { $sum: { $ifNull: ["$fareBreakdown.totalFare", 0] } },
+          },
+        },
+      ]);
+    })(),
     Ride.aggregate([
       ...(scope ? [{ $match: { collegeId: scope.collegeId } }] : []),
       {
@@ -110,6 +139,7 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
   }));
 
   const revenue = revenueAgg[0] || { totalRevenue: 0, avgFare: 0 };
+  const todayRevenue = todayRevenueAgg[0]?.todayRevenue || 0;
   const cancellationRate = totalRides > 0 ? Number(((cancelledRides / totalRides) * 100).toFixed(2)) : 0;
 
   const cancellationReasonAgg = await Cancellation.aggregate([
@@ -127,6 +157,9 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
   res.json({
     metrics: {
       totalUsers,
+      activeUsers,
+      onlineUsers,
+      onlineDrivers,
       totalStudents,
       totalDrivers,
       pendingDrivers,
@@ -137,6 +170,7 @@ export const getDashboardAnalytics = asyncHandler(async (req, res) => {
       completedRides,
       cancelledRides,
       cancellationRate,
+      todayRevenue: Number(todayRevenue.toFixed(2)),
       totalRevenue: Number((revenue.totalRevenue || 0).toFixed(2)),
       averageFare: Number((revenue.avgFare || 0).toFixed(2)),
     },

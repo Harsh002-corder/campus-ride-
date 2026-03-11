@@ -41,6 +41,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [pendingIssuesCount, setPendingIssuesCount] = useState(0);
+  const [sidebarAnalytics, setSidebarAnalytics] = useState({ todayRevenue: 0, activeUsers: 0, onlineUsers: 0, onlineDrivers: 0 });
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [createSubAdminRequestKey, setCreateSubAdminRequestKey] = useState(0);
 
@@ -49,12 +50,24 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
 
     const loadPendingIssues = async () => {
       try {
-        const response = await apiClient.admin.issues();
+        const [issuesResponse, analyticsResponse] = await Promise.all([
+          apiClient.admin.issues(),
+          apiClient.admin.analytics(),
+        ]);
         if (!mounted) return;
-        const pending = (response.issues || []).filter((issue) => issue.status === "open" || issue.status === "in_review").length;
+        const pending = (issuesResponse.issues || []).filter((issue) => issue.status === "open" || issue.status === "in_review").length;
         setPendingIssuesCount(pending);
+        setSidebarAnalytics({
+          todayRevenue: analyticsResponse.metrics?.todayRevenue ?? 0,
+          activeUsers: analyticsResponse.metrics?.activeUsers ?? analyticsResponse.metrics?.totalUsers ?? 0,
+          onlineUsers: analyticsResponse.metrics?.onlineUsers ?? 0,
+          onlineDrivers: analyticsResponse.metrics?.onlineDrivers ?? 0,
+        });
       } catch {
-        if (mounted) setPendingIssuesCount(0);
+        if (mounted) {
+          setPendingIssuesCount(0);
+          setSidebarAnalytics({ todayRevenue: 0, activeUsers: 0, onlineUsers: 0, onlineDrivers: 0 });
+        }
       }
     };
 
@@ -118,7 +131,16 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
         <div className="min-h-screen flex w-full bg-background relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none [background:var(--gradient-hero)]" />
 
-          <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} pendingIssuesCount={pendingIssuesCount} panelLabel={sidebarLabel} />
+          <AdminSidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            pendingIssuesCount={pendingIssuesCount}
+            panelLabel={sidebarLabel}
+            todayRevenue={sidebarAnalytics.todayRevenue}
+            activeUsers={sidebarAnalytics.activeUsers}
+            onlineUsers={sidebarAnalytics.onlineUsers}
+            onlineDrivers={sidebarAnalytics.onlineDrivers}
+          />
 
           <div className="flex-1 flex flex-col relative z-10">
             {/* Top bar */}

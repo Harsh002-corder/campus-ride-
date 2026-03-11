@@ -33,9 +33,27 @@ interface AdminSidebarProps {
   setActiveTab: (tab: string) => void;
   pendingIssuesCount?: number;
   panelLabel?: string;
+  todayRevenue?: number;
+  activeUsers?: number;
+  onlineUsers?: number;
+  onlineDrivers?: number;
 }
 
-export function AdminSidebar({ activeTab, setActiveTab, pendingIssuesCount = 0, panelLabel = "Admin Panel" }: AdminSidebarProps) {
+export function AdminSidebar({
+  activeTab,
+  setActiveTab,
+  pendingIssuesCount = 0,
+  panelLabel = "Admin Panel",
+  todayRevenue = 0,
+  activeUsers = 0,
+  onlineUsers = 0,
+  onlineDrivers = 0,
+}: AdminSidebarProps) {
+  const formattedRevenue = `₹${Number(todayRevenue || 0).toLocaleString("en-IN")}`;
+  const formattedActiveUsers = Number(activeUsers || 0).toLocaleString("en-IN");
+  const formattedOnlineUsers = Number(onlineUsers || 0).toLocaleString("en-IN");
+  const formattedOnlineDrivers = Number(onlineDrivers || 0).toLocaleString("en-IN");
+
   return (
     <Sidebar className="border-r border-border">
       <SidebarContent className="pt-4">
@@ -74,11 +92,19 @@ export function AdminSidebar({ activeTab, setActiveTab, pendingIssuesCount = 0, 
             <div className="px-4 space-y-3">
               <div className="bg-muted/30 rounded-xl p-3">
                 <p className="text-xs text-muted-foreground">Today's Revenue</p>
-                <p className="text-lg font-bold font-display gradient-text">₹24,580</p>
+                <p className="text-lg font-bold font-display gradient-text">{formattedRevenue}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3">
                 <p className="text-xs text-muted-foreground">Active Users</p>
-                <p className="text-lg font-bold font-display text-foreground">1,247</p>
+                <p className="text-lg font-bold font-display text-foreground">{formattedActiveUsers}</p>
+              </div>
+              <div className="bg-muted/30 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Online Users</p>
+                <p className="text-lg font-bold font-display text-foreground">{formattedOnlineUsers}</p>
+              </div>
+              <div className="bg-muted/30 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Online Drivers</p>
+                <p className="text-lg font-bold font-display text-foreground">{formattedOnlineDrivers}</p>
               </div>
             </div>
           </SidebarGroupContent>

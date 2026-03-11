@@ -506,6 +506,9 @@ export const apiClient = {
       return request<{
         metrics: {
           totalUsers: number;
+          activeUsers: number;
+          onlineUsers: number;
+          onlineDrivers: number;
           totalStudents: number;
           totalDrivers: number;
           pendingDrivers: number;
@@ -516,6 +519,7 @@ export const apiClient = {
           completedRides: number;
           cancelledRides: number;
           cancellationRate: number;
+          todayRevenue: number;
           totalRevenue: number;
           averageFare: number;
         };
