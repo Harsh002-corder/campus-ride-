@@ -79,6 +79,7 @@ export interface RideDto {
     platformFeePercent?: number;
     platformFee?: number;
     totalFare: number;
+    perPassengerFare?: number;
     generatedAt: string;
   } | null;
   cancelReason: string | null;
