@@ -44,6 +44,8 @@ type GpsVerificationState = {
 
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
+// TODO: set back to false before going live
+const SKIP_GPS_VERIFICATION = true;
 
 function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {
@@ -389,7 +391,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
+    if (!SKIP_GPS_VERIFICATION && !isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
       toast.info("Pickup location must be inside the campus.");
       return;
@@ -402,46 +404,53 @@ const StudentDashboard = () => {
     }
 
     let gpsLocation: { lat: number; lng: number; accuracy: number | null };
-    setGpsVerification({ state: "checking", message: "Verifying pickup with GPS..." });
-    try {
-      gpsLocation = await getCurrentPosition();
-    } catch (error) {
-      setGpsVerification({ state: "failed", message: "GPS access required for booking" });
-      toast.error("Unable to verify your location", error, "Enable location access to book rides.");
-      return;
-    }
 
-    const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
-      || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
+    if (SKIP_GPS_VERIFICATION) {
+      // GPS check disabled for testing — use pickup stop coords as fake GPS
+      gpsLocation = { lat: resolvedPickup.lat, lng: resolvedPickup.lng, accuracy: null };
+      setGpsVerification({ state: "verified", message: "GPS check bypassed (test mode)" });
+    } else {
+      setGpsVerification({ state: "checking", message: "Verifying pickup with GPS..." });
+      try {
+        gpsLocation = await getCurrentPosition();
+      } catch (error) {
+        setGpsVerification({ state: "failed", message: "GPS access required for booking" });
+        toast.error("Unable to verify your location", error, "Enable location access to book rides.");
+        return;
+      }
 
-    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
-      setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-      toast.info("Pickup location must be inside the campus.");
-      return;
-    }
+      const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
+        || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
 
-    const pickupDistanceMeters = getDistanceMeters(
-      { lat: gpsLocation.lat, lng: gpsLocation.lng },
-      { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
-    );
-    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
+      if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
+        setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
+        toast.info("Pickup location must be inside the campus.");
+        return;
+      }
+
+      const pickupDistanceMeters = getDistanceMeters(
+        { lat: gpsLocation.lat, lng: gpsLocation.lng },
+        { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
+      );
+      if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
+        setGpsVerification({
+          state: "failed",
+          message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
+        });
+        toast.info("Pickup location must be within 200 meters of your current GPS location.");
+        return;
+      }
+
       setGpsVerification({
-        state: "failed",
-        message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
+        state: "verified",
+        message: isCoarseGps
+          ? "Low GPS accuracy detected; pickup stop verification accepted"
+          : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
       });
-      toast.info("Pickup location must be within 200 meters of your current GPS location.");
-      return;
-    }
 
-    setGpsVerification({
-      state: "verified",
-      message: isCoarseGps
-        ? "Low GPS accuracy detected; pickup stop verification accepted"
-        : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
-    });
-
-    if (isCoarseGps) {
-      toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
+      if (isCoarseGps) {
+        toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
+      }
     }
 
     const passengerNames = passengerNamesText

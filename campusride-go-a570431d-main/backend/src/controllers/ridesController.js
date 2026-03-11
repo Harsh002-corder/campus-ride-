@@ -59,7 +59,8 @@ const DEFAULT_RIDE_SETTINGS = {
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
 const REQUESTED_LIKE_STATUSES = [RIDE_STATUS.REQUESTED, "requested"];
 const ONGOING_LIKE_STATUSES = [RIDE_STATUS.ONGOING, "ongoing"];
-const ENFORCE_CAMPUS_BOUNDARY = true;
+// TODO: set back to true before going live
+const ENFORCE_CAMPUS_BOUNDARY = false;
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 
@@ -108,7 +109,7 @@ function assertPickupGpsVerification(pickup, studentGps, boundaryPolygon) {
     { lat: pickup.lat, lng: pickup.lng },
   );
 
-  if (meters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
+  if (ENFORCE_CAMPUS_BOUNDARY && meters > MAX_PICKUP_GPS_DISTANCE_METERS && !isCoarseGps) {
     throw new AppError(400, "Pickup location must be within 200 meters of your current GPS location.");
   }
 }
