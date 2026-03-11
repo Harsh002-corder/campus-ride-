@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Search, Ban, Mail, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Ban, Mail, Trash2, UserPlus, X } from "lucide-react";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserRow {
   id: string;
@@ -17,10 +18,17 @@ const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_adm
 
 const AdminUsers = () => {
   const toast = useAppToast();
+  const { user: authUser } = useAuth();
+  const canCreateSubAdmin = authUser?.role === "admin" || authUser?.role === "super_admin";
+
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [rides, setRides] = useState<RideDto[]>([]);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", email: "", password: "", phone: "" });
 
   const loadData = async (mounted = true) => {
     const [usersResponse, ridesResponse] = await Promise.all([
@@ -92,6 +100,27 @@ const AdminUsers = () => {
     }
   };
 
+  const handleCreateSubAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      await apiClient.admin.createSubAdmin({
+        name: createForm.name.trim(),
+        email: createForm.email.trim(),
+        password: createForm.password,
+        phone: createForm.phone.trim() || null,
+      });
+      await loadData(true);
+      toast.success("Sub-Admin created", `${createForm.name} can now log in as sub-admin.`);
+      setShowCreateModal(false);
+      setCreateForm({ name: "", email: "", password: "", phone: "" });
+    } catch (error) {
+      toast.error("Could not create sub-admin", error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const ridesByStudent = useMemo(() => {
     const map = new Map<string, number>();
     rides.forEach((ride) => {
@@ -113,14 +142,25 @@ const AdminUsers = () => {
           <h1 className="text-2xl font-bold font-display mb-1">User Management</h1>
           <p className="text-sm text-muted-foreground">{users.length} registered users</p>
         </div>
-        <div className="relative max-w-xs w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            placeholder="Search users..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-muted/50 border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-          />
+        <div className="flex items-center gap-3">
+          {canCreateSubAdmin && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
+              Create Sub-Admin
+            </button>
+          )}
+          <div className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              placeholder="Search users..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-muted/50 border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            />
+          </div>
         </div>
       </div>
 
@@ -196,6 +236,97 @@ const AdminUsers = () => {
           </table>
         </div>
       </div>
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowCreateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="card-glass w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold font-display">Create Sub-Admin</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">The new account will have sub-admin dashboard access.</p>
+                </div>
+                <button onClick={() => setShowCreateModal(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateSubAdmin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full Name *</label>
+                  <input
+                    required
+                    minLength={2}
+                    maxLength={120}
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Jane Smith"
+                    className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email *</label>
+                  <input
+                    required
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                    placeholder="jane@university.edu"
+                    className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Password *</label>
+                  <input
+                    required
+                    type="password"
+                    minLength={8}
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="Min 8 characters"
+                    className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Phone <span className="text-muted-foreground/60">(optional)</span></label>
+                  <input
+                    type="tel"
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="+1 555 000 0000"
+                    className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+                  >
+                    {creating ? "Creating…" : "Create Sub-Admin"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

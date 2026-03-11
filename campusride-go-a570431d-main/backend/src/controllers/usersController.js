@@ -5,6 +5,7 @@ import { Favorite, User } from "../models/index.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendAccountDeletedEmail, sendAccountStatusEmail } from "../utils/mailer.js";
+import { hashPassword } from "../utils/password.js";
 
 export const updateProfileSchema = z.object({
   name: z.string().min(2).max(120).optional(),
@@ -22,6 +23,49 @@ export const adminUpdateUserSchema = z.object({
   driverApprovalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
   driverVerificationStatus: z.enum(["pending", "approved", "rejected"]).optional(),
   vehicleSeats: z.number().int().min(1).max(10).optional(),
+});
+
+export const createSubAdminSchema = z.object({
+  name: z.string().min(2).max(120),
+  email: z.string().email().max(200).toLowerCase(),
+  password: z.string().min(8).max(128),
+  phone: z.string().min(7).max(20).optional().nullable(),
+  collegeId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional().nullable(),
+});
+
+export const createSubAdmin = asyncHandler(async (req, res) => {
+  if (!SUPER_ADMIN_ROLES.includes(req.user.role)) {
+    throw new AppError(403, "Only admin or super admin can create sub-admin accounts");
+  }
+
+  const { name, email, password, phone, collegeId } = req.body;
+
+  const existing = await User.findOne({ email }).lean();
+  if (existing) {
+    throw new AppError(409, "An account with this email already exists");
+  }
+
+  const passwordHash = await hashPassword(password);
+  const now = new Date();
+
+  const user = await User.create({
+    name,
+    email,
+    phone: phone || null,
+    passwordHash,
+    role: ROLES.SUB_ADMIN,
+    collegeId: collegeId ? new mongoose.Types.ObjectId(collegeId) : null,
+    isActive: true,
+    isOnline: false,
+    driverApprovalStatus: "approved",
+    driverVerificationStatus: "approved",
+    vehicleSeats: 4,
+    driverPerformanceScore: 60,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  res.status(201).json({ user: serializeUser(user) });
 });
 
 export const createFavoriteSchema = z.object({

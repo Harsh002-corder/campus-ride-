@@ -455,6 +455,9 @@ export const apiClient = {
     deleteUser(userId: string) {
       return request(`/users/${userId}`, { method: "DELETE" });
     },
+    createSubAdmin(input: { name: string; email: string; password: string; phone?: string | null; collegeId?: string | null }) {
+      return request(`/users/create-sub-admin`, { method: "POST", body: JSON.stringify(input) });
+    },
   },
   settings: {
     list() {
