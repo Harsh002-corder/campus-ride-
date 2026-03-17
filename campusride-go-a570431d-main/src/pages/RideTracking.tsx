@@ -669,82 +669,85 @@ const RideTracking = () => {
             transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.1 }}
             className="glass rounded-t-3xl p-4 sm:p-6 space-y-4 sm:space-y-5"
           >
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold uppercase tracking-widest ${mapMode === "ride_started" ? "text-green-400" : "text-blue-400"}`}>
-                ? {statusText}
+            <div className="flex items-center justify-between gap-3">
+              <span className={`text-xs sm:text-sm font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg ${mapMode === "ride_started" ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"}`}>
+                ✓ {statusText}
               </span>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-2">
                 {ride.status !== "cancelled" && ride.status !== "completed" && Boolean(ride.verificationCode) && (
-                  <span className="text-[11px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-lg">
-                    Code: {ride.verificationCode}
+                  <span className="text-xs font-bold bg-primary/20 text-primary px-3 py-1.5 rounded-lg">
+                    🔐 Code: {ride.verificationCode}
                   </span>
                 )}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-muted/40 px-3 py-1.5 rounded-lg font-medium">
+                  <Clock className="w-4 h-4" />
                   <span>ETA {rideEtaText}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                <p className="text-muted-foreground">Distance to Pickup</p>
-                <p className="font-semibold text-foreground">{typeof pickupDistanceKm === "number" ? `${Math.round(pickupDistanceKm * 1000)} m` : "-"}</p>
+            <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                <p className="text-muted-foreground font-medium mb-1">Distance to Pickup</p>
+                <p className="font-bold text-foreground text-lg">{typeof pickupDistanceKm === "number" ? `${Math.round(pickupDistanceKm * 1000)} m` : "-"}</p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                <p className="text-muted-foreground">Distance to Drop</p>
-                <p className="font-semibold text-foreground">{typeof dropDistanceKm === "number" ? `${dropDistanceKm.toFixed(2)} km` : "-"}</p>
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                <p className="text-muted-foreground font-medium mb-1">Distance to Drop</p>
+                <p className="font-bold text-foreground text-lg">{typeof dropDistanceKm === "number" ? `${dropDistanceKm.toFixed(2)} km` : "-"}</p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                <p className="text-muted-foreground">Live ETA</p>
-                <p className="font-semibold text-foreground">{rideEtaText}</p>
+              <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <p className="text-muted-foreground font-medium mb-1">Live ETA</p>
+                <p className="font-bold text-foreground text-lg">{rideEtaText}</p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                <p className="text-muted-foreground">Map Mode</p>
-                <p className="font-semibold text-foreground capitalize">{mapMode.replace("_", " ")}</p>
+              <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <p className="text-muted-foreground font-medium mb-1">Mode</p>
+                <p className="font-bold text-foreground text-lg capitalize">{mapMode.replace("_", " ")}</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between glass rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary-foreground" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="w-12 h-12 rounded-lg btn-primary-gradient flex-shrink-0 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <div>
-                  <p className="font-semibold text-sm">{contactRoleLabel}: {contactDisplayName}</p>
-                  <p className="text-xs text-muted-foreground">{contactPhoneRaw}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Vehicle: {vehicleType}</p>
-                  <p className="text-xs text-muted-foreground">Number: {vehicleNumber}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm sm:text-base text-foreground">{contactRoleLabel}: {contactDisplayName}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{contactPhoneRaw}</p>
+                  <p className="text-xs text-muted-foreground mt-1.5">🚗 {vehicleType} • {vehicleNumber}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3 w-full sm:w-auto">
                 {callHref ? (
-                  <motion.a whileTap={{ scale: 0.92 }} href={callHref} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors" title="Call driver">
+                  <motion.a whileTap={{ scale: 0.9 }} href={callHref} className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex items-center justify-center gap-2 font-medium text-sm" title="Call driver">
                     <Phone className="w-4 h-4" />
+                    <span className="sm:hidden">Call</span>
                   </motion.a>
                 ) : (
-                  <button type="button" disabled className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed" title="Call unavailable">
+                  <button type="button" disabled className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg bg-muted/50 text-muted-foreground flex items-center justify-center gap-2 font-medium text-sm cursor-not-allowed" title="Call unavailable">
                     <Phone className="w-4 h-4" />
+                    <span className="sm:hidden">Call</span>
                   </button>
                 )}
                 {chatHref ? (
-                  <motion.a whileTap={{ scale: 0.92 }} href={chatHref} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors" title="Message driver">
+                  <motion.a whileTap={{ scale: 0.9 }} href={chatHref} className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex items-center justify-center gap-2 font-medium text-sm" title="Message driver">
                     <MessageCircle className="w-4 h-4" />
+                    <span className="sm:hidden">Chat</span>
                   </motion.a>
                 ) : (
-                  <button type="button" disabled className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground cursor-not-allowed" title="Chat unavailable">
+                  <button type="button" disabled className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg bg-muted/50 text-muted-foreground flex items-center justify-center gap-2 font-medium text-sm cursor-not-allowed" title="Chat unavailable">
                     <MessageCircle className="w-4 h-4" />
+                    <span className="sm:hidden">Chat</span>
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <CarFront className="w-4 h-4 text-primary" />
-                <p className="text-xs font-semibold">Live Tracking Panel</p>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 sm:py-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CarFront className="w-5 h-5 text-primary" />
+                <p className="text-sm sm:text-base font-semibold text-foreground">Live Tracking Panel</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Driver movement is updated via Socket.IO and animated locally for smooth motion.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">Driver movement is updated via Socket.IO and animated locally for smooth motion.</p>
             </div>
 
             <div className="text-[11px] text-muted-foreground text-center space-y-1">
