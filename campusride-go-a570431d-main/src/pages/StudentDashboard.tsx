@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -166,12 +166,14 @@ const StudentDashboard = () => {
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
+  const [trackRideSplash, setTrackRideSplash] = useState<{ open: boolean; targetPath: string }>({ open: false, targetPath: "" });
   const [gpsVerification, setGpsVerification] = useState<GpsVerificationState>({
     state: "idle",
     message: "Select pickup to verify GPS",
   });
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
   const [recentLocations, setRecentLocations] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
+  const trackRideTimeoutRef = useRef<number | null>(null);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -321,6 +323,12 @@ const StudentDashboard = () => {
     };
   }, [loadMyRides, user?.id]);
 
+  useEffect(() => () => {
+    if (trackRideTimeoutRef.current) {
+      window.clearTimeout(trackRideTimeoutRef.current);
+    }
+  }, []);
+
   const rideStats = useMemo(() => {
     const total = rides.length;
     const completed = rides.filter((ride) => ride.status === "completed").length;
@@ -364,6 +372,19 @@ const StudentDashboard = () => {
     whileTap: { scale: 0.93 },
   };
 
+  const playTrackRideSplash = useCallback((targetPath: string) => {
+    if (trackRideTimeoutRef.current) {
+      window.clearTimeout(trackRideTimeoutRef.current);
+    }
+
+    setTrackRideSplash({ open: true, targetPath });
+
+    trackRideTimeoutRef.current = window.setTimeout(() => {
+      setTrackRideSplash({ open: false, targetPath: "" });
+      navigate(targetPath);
+    }, 1150);
+  }, [navigate]);
+
   const handleQuickAction = (label: string) => {
     if (label === "Book a Ride") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -377,7 +398,7 @@ const StudentDashboard = () => {
 
     if (label === "Active") {
       if (activeRide && ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"].includes(activeRide.status)) {
-        navigate("/ride-tracking");
+        playTrackRideSplash(activeRide.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking");
       } else {
         toast.info("No active ride", "You don’t have an ongoing ride right now.");
       }
@@ -1232,7 +1253,7 @@ const StudentDashboard = () => {
                       whileHover={{ y: -1 }}
                       animate={{ boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 8px 20px rgba(59,130,246,0.18)", "0 0 0 rgba(0,0,0,0)"] }}
                       transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                      onClick={() => navigate("/ride-tracking")}
+                      onClick={() => playTrackRideSplash(activeRide?.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking")}
                       className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1"
                     >
                       <motion.span animate={{ x: [0, 2, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
@@ -1347,7 +1368,7 @@ const StudentDashboard = () => {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(`/ride-tracking/${activeRide.id}`)}
+              onClick={() => playTrackRideSplash(`/ride-tracking/${activeRide.id}`)}
               className="relative btn-primary-gradient w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center"
               title="Track your ride"
             >
@@ -1364,6 +1385,99 @@ const StudentDashboard = () => {
             >
               Track Ride
               <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-foreground" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {trackRideSplash.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-[80] flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/82 backdrop-blur-xl" />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 18 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 10 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className="relative z-10 w-full max-w-sm overflow-hidden rounded-[28px] border border-primary/20 bg-background/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="absolute -left-12 top-0 h-full w-24 bg-primary/10 blur-2xl"
+                animate={{ x: [0, 240, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <div className="relative z-10 space-y-5">
+                <div className="flex items-center justify-center">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0 rounded-full border border-primary/25"
+                      animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.22, 0] }}
+                      transition={{ duration: 1.3, repeat: Infinity, ease: "easeOut" }}
+                    />
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-2 rounded-full border border-primary/20"
+                      animate={{ scale: [1, 1.1, 1.22], opacity: [0.45, 0.18, 0] }}
+                      transition={{ duration: 1.3, repeat: Infinity, delay: 0.2, ease: "easeOut" }}
+                    />
+                    <motion.div
+                      animate={{ rotate: [0, -10, 0, 10, 0], y: [0, -2, 0] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      className="relative z-10 rounded-full bg-primary text-primary-foreground p-3 shadow-lg"
+                    >
+                      <Navigation className="h-7 w-7" />
+                    </motion.div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-center">
+                  <h3 className="text-xl font-bold font-display text-foreground">Preparing Live Tracking</h3>
+                  <p className="text-sm text-muted-foreground">Securing your ride route and syncing the latest driver location.</p>
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-muted/35 px-4 py-4">
+                  <div className="relative h-8">
+                    <div className="absolute left-2 right-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary/15" />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary"
+                      animate={{ width: ["12%", "88%"] }}
+                      transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 -translate-y-1/2"
+                      animate={{ x: [0, 208] }}
+                      transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <div className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-md">
+                        <MapIcon className="h-3.5 w-3.5" />
+                      </div>
+                    </motion.div>
+                    <div className="absolute left-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
+                    <div className="absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-primary/80">
+                  {[0, 1, 2].map((dot) => (
+                    <motion.span
+                      key={dot}
+                      className="h-1.5 w-1.5 rounded-full bg-primary"
+                      animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: dot * 0.14, ease: "easeInOut" }}
+                    />
+                  ))}
+                  Entering tracking view
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
