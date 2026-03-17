@@ -4,6 +4,13 @@ import { MapPin, Clock, CheckCircle, XCircle, Navigation, List } from "lucide-re
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type RideStatus = "all" | "active" | "completed" | "cancelled";
 
@@ -41,6 +48,7 @@ const RideHistoryTabs = ({
   const [activeTab, setActiveTab] = useState<RideStatus>(initialTab);
   const [rides, setRides] = useState<RideDto[]>([]);
   const [loadingRides, setLoadingRides] = useState(true);
+  const [selectedRide, setSelectedRide] = useState<RideDto | null>(null);
 
   const visibleTabs = useMemo(() => {
     const configuredTabs = allowedTabs && allowedTabs.length > 0 ? allowedTabs : tabs.map((tab) => tab.value);
@@ -113,6 +121,43 @@ const RideHistoryTabs = ({
     return new Date(value).toLocaleString();
   };
 
+  const statusTone = (status: RideDto["status"]) => {
+    if (status === "completed") return "text-green-400";
+    if (status === "cancelled") return "text-destructive";
+    return "text-blue-400";
+  };
+
+  const detailRows = selectedRide
+    ? [
+        { label: "Ride ID", value: selectedRide.id },
+        { label: "Status", value: selectedRide.status.replace(/_/g, " ") },
+        { label: "Pickup", value: selectedRide.pickup?.label || "—" },
+        { label: "Drop", value: selectedRide.drop?.label || "—" },
+        { label: "Scheduled For", value: formatDate(selectedRide.scheduledFor || null) },
+        { label: "Requested At", value: formatDate(selectedRide.requestedAt) },
+        { label: "Accepted At", value: formatDate(selectedRide.acceptedAt) },
+        { label: "Ride Started", value: formatDate(selectedRide.ongoingAt) },
+        { label: "Completed At", value: formatDate(selectedRide.completedAt) },
+        { label: "Cancelled At", value: formatDate(selectedRide.cancelledAt) },
+        { label: "Passengers", value: String(selectedRide.passengers || 1) },
+        { label: "Passenger Names", value: selectedRide.passengerNames?.length ? selectedRide.passengerNames.join(", ") : "—" },
+        { label: "Driver", value: selectedRide.driver?.name || "Not assigned" },
+        { label: "Driver Phone", value: selectedRide.driver?.phone || "—" },
+        { label: "Student", value: selectedRide.student?.name || "—" },
+        { label: "Student Phone", value: selectedRide.student?.phone || "—" },
+        { label: "ETA", value: typeof selectedRide.etaMinutes === "number" ? `${selectedRide.etaMinutes} min` : "—" },
+        { label: "Distance", value: typeof selectedRide.etaDistanceKm === "number" ? `${selectedRide.etaDistanceKm.toFixed(2)} km` : "—" },
+        { label: "Total Fare", value: selectedRide.fareBreakdown?.totalFare != null ? `₹${selectedRide.fareBreakdown.totalFare}` : "—" },
+        { label: "Per Passenger Fare", value: selectedRide.fareBreakdown?.perPassengerFare != null ? `₹${selectedRide.fareBreakdown.perPassengerFare}` : "—" },
+        { label: "Platform Fee", value: selectedRide.fareBreakdown?.platformFee != null ? `₹${selectedRide.fareBreakdown.platformFee}` : "—" },
+        { label: "Cancellation Reason", value: selectedRide.cancellationCustomReason || selectedRide.cancelReason || "—" },
+        { label: "Verification Code", value: selectedRide.verificationCode || "—" },
+        { label: "Tracking Link", value: selectedRide.shareTrackingUrl || "—" },
+        { label: "Rating", value: selectedRide.studentRating != null ? `${selectedRide.studentRating}/5` : "—" },
+        { label: "Feedback", value: selectedRide.studentFeedback || "—" },
+      ]
+    : [];
+
   return (
     <div>
       {/* Tabs */}
@@ -173,12 +218,16 @@ const RideHistoryTabs = ({
           <p className="text-sm text-muted-foreground text-center py-6">No {activeTab} rides</p>
         ) : (
           filtered.slice(0, compact ? 3 : undefined).map((ride, i) => (
-            <motion.div
+            <motion.button
               key={ride.id}
+              type="button"
+              onClick={() => setSelectedRide(ride)}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="card-glass flex items-center justify-between gap-3"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.99 }}
+              className="card-glass w-full text-left flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
@@ -201,13 +250,54 @@ const RideHistoryTabs = ({
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-semibold text-sm">—</p>
+                <p className="font-semibold text-xs text-primary">View details</p>
                 <p className={`text-xs capitalize ${statusColors[ride.status === "completed" ? "completed" : ride.status === "cancelled" ? "cancelled" : "active"]}`}>{ride.status}</p>
               </div>
-            </motion.div>
+            </motion.button>
           ))
         )}
       </div>
+
+      <Dialog open={Boolean(selectedRide)} onOpenChange={(open) => { if (!open) setSelectedRide(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          {selectedRide && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between gap-2">
+                  <span>Ride Details</span>
+                  <span className={`text-sm font-semibold capitalize ${statusTone(selectedRide.status)}`}>{selectedRide.status.replace(/_/g, " ")}</span>
+                </DialogTitle>
+                <DialogDescription>
+                  Full trip information including timings, contact, fare, and ride status.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedRide.timeline && selectedRide.timeline.length > 0 && (
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Timeline</p>
+                  <div className="space-y-1.5">
+                    {selectedRide.timeline.map((step) => (
+                      <div key={`${step.key}-${step.timestamp || "-"}`} className="flex items-center justify-between text-xs">
+                        <span className={step.reached ? "text-foreground" : "text-muted-foreground"}>{step.label}</span>
+                        <span className="text-muted-foreground">{formatDate(step.timestamp || null)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pr-1">
+                {detailRows.map((row) => (
+                  <div key={row.label} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{row.label}</p>
+                    <p className="text-sm text-foreground break-words">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
