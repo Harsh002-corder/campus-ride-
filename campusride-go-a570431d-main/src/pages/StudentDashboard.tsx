@@ -42,6 +42,15 @@ type GpsVerificationState = {
   message: string;
 };
 
+type TrackRideSplashState = {
+  open: boolean;
+  targetPath: string;
+  pickupLabel: string;
+  dropLabel: string;
+  statusLabel: string;
+  driverName: string;
+};
+
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 // TODO: set back to false before going live
@@ -166,7 +175,14 @@ const StudentDashboard = () => {
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
-  const [trackRideSplash, setTrackRideSplash] = useState<{ open: boolean; targetPath: string }>({ open: false, targetPath: "" });
+  const [trackRideSplash, setTrackRideSplash] = useState<TrackRideSplashState>({
+    open: false,
+    targetPath: "",
+    pickupLabel: "Pickup",
+    dropLabel: "Drop-off",
+    statusLabel: "Tracking",
+    driverName: "Driver",
+  });
   const [gpsVerification, setGpsVerification] = useState<GpsVerificationState>({
     state: "idle",
     message: "Select pickup to verify GPS",
@@ -372,15 +388,22 @@ const StudentDashboard = () => {
     whileTap: { scale: 0.93 },
   };
 
-  const playTrackRideSplash = useCallback((targetPath: string) => {
+  const playTrackRideSplash = useCallback((targetPath: string, ride?: RideDto | null) => {
     if (trackRideTimeoutRef.current) {
       window.clearTimeout(trackRideTimeoutRef.current);
     }
 
-    setTrackRideSplash({ open: true, targetPath });
+    setTrackRideSplash({
+      open: true,
+      targetPath,
+      pickupLabel: ride?.pickup?.label || "Campus pickup",
+      dropLabel: ride?.drop?.label || "Campus destination",
+      statusLabel: ride?.status ? ride.status.replace(/_/g, " ") : "Tracking",
+      driverName: ride?.driver?.name || "Assigned driver",
+    });
 
     trackRideTimeoutRef.current = window.setTimeout(() => {
-      setTrackRideSplash({ open: false, targetPath: "" });
+      setTrackRideSplash((prev) => ({ ...prev, open: false, targetPath: "" }));
       navigate(targetPath);
     }, 1150);
   }, [navigate]);
@@ -398,7 +421,7 @@ const StudentDashboard = () => {
 
     if (label === "Active") {
       if (activeRide && ["scheduled", "pending", "accepted", "in_progress", "requested", "ongoing"].includes(activeRide.status)) {
-        playTrackRideSplash(activeRide.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking");
+        playTrackRideSplash(activeRide.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking", activeRide);
       } else {
         toast.info("No active ride", "You don’t have an ongoing ride right now.");
       }
@@ -1253,7 +1276,7 @@ const StudentDashboard = () => {
                       whileHover={{ y: -1 }}
                       animate={{ boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 8px 20px rgba(59,130,246,0.18)", "0 0 0 rgba(0,0,0,0)"] }}
                       transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                      onClick={() => playTrackRideSplash(activeRide?.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking")}
+                      onClick={() => playTrackRideSplash(activeRide?.id ? `/ride-tracking/${activeRide.id}` : "/ride-tracking", activeRide)}
                       className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1"
                     >
                       <motion.span animate={{ x: [0, 2, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
@@ -1368,7 +1391,7 @@ const StudentDashboard = () => {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => playTrackRideSplash(`/ride-tracking/${activeRide.id}`)}
+              onClick={() => playTrackRideSplash(`/ride-tracking/${activeRide.id}`, activeRide)}
               className="relative btn-primary-gradient w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center"
               title="Track your ride"
             >
@@ -1442,6 +1465,25 @@ const StudentDashboard = () => {
                   <p className="text-sm text-muted-foreground">Securing your ride route and syncing the latest driver location.</p>
                 </div>
 
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm">
+                  <div className="min-w-0 text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">From</p>
+                    <p className="truncate font-semibold text-foreground">{trackRideSplash.pickupLabel}</p>
+                  </div>
+                  <motion.div
+                    aria-hidden="true"
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    className="rounded-full bg-primary/10 p-1.5 text-primary"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </motion.div>
+                  <div className="min-w-0 text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">To</p>
+                    <p className="truncate font-semibold text-foreground">{trackRideSplash.dropLabel}</p>
+                  </div>
+                </div>
+
                 <div className="rounded-2xl border border-border/60 bg-muted/35 px-4 py-4">
                   <div className="relative h-8">
                     <div className="absolute left-2 right-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary/15" />
@@ -1464,6 +1506,16 @@ const StudentDashboard = () => {
                     <div className="absolute left-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
                     <div className="absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Driver</p>
+                    <p className="font-medium text-foreground">{trackRideSplash.driverName}</p>
+                  </div>
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    {trackRideSplash.statusLabel}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-primary/80">
