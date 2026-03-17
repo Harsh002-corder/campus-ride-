@@ -5,7 +5,7 @@ import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute, setCatchHandler } from "workbox-routing";
-import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
+import { CacheFirst, NetworkFirst, NetworkOnly, StaleWhileRevalidate } from "workbox-strategies";
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -15,6 +15,7 @@ const CACHE_NAMES = {
   STATIC_ASSETS: `${CAMPUSRIDE_CACHE_VERSION}-static-assets`,
   MAP_UI: `${CAMPUSRIDE_CACHE_VERSION}-map-ui`,
   API: `${CAMPUSRIDE_CACHE_VERSION}-api`,
+  STABLE_API: `${CAMPUSRIDE_CACHE_VERSION}-stable-api`,
   PAGES: `${CAMPUSRIDE_CACHE_VERSION}-pages`,
 };
 
@@ -51,6 +52,17 @@ const isRealtimeApiRequest = (url: URL) => (
     || /^\/api\/rides\/[^/]+\/location\/?$/.test(url.pathname)
     || /^\/api\/drivers\/me\/location\/?$/.test(url.pathname)
     || url.pathname.startsWith("/socket.io/")
+  )
+);
+
+// Endpoints that are infrequently updated — safe for stale-while-revalidate
+const isStableApiRequest = (url: URL) => (
+  apiOrigins.has(url.origin)
+  && (
+    /^\/api\/settings\b/.test(url.pathname)
+    || /^\/api\/stops\b/.test(url.pathname)
+    || /^\/api\/users\/me\/favorites\b/.test(url.pathname)
+    || /^\/api\/users\/me\/?$/.test(url.pathname)
   )
 );
 
@@ -114,6 +126,22 @@ registerRoute(
 registerRoute(
   ({ url }) => isRealtimeApiRequest(url),
   new NetworkOnly(),
+);
+
+// Stable API data (settings, stops, favorites, user profile) — serve from cache
+// immediately while revalidating in background. Up to 30 min stale allowed.
+registerRoute(
+  ({ url, request }) => request.method === "GET" && isStableApiRequest(url),
+  new StaleWhileRevalidate({
+    cacheName: CACHE_NAMES.STABLE_API,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 40,
+        maxAgeSeconds: 60 * 30, // 30 minutes
+      }),
+    ],
+  }),
 );
 
 registerRoute(
@@ -198,6 +226,14 @@ self.addEventListener("notificationclick", (event) => {
 
     await self.clients.openWindow(targetUrl);
   })());
+});
+
+// Allow the app to trigger an immediate SW update without waiting for all
+// tabs to close, by posting a { type: "SKIP_WAITING" } message.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 export {};

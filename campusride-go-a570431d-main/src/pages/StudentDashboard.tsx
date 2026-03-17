@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
-import { apiClient, type AuthUser, type RideDto, type RideIssueDto } from "@/lib/apiClient";
+import { apiClient, type AuthUser, type FavoriteLocation, type RideDto, type RideIssueDto } from "@/lib/apiClient";
 import { CAMPUS_BOUNDARY_POLYGON, getDistanceMeters, pointInPolygon } from "@/lib/campusBoundary";
 import { CAMPUS_STOPS, type CampusStop } from "@/lib/stops";
 import { getSocketClient } from "@/lib/socketClient";
@@ -170,6 +170,8 @@ const StudentDashboard = () => {
     state: "idle",
     message: "Select pickup to verify GPS",
   });
+  const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
+  const [recentLocations, setRecentLocations] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -220,6 +222,15 @@ const StudentDashboard = () => {
     }
   }, []);
 
+  const loadFavorites = useCallback(async () => {
+    try {
+      const { favorites: favs } = await apiClient.users.favorites();
+      setFavorites(favs ?? []);
+    } catch {
+      // silently ignore — favorites are non-critical
+    }
+  }, []);
+
   const loadMyRides = useCallback(async () => {
     try {
       const response = await apiClient.rides.my();
@@ -245,6 +256,17 @@ const StudentDashboard = () => {
   useEffect(() => {
     void loadRideSettings();
   }, [loadRideSettings]);
+
+  useEffect(() => {
+    void loadFavorites();
+  }, [loadFavorites]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("campusride_recent");
+      if (stored) setRecentLocations(JSON.parse(stored) as Array<{ name: string; lat: number; lng: number }>);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     setPassengers((prev) => Math.min(prev, rideMaxPassengers));
@@ -557,6 +579,40 @@ const StudentDashboard = () => {
     }
   };
 
+  const addToRecent = useCallback((stop: CampusStop) => {
+    setRecentLocations((prev) => {
+      const filtered = prev.filter((r) => r.name !== stop.name);
+      const next = [{ name: stop.name, lat: stop.lat, lng: stop.lng }, ...filtered].slice(0, 5);
+      try { localStorage.setItem("campusride_recent", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const applyFavorite = useCallback((fav: FavoriteLocation, type: "pickup" | "drop") => {
+    const stop = runtimeStops.find(
+      (s) => Math.abs(s.lat - fav.location.lat) < 0.0001 && Math.abs(s.lng - fav.location.lng) < 0.0001,
+    ) ?? { name: fav.location.address ?? fav.label, lat: fav.location.lat, lng: fav.location.lng };
+    if (type === "pickup") {
+      setPickup(stop.name);
+      setPickupStop(stop);
+      setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" });
+    } else {
+      setDrop(stop.name);
+      setDropStop(stop);
+    }
+    toast.info(`Set as ${type}`, `${fav.label} selected.`);
+  }, [runtimeStops, toast]);
+
+  const deleteFavoriteById = useCallback(async (favId: string) => {
+    try {
+      await apiClient.users.deleteFavorite(favId);
+      setFavorites((prev) => prev.filter((f) => f.id !== favId));
+      toast.info("Removed from favorites", "");
+    } catch (error) {
+      toast.error("Could not remove favorite", error);
+    }
+  }, [toast]);
+
   const saveCurrentAsFavorite = async (type: "pickup" | "drop") => {
     const point = type === "pickup"
       ? resolveStop(pickup, pickupStop, runtimeStops)
@@ -566,9 +622,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    const defaultLabel = type === "pickup" ? (pickup || point.name) : (drop || point.name);
-    const label = window.prompt(`Favorite label for ${defaultLabel}`, defaultLabel);
-    if (!label?.trim()) return;
+    const label = (type === "pickup" ? pickup : drop) || point.name;
 
     try {
       await apiClient.users.addFavorite({
@@ -579,7 +633,8 @@ const StudentDashboard = () => {
           address: point.name,
         },
       });
-      toast.success("Favorite saved", `${label.trim()} saved successfully.`);
+      toast.success("Favorite saved", `${label.trim()} saved to your places.`);
+      await loadFavorites();
     } catch (error) {
       toast.error("Could not save favorite", error);
     }
@@ -719,6 +774,7 @@ const StudentDashboard = () => {
                       onSelect={(stop) => {
                         setPickupStop(stop);
                         setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" });
+                        addToRecent(stop);
                       }}
                       stops={runtimeStops}
                       minChars={2}
@@ -747,6 +803,7 @@ const StudentDashboard = () => {
                       }}
                       onSelect={(stop) => {
                         setDropStop(stop);
+                        addToRecent(stop);
                       }}
                       stops={runtimeStops}
                       minChars={2}
@@ -756,6 +813,63 @@ const StudentDashboard = () => {
                       icon={<Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
                     />
                   </div>
+
+                  {/* Favorites & Recent quick-access chips */}
+                  {(favorites.length > 0 || recentLocations.length > 0) && (
+                    <div className="space-y-2">
+                      {favorites.length > 0 && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">⭐ Saved Places</p>
+                          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {favorites.map((fav) => (
+                              <div key={fav.id} className="flex items-center bg-primary/10 border border-primary/20 rounded-full shrink-0 overflow-hidden">
+                                <span className="text-xs text-primary font-medium pl-2.5 pr-1 py-1.5 max-w-[88px] truncate">{fav.label}</span>
+                                <button
+                                  onClick={() => applyFavorite(fav, "pickup")}
+                                  className="text-[11px] text-primary/80 hover:bg-primary/20 px-1.5 py-1.5 transition-colors font-bold leading-none"
+                                  title="Set as pickup"
+                                >↑</button>
+                                <button
+                                  onClick={() => applyFavorite(fav, "drop")}
+                                  className="text-[11px] text-primary/80 hover:bg-primary/20 px-1.5 py-1.5 transition-colors font-bold leading-none"
+                                  title="Set as drop-off"
+                                >↓</button>
+                                <button
+                                  onClick={() => void deleteFavoriteById(fav.id)}
+                                  className="text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-1.5 py-1.5 transition-colors rounded-r-full leading-none"
+                                  title="Remove"
+                                >✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {recentLocations.length > 0 && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">🕐\
+                           Recent</p>
+                          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {recentLocations.map((r) => (
+                              <div key={r.name} className="flex items-center bg-muted/60 border border-border rounded-full shrink-0 overflow-hidden">
+                                <span className="text-xs text-foreground/80 font-medium pl-2.5 pr-1 py-1.5 max-w-[88px] truncate">{r.name}</span>
+                                <button
+                                  onClick={() => { setPickup(r.name); setPickupStop(r as CampusStop); setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" }); }}
+                                  className="text-[11px] text-muted-foreground hover:text-primary hover:bg-primary/10 px-1.5 py-1.5 transition-colors font-bold leading-none"
+                                  title="Set as pickup"
+                                >↑</button>
+                                <button
+                                  onClick={() => { setDrop(r.name); setDropStop(r as CampusStop); }}
+                                  className="text-[11px] text-muted-foreground hover:text-primary hover:bg-primary/10 px-1.5 py-1.5 transition-colors font-bold rounded-r-full leading-none"
+                                  title="Set as drop-off"
+                                >↓</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-[11px] text-muted-foreground">Select pickup and drop-off from suggestions to continue.</p>
                   <div className="flex flex-col gap-3">
                     <div className="flex sm:flex-row gap-3 items-stretch sm:items-center">
