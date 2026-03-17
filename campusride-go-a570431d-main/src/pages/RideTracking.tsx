@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import L from "leaflet";
 import { CircleMarker, MapContainer, Marker, Polygon, Polyline, TileLayer, useMap } from "react-leaflet";
 import BrandIcon from "@/components/BrandIcon";
@@ -134,6 +134,7 @@ const RideTracking = () => {
   const [socketInfo, setSocketInfo] = useState<string | null>(null);
   const [geofenceWarning, setGeofenceWarning] = useState<string | null>(null);
   const [isRideInfoVisible, setIsRideInfoVisible] = useState(true);
+  const [pageIntroVisible, setPageIntroVisible] = useState(true);
 
   const [driverTargetPos, setDriverTargetPos] = useState<LatLngPoint | null>(null);
   const [driverRenderPos, setDriverRenderPos] = useState<LatLngPoint | null>(null);
@@ -150,6 +151,7 @@ const RideTracking = () => {
   const driverSocketEmitAtRef = useRef(0);
   const driverApiSyncAtRef = useRef(0);
   const routeOriginRef = useRef<LatLngPoint | null>(null);
+  const introTimeoutRef = useRef<number | null>(null);
 
   const isDriverView = user?.role === "driver";
   const backPath = user?.role === "driver" ? "/driver-dashboard" : user?.role === "super_admin" ? "/super-admin-dashboard" : user?.role === "sub_admin" ? "/sub-admin-dashboard" : user?.role === "admin" ? "/admin" : "/student-dashboard";
@@ -177,6 +179,22 @@ const RideTracking = () => {
         : mapMode === "completed"
           ? "Ride Completed"
           : "Ride Active";
+
+  const introPickupLabel = ride?.pickup?.label || "Campus pickup";
+  const introDropLabel = ride?.drop?.label || "Campus destination";
+  const introDriverName = contactDisplayName || "Assigned contact";
+
+  useEffect(() => {
+    introTimeoutRef.current = window.setTimeout(() => {
+      setPageIntroVisible(false);
+    }, 980);
+
+    return () => {
+      if (introTimeoutRef.current) {
+        window.clearTimeout(introTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const loadRide = useCallback(async () => {
     const loadFromMyRides = async () => {
@@ -629,6 +647,110 @@ const RideTracking = () => {
           )}
         </MapContainer>
       </div>
+
+      <AnimatePresence>
+        {pageIntroVisible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.28 }}
+            className="absolute inset-0 z-20 flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/72 backdrop-blur-xl" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              transition={{ duration: 0.34, ease: "easeOut" }}
+              className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-primary/20 bg-background/88 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.24)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="absolute -left-10 top-0 h-full w-24 bg-primary/10 blur-2xl"
+                animate={{ x: [0, 260, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              />
+
+              <div className="relative z-10 space-y-5">
+                <div className="flex items-center justify-center">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0 rounded-full border border-primary/25"
+                      animate={{ scale: [1, 1.18, 1.3], opacity: [0.55, 0.2, 0] }}
+                      transition={{ duration: 1.25, repeat: Infinity, ease: "easeOut" }}
+                    />
+                    <motion.div
+                      animate={{ rotate: [0, -8, 0, 8, 0], y: [0, -2, 0] }}
+                      transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                      className="relative z-10 rounded-full bg-primary text-primary-foreground p-3 shadow-lg"
+                    >
+                      <CarFront className="h-7 w-7" />
+                    </motion.div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-center">
+                  <h2 className="text-xl font-bold font-display text-foreground">Live Ride Tracking</h2>
+                  <p className="text-sm text-muted-foreground">Syncing route progress, driver position, and ETA.</p>
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm">
+                  <div className="min-w-0 text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">From</p>
+                    <p className="truncate font-semibold text-foreground">{introPickupLabel}</p>
+                  </div>
+                  <motion.div
+                    aria-hidden="true"
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    className="rounded-full bg-primary/10 p-1.5 text-primary"
+                  >
+                    <ArrowLeft className="h-4 w-4 rotate-180" />
+                  </motion.div>
+                  <div className="min-w-0 text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">To</p>
+                    <p className="truncate font-semibold text-foreground">{introDropLabel}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-muted/35 px-4 py-4">
+                  <div className="relative h-8">
+                    <div className="absolute left-2 right-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary/15" />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary"
+                      animate={{ width: ["18%", "86%"] }}
+                      transition={{ duration: 0.95, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 -translate-y-1/2"
+                      animate={{ x: [0, 220] }}
+                      transition={{ duration: 0.95, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <div className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-md">
+                        <Navigation className="h-3.5 w-3.5" />
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Contact</p>
+                    <p className="font-medium text-foreground">{introDriverName}</p>
+                  </div>
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    {statusText}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 p-3 sm:p-4 flex items-center justify-between gap-2">
         <motion.button
