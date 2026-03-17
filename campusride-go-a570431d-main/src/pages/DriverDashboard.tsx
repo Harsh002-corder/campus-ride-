@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
@@ -44,6 +44,15 @@ type TodayEarningsSummary = {
   completedRides: number;
 };
 
+type TrackRideSplashState = {
+  open: boolean;
+  targetPath: string;
+  pickupLabel: string;
+  dropLabel: string;
+  statusLabel: string;
+  riderName: string;
+};
+
 const DriverDashboard = () => {
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
@@ -78,7 +87,16 @@ const DriverDashboard = () => {
     netDriverEarnings: 0,
     completedRides: 0,
   });
+  const [trackRideSplash, setTrackRideSplash] = useState<TrackRideSplashState>({
+    open: false,
+    targetPath: "",
+    pickupLabel: "Pickup",
+    dropLabel: "Drop-off",
+    statusLabel: "Tracking",
+    riderName: "Student",
+  });
   const newRequestPopupTimerRef = useRef<number | null>(null);
+  const trackRideTimeoutRef = useRef<number | null>(null);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -283,6 +301,9 @@ const DriverDashboard = () => {
     if (newRequestPopupTimerRef.current) {
       window.clearTimeout(newRequestPopupTimerRef.current);
     }
+    if (trackRideTimeoutRef.current) {
+      window.clearTimeout(trackRideTimeoutRef.current);
+    }
   }, []);
 
   useEffect(() => {
@@ -437,6 +458,35 @@ const DriverDashboard = () => {
       .toFixed(2);
   }, [myRides]);
 
+  const tapSoft = {
+    whileTap: { scale: 0.97 },
+    transition: { duration: 0.12 },
+  };
+
+  const tapSnap = {
+    whileTap: { scale: 0.93 },
+  };
+
+  const playTrackRideSplash = useCallback((targetPath: string, ride?: RideDto | null) => {
+    if (trackRideTimeoutRef.current) {
+      window.clearTimeout(trackRideTimeoutRef.current);
+    }
+
+    setTrackRideSplash({
+      open: true,
+      targetPath,
+      pickupLabel: ride?.pickup?.label || "Campus pickup",
+      dropLabel: ride?.drop?.label || "Campus destination",
+      statusLabel: ride?.status ? ride.status.replace(/_/g, " ") : "Tracking",
+      riderName: ride?.student?.name || "Student rider",
+    });
+
+    trackRideTimeoutRef.current = window.setTimeout(() => {
+      setTrackRideSplash((prev) => ({ ...prev, open: false, targetPath: "" }));
+      navigate(targetPath);
+    }, 1125);
+  }, [navigate]);
+
   const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings" | "today-earnings") => {
     if (key === "total" || key === "today") {
       navigate("/rides", { state: { tab: "all" } });
@@ -445,7 +495,7 @@ const DriverDashboard = () => {
 
     if (key === "active") {
       if (activeRide) {
-        navigate(`/ride-tracking/${activeRide.id}`);
+        playTrackRideSplash(`/ride-tracking/${activeRide.id}`, activeRide);
       } else {
         navigate("/rides", { state: { tab: "active" } });
       }
@@ -717,7 +767,8 @@ const DriverDashboard = () => {
                 className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-3 text-sm"
               />
               <div className="flex gap-2 mt-3">
-                <button
+                <motion.button
+                  {...tapSoft}
                   type="button"
                   onClick={() => {
                     setVerificationModalRideId(null);
@@ -726,15 +777,18 @@ const DriverDashboard = () => {
                   className="flex-1 bg-muted/50 hover:bg-muted py-2 rounded-xl text-xs font-medium text-muted-foreground"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  {...tapSoft}
+                  animate={isRideBusy(verificationModalRideId) ? { scale: [1, 0.985, 1] } : { scale: 1 }}
+                  transition={isRideBusy(verificationModalRideId) ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}
                   type="button"
                   disabled={isRideBusy(verificationModalRideId)}
                   onClick={() => void submitVerificationAndStart()}
                   className="flex-1 btn-primary-gradient py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
                 >
                   {isRideBusy(verificationModalRideId) ? "Starting..." : "Verify & Start"}
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
@@ -754,7 +808,9 @@ const DriverDashboard = () => {
               </a>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  {...tapSoft}
+                  animate={onlineBusy ? { scale: [1, 0.985, 1] } : { scale: 1 }}
+                  transition={onlineBusy ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}
                   onClick={toggleOnline}
                   disabled={onlineBusy}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -780,7 +836,7 @@ const DriverDashboard = () => {
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   <span className="text-foreground font-medium">{user?.name}</span>
                 </span>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
+                <motion.button {...tapSoft} whileHover={{ y: -1 }} onClick={handleLogout} className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
                   <LogOut className="w-4 h-4" /> Logout
                 </motion.button>
               </div>
@@ -813,28 +869,28 @@ const DriverDashboard = () => {
               <p className="text-xs text-muted-foreground mb-2">Driver performance score: <span className="text-foreground font-semibold">{user?.driverPerformanceScore || 60}</span></p>
               {verificationNotes ? <p className="text-xs text-muted-foreground mb-2">Review notes: {verificationNotes}</p> : null}
               <div className="grid sm:grid-cols-3 gap-3">
-                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                <motion.label whileHover={{ y: -1 }} className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
                   📄 License
-                  <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("license", event.target.files?.[0])} />
-                </label>
-                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                  <input title="Upload license document" type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("license", event.target.files?.[0])} />
+                </motion.label>
+                <motion.label whileHover={{ y: -1 }} className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
                   🪪 ID Proof
-                  <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("id_proof", event.target.files?.[0])} />
-                </label>
-                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                  <input title="Upload ID proof document" type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("id_proof", event.target.files?.[0])} />
+                </motion.label>
+                <motion.label whileHover={{ y: -1 }} className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
                   🚗 Vehicle RC
-                  <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("vehicle_rc", event.target.files?.[0])} />
-                </label>
+                  <input title="Upload vehicle RC document" type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("vehicle_rc", event.target.files?.[0])} />
+                </motion.label>
               </div>
 
               <div className="mt-4 border-t border-border/50 pt-4">
                 <p className="text-sm text-muted-foreground mb-3 font-medium">Emergency contacts</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {supportCallHref ? (
-                    <a href={supportCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                    <motion.a {...tapSoft} whileHover={{ y: -1 }} href={supportCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
                       <span className="block">📞 Support</span>
                       <span className="block text-xs text-muted-foreground mt-1">{rideSupportPhone}</span>
-                    </a>
+                    </motion.a>
                   ) : (
                     <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
                       <span className="block">📞 Support</span>
@@ -842,10 +898,10 @@ const DriverDashboard = () => {
                     </button>
                   )}
                   {securityCallHref ? (
-                    <a href={securityCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                    <motion.a {...tapSoft} whileHover={{ y: -1 }} href={securityCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
                       <span className="block">🛡️ Security</span>
                       <span className="block text-xs text-muted-foreground mt-1">{rideSecurityPhone}</span>
-                    </a>
+                    </motion.a>
                   ) : (
                     <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
                       <span className="block">🛡️ Security</span>
@@ -853,10 +909,10 @@ const DriverDashboard = () => {
                     </button>
                   )}
                   {ambulanceCallHref ? (
-                    <a href={ambulanceCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                    <motion.a {...tapSoft} whileHover={{ y: -1 }} href={ambulanceCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
                       <span className="block">🚑 Ambulance</span>
                       <span className="block text-xs text-muted-foreground mt-1">{rideAmbulancePhone}</span>
-                    </a>
+                    </motion.a>
                   ) : (
                     <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
                       <span className="block">🚑 Ambulance</span>
@@ -879,8 +935,10 @@ const DriverDashboard = () => {
                 <motion.div
                   key={s.label}
                   {...card(i + 1)}
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "today-earnings")}
-                  className="card-glass cursor-pointer hover:bg-muted/40 transition-colors"
+                  className="card-glass cursor-pointer hover:bg-muted/40 transition-colors hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -988,7 +1046,7 @@ const DriverDashboard = () => {
                           onStart={startRide}
                           onCancel={cancelRide}
                           onComplete={completeRide}
-                          onTrack={(rideId) => navigate(`/ride-tracking/${rideId}`)}
+                          onTrack={(rideId) => playTrackRideSplash(`/ride-tracking/${rideId}`, ride)}
                         />
                       ))}
                     </div>
@@ -997,9 +1055,9 @@ const DriverDashboard = () => {
 
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold font-display">My Rides</h2>
-                  <button onClick={() => navigate("/rides")} className="text-sm text-primary hover:underline flex items-center gap-1">
+                  <motion.button {...tapSoft} whileHover={{ x: 2 }} onClick={() => navigate("/rides")} className="text-sm text-primary hover:underline flex items-center gap-1">
                     View all <ChevronRight className="w-4 h-4" />
-                  </button>
+                  </motion.button>
                 </div>
                 <RideHistoryTabs
                   compact
@@ -1011,6 +1069,117 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {trackRideSplash.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-[80] flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/82 backdrop-blur-xl" />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 18 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 10 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className="relative z-10 w-full max-w-sm overflow-hidden rounded-[28px] border border-primary/20 bg-background/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="absolute -left-12 top-0 h-full w-24 bg-primary/10 blur-2xl"
+                animate={{ x: [0, 240, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <div className="relative z-10 space-y-5">
+                <div className="flex items-center justify-center">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0 rounded-full border border-primary/25"
+                      animate={{ scale: [1, 1.18, 1.32], opacity: [0.55, 0.22, 0] }}
+                      transition={{ duration: 1.3, repeat: Infinity, ease: "easeOut" }}
+                    />
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-2 rounded-full border border-primary/20"
+                      animate={{ scale: [1, 1.1, 1.22], opacity: [0.45, 0.18, 0] }}
+                      transition={{ duration: 1.3, repeat: Infinity, delay: 0.2, ease: "easeOut" }}
+                    />
+                    <motion.div
+                      animate={{ rotate: [0, -10, 0, 10, 0], y: [0, -2, 0] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      className="relative z-10 rounded-full bg-primary text-primary-foreground p-3 shadow-lg"
+                    >
+                      <Navigation className="h-7 w-7" />
+                    </motion.div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-center">
+                  <h3 className="text-xl font-bold font-display text-foreground">Opening Live Ride View</h3>
+                  <p className="text-sm text-muted-foreground">Syncing rider details, route progress, and verification state.</p>
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm">
+                  <div className="min-w-0 text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">From</p>
+                    <p className="truncate font-semibold text-foreground">{trackRideSplash.pickupLabel}</p>
+                  </div>
+                  <motion.div
+                    aria-hidden="true"
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    className="rounded-full bg-primary/10 p-1.5 text-primary"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </motion.div>
+                  <div className="min-w-0 text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary/70">To</p>
+                    <p className="truncate font-semibold text-foreground">{trackRideSplash.dropLabel}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/60 bg-muted/35 px-4 py-4">
+                  <div className="relative h-8">
+                    <div className="absolute left-2 right-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary/15" />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary"
+                      animate={{ width: ["12%", "88%"] }}
+                      transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute left-2 top-1/2 -translate-y-1/2"
+                      animate={{ x: [0, 208] }}
+                      transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <div className="rounded-full bg-primary p-1.5 text-primary-foreground shadow-md">
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      </div>
+                    </motion.div>
+                    <div className="absolute left-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
+                    <div className="absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 text-sm">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Rider</p>
+                    <p className="font-medium text-foreground">{trackRideSplash.riderName}</p>
+                  </div>
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    {trackRideSplash.statusLabel}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ProfileDialog
         open={profileDialogOpen}
