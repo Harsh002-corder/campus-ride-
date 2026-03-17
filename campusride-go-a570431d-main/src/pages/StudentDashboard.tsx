@@ -1436,7 +1436,14 @@ const StudentDashboard = () => {
                 <p className="text-xs text-muted-foreground">{rideSupportPhone}</p>
               </div>
               {supportCallHref ? (
-                <a href={supportCallHref} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Call</a>
+                <motion.a
+                  {...tapSoft}
+                  whileHover={{ y: -1 }}
+                  href={supportCallHref}
+                  className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold"
+                >
+                  Call
+                </motion.a>
               ) : (
                 <button type="button" disabled className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground">Call</button>
               )}
@@ -1448,7 +1455,14 @@ const StudentDashboard = () => {
                 <p className="text-xs text-muted-foreground">{rideSecurityPhone}</p>
               </div>
               {securityCallHref ? (
-                <a href={securityCallHref} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Call</a>
+                <motion.a
+                  {...tapSoft}
+                  whileHover={{ y: -1 }}
+                  href={securityCallHref}
+                  className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold"
+                >
+                  Call
+                </motion.a>
               ) : (
                 <button type="button" disabled className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground">Call</button>
               )}
@@ -1460,7 +1474,14 @@ const StudentDashboard = () => {
                 <p className="text-xs text-muted-foreground">{rideAmbulancePhone}</p>
               </div>
               {ambulanceCallHref ? (
-                <a href={ambulanceCallHref} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Call</a>
+                <motion.a
+                  {...tapSoft}
+                  whileHover={{ y: -1 }}
+                  href={ambulanceCallHref}
+                  className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold"
+                >
+                  Call
+                </motion.a>
               ) : (
                 <button type="button" disabled className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground">Call</button>
               )}
@@ -1468,13 +1489,15 @@ const StudentDashboard = () => {
           </div>
 
           <DialogFooter>
-            <button
+            <motion.button
+              {...tapSoft}
+              whileHover={{ y: -1 }}
               type="button"
               onClick={() => setEmergencyOpen(false)}
               className="px-4 py-2 rounded-xl text-sm bg-muted/50 hover:bg-muted text-muted-foreground transition-colors"
             >
               Close
-            </button>
+            </motion.button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1511,13 +1534,15 @@ const StudentDashboard = () => {
           </div>
 
           <DialogFooter>
-            <button
+            <motion.button
+              {...tapSoft}
+              whileHover={{ y: -1 }}
               type="button"
               onClick={() => setOutsideCampusAlertOpen(false)}
               className="px-4 py-2 rounded-xl text-sm bg-primary hover:bg-primary/90 text-primary-foreground transition-colors font-medium"
             >
               Got it
-            </button>
+            </motion.button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
