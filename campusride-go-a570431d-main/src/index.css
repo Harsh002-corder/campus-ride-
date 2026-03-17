@@ -178,6 +178,9 @@
     background: transparent;
     color: hsl(var(--foreground));
     border: 1px solid hsl(var(--border));
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
     transition: all 0.3s ease;
   }
   .btn-outline-glow:hover {
@@ -221,6 +224,51 @@
     max-width: 1280px;
     margin-inline: auto;
     padding-inline: 1rem;
+  }
+
+  /* Global underline animation for button interactions. */
+  :where(button, [role="button"], .btn-primary-gradient, .btn-outline-glow):not(.no-under-anim) {
+    position: relative;
+  }
+
+  :where(button, [role="button"], .btn-primary-gradient, .btn-outline-glow):not(.no-under-anim)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    bottom: 0.28rem;
+    height: 2px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.12;
+    transform: scaleX(0.2);
+    transform-origin: 50% 50%;
+    transition: transform 220ms ease, opacity 220ms ease;
+  }
+
+  :where(button, [role="button"], .btn-primary-gradient, .btn-outline-glow):not(.no-under-anim):hover::after,
+  :where(button, [role="button"], .btn-primary-gradient, .btn-outline-glow):not(.no-under-anim):focus-visible::after {
+    opacity: 0.48;
+    transform: scaleX(1);
+  }
+
+  :where(button, [role="button"])[data-button-tone="solid"]:not(.no-under-anim)::after,
+  .btn-primary-gradient:not(.no-under-anim)::after {
+    opacity: 0.35;
+    animation: btn-underline-pulse 1.35s ease-in-out infinite;
+  }
+
+  :where(button, [role="button"])[data-button-tone="danger"]:not(.no-under-anim)::after {
+    opacity: 0.32;
+    animation: btn-underline-pulse 1.2s ease-in-out infinite;
+  }
+
+  :where(button, [role="button"])[data-button-tone="link"]:not(.no-under-anim)::after {
+    left: 8%;
+    right: 8%;
+    bottom: 0.1rem;
+    height: 1px;
   }
 }
 
@@ -277,6 +325,11 @@
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
+}
+
+@keyframes btn-underline-pulse {
+  0%, 100% { opacity: 0.24; transform: scaleX(0.25); }
+  50% { opacity: 0.68; transform: scaleX(1); }
 }
 
 @keyframes draw-line {
