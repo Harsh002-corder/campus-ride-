@@ -18,6 +18,11 @@ const Login = () => {
   const location = useLocation();
   const fromBooking = (location.state as any)?.from === "booking";
 
+  const tapSoft = {
+    whileTap: { scale: 0.97 },
+    transition: { duration: 0.12 },
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -53,13 +58,15 @@ const Login = () => {
           className="relative z-10 w-full max-w-md"
         >
           {/* Back button */}
-          <button
+          <motion.button
+            {...tapSoft}
+            whileHover={{ x: -2 }}
             onClick={() => navigate("/")}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm">Back to home</span>
-          </button>
+          </motion.button>
 
           <div className="glass rounded-3xl p-8 border border-border/60">
             {/* Logo */}
@@ -116,14 +123,15 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-muted/50 border border-border rounded-xl py-3 pl-10 pr-11 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <button
+                <motion.button
+                  {...tapSoft}
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                </motion.button>
               </div>
               <div className="text-right">
                 <Link to="/forgot-password" className="text-xs text-primary hover:underline font-medium">
@@ -139,13 +147,50 @@ const Login = () => {
                   {error}
                 </motion.p>
               )}
-            <motion.button
+              <motion.button
                 type="submit"
                 whileTap={{ scale: 0.95 }}
+                animate={loading ? { scale: [1, 0.988, 1] } : { scale: 1 }}
+                transition={loading ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}
                 disabled={loading}
-                className="w-full btn-primary-gradient py-3.5 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 transition-all disabled:opacity-70"
+                className="w-full btn-primary-gradient relative overflow-hidden py-3.5 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 transition-all disabled:opacity-70"
               >
-                {loading ? "🔄 Signing In..." : "Sign In"}
+                {loading && (
+                  <>
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-y-1 left-0 w-16 rounded-full bg-white/25 blur-md"
+                      animate={{ x: ["-140%", "280%"] }}
+                      transition={{ duration: 1.05, repeat: Infinity, ease: "linear" }}
+                    />
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-white/5"
+                      animate={{ opacity: [0.08, 0.18, 0.08] }}
+                      transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  </>
+                )}
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <span className="relative inline-flex h-4 w-12 items-center overflow-hidden rounded-full bg-white/10">
+                        <span className="absolute left-1 right-1 h-px bg-white/35" />
+                        <motion.span
+                          aria-hidden="true"
+                          className="absolute left-1 top-1/2 -translate-y-1/2 text-white"
+                          animate={{ x: [0, 18, 32, 18, 0], rotate: [0, -8, 0, 8, 0] }}
+                          transition={{ duration: 1.15, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </motion.span>
+                      </span>
+                      <span>Signing In...</span>
+                    </>
+                  ) : (
+                    "Sign In"
+                  )}
+                </span>
               </motion.button>
             </form>
 

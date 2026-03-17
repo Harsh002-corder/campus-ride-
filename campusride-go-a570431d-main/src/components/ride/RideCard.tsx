@@ -44,6 +44,11 @@ export default function RideCard({
   onComplete,
   onTrack,
 }: RideCardProps) {
+  const tapSoft = {
+    whileTap: { scale: 0.97 },
+    transition: { duration: 0.12 },
+  };
+
   const activeContactName = ride?.student?.name || "Student";
   const activeContactPhoneRaw = ride?.student?.phone || "+91 90000 00000";
   const activeContactPhoneDigits = toPhoneDigits(activeContactPhoneRaw);
@@ -61,7 +66,11 @@ export default function RideCard({
   const shouldShowVerificationCode = ["accepted", "in_progress", "ongoing"].includes(ride.status) && Boolean(ride.verificationCode);
 
   return (
-    <motion.div className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}>
+    <motion.div
+      whileHover={{ y: -3, scale: 1.004 }}
+      transition={{ duration: 0.18 }}
+      className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
@@ -79,15 +88,35 @@ export default function RideCard({
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onTrack(ride.id)} className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold">Track Ride</motion.button>
+          <motion.button
+            {...tapSoft}
+            whileHover={{ y: -1 }}
+            animate={{ boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 8px 20px rgba(59,130,246,0.18)", "0 0 0 rgba(0,0,0,0)"] }}
+            transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
+            onClick={() => onTrack(ride.id)}
+            className="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+          >
+            <motion.span animate={{ x: [0, 2, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
+              <Map className="w-3.5 h-3.5 text-primary-foreground" />
+            </motion.span>
+            Track Ride
+          </motion.button>
         </div>
       </div>
 
       <div className="flex gap-2 mb-2">
         {activeCallHref ? (
-          <a href={activeCallHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-            <Phone className="w-3.5 h-3.5" /> Call Student
-          </a>
+          <motion.a
+            {...tapSoft}
+            whileHover={{ y: -1 }}
+            href={activeCallHref}
+            className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <motion.span whileHover={{ rotate: [-6, 6, 0] }} transition={{ duration: 0.25 }}>
+              <Phone className="w-3.5 h-3.5" />
+            </motion.span>
+            Call Student
+          </motion.a>
         ) : (
           <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
             <Phone className="w-3.5 h-3.5" /> Call Student
@@ -95,9 +124,17 @@ export default function RideCard({
         )}
 
         {activeChatHref ? (
-          <a href={activeChatHref} className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-            <MessageCircle className="w-3.5 h-3.5" /> Chat Student
-          </a>
+          <motion.a
+            {...tapSoft}
+            whileHover={{ y: -1 }}
+            href={activeChatHref}
+            className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <motion.span whileHover={{ scale: 1.08 }} transition={{ duration: 0.2 }}>
+              <MessageCircle className="w-3.5 h-3.5" />
+            </motion.span>
+            Chat Student
+          </motion.a>
         ) : (
           <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
             <MessageCircle className="w-3.5 h-3.5" /> Chat Student
@@ -136,27 +173,38 @@ export default function RideCard({
 
       <div className="flex gap-2">
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          {...tapSoft}
+          whileHover={{ y: -1 }}
           onClick={() => onStart(ride.id)}
           disabled={busy || ride.status !== "accepted"}
           className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
-          <Play className="w-3.5 h-3.5" /> {isStarting ? "Starting..." : "Start Ride"}
+          <motion.span animate={isStarting ? { x: [0, 2, 0] } : { x: 0 }} transition={isStarting ? { duration: 0.7, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}>
+            <Play className="w-3.5 h-3.5" />
+          </motion.span>
+          {isStarting ? "Starting..." : "Start Ride"}
         </motion.button>
 
         {isInProgress && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onComplete(ride.id)} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-            <CheckCircle className="w-3.5 h-3.5" /> {isCompleting ? "Completing..." : "Complete Ride"}
+          <motion.button {...tapSoft} whileHover={{ y: -1 }} onClick={() => onComplete(ride.id)} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <motion.span animate={isCompleting ? { scale: [1, 1.08, 1] } : { scale: 1 }} transition={isCompleting ? { duration: 0.7, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}>
+              <CheckCircle className="w-3.5 h-3.5" />
+            </motion.span>
+            {isCompleting ? "Completing..." : "Complete Ride"}
           </motion.button>
         )}
 
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          {...tapSoft}
+          whileHover={{ y: -1 }}
           onClick={() => onCancel(ride.id)}
           disabled={busy || !["accepted", "in_progress", "ongoing"].includes(ride.status)}
           className="flex-1 bg-destructive/20 hover:bg-destructive/30 text-destructive py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
-          <XCircle className="w-3.5 h-3.5" /> {isCancelling ? "Cancelling..." : "Cancel Ride"}
+          <motion.span animate={isCancelling ? { rotate: [-8, 8, 0] } : { rotate: 0 }} transition={isCancelling ? { duration: 0.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}>
+            <XCircle className="w-3.5 h-3.5" />
+          </motion.span>
+          {isCancelling ? "Cancelling..." : "Cancel Ride"}
         </motion.button>
       </div>
     </motion.div>
