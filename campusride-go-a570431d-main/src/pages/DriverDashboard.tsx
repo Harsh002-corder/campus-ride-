@@ -800,67 +800,67 @@ const DriverDashboard = () => {
             </motion.div>
 
             <motion.div {...card(1)} className="card-glass">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold font-display">Verification & Score</h3>
-                <span className={`text-xs px-2 py-1 rounded-full ${
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold font-display text-lg">Verification & Score</h3>
+                <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
                   verificationStatus === "approved"
                     ? "bg-green-500/20 text-green-400"
                     : verificationStatus === "rejected"
                       ? "bg-destructive/20 text-destructive"
                       : "bg-yellow-500/20 text-yellow-400"
-                }`}>{verificationStatus}</span>
+                }`}>📊 {verificationStatus}</span>
               </div>
               <p className="text-xs text-muted-foreground mb-2">Driver performance score: <span className="text-foreground font-semibold">{user?.driverPerformanceScore || 60}</span></p>
               {verificationNotes ? <p className="text-xs text-muted-foreground mb-2">Review notes: {verificationNotes}</p> : null}
-              <div className="grid sm:grid-cols-3 gap-2">
-                <label className="text-xs bg-muted/40 rounded-lg px-2 py-2 cursor-pointer">
-                  License
+              <div className="grid sm:grid-cols-3 gap-3">
+                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                  📄 License
                   <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("license", event.target.files?.[0])} />
                 </label>
-                <label className="text-xs bg-muted/40 rounded-lg px-2 py-2 cursor-pointer">
-                  ID Proof
+                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                  🪪 ID Proof
                   <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("id_proof", event.target.files?.[0])} />
                 </label>
-                <label className="text-xs bg-muted/40 rounded-lg px-2 py-2 cursor-pointer">
-                  Vehicle RC
+                <label className="text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-3 cursor-pointer font-medium transition-colors text-center">
+                  🚗 Vehicle RC
                   <input type="file" accept="image/*,.pdf" className="hidden" disabled={verificationUploadBusy} onChange={(event) => void handleUploadVerification("vehicle_rc", event.target.files?.[0])} />
                 </label>
               </div>
 
-              <div className="mt-3 border-t border-border/50 pt-3">
-                <p className="text-xs text-muted-foreground mb-2">Emergency contacts</p>
-                <div className="grid sm:grid-cols-3 gap-2">
+              <div className="mt-4 border-t border-border/50 pt-4">
+                <p className="text-sm text-muted-foreground mb-3 font-medium">Emergency contacts</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {supportCallHref ? (
-                    <a href={supportCallHref} className="px-2 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-xs text-center font-semibold transition-colors">
-                      <span className="block">Support</span>
-                      <span className="block text-[10px] text-muted-foreground">{rideSupportPhone}</span>
+                    <a href={supportCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                      <span className="block">📞 Support</span>
+                      <span className="block text-xs text-muted-foreground mt-1">{rideSupportPhone}</span>
                     </a>
                   ) : (
-                    <button type="button" disabled className="px-2 py-2 rounded-lg bg-muted text-muted-foreground text-xs text-center font-semibold">
-                      <span className="block">Support</span>
-                      <span className="block text-[10px]">{rideSupportPhone}</span>
+                    <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
+                      <span className="block">📞 Support</span>
+                      <span className="block text-xs mt-1">{rideSupportPhone}</span>
                     </button>
                   )}
                   {securityCallHref ? (
-                    <a href={securityCallHref} className="px-2 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-xs text-center font-semibold transition-colors">
-                      <span className="block">Security</span>
-                      <span className="block text-[10px] text-muted-foreground">{rideSecurityPhone}</span>
+                    <a href={securityCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                      <span className="block">🛡️ Security</span>
+                      <span className="block text-xs text-muted-foreground mt-1">{rideSecurityPhone}</span>
                     </a>
                   ) : (
-                    <button type="button" disabled className="px-2 py-2 rounded-lg bg-muted text-muted-foreground text-xs text-center font-semibold">
-                      <span className="block">Security</span>
-                      <span className="block text-[10px]">{rideSecurityPhone}</span>
+                    <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
+                      <span className="block">🛡️ Security</span>
+                      <span className="block text-xs mt-1">{rideSecurityPhone}</span>
                     </button>
                   )}
                   {ambulanceCallHref ? (
-                    <a href={ambulanceCallHref} className="px-2 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-xs text-center font-semibold transition-colors">
-                      <span className="block">Ambulance</span>
-                      <span className="block text-[10px] text-muted-foreground">{rideAmbulancePhone}</span>
+                    <a href={ambulanceCallHref} className="px-4 py-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm text-center font-semibold transition-colors">
+                      <span className="block">🚑 Ambulance</span>
+                      <span className="block text-xs text-muted-foreground mt-1">{rideAmbulancePhone}</span>
                     </a>
                   ) : (
-                    <button type="button" disabled className="px-2 py-2 rounded-lg bg-muted text-muted-foreground text-xs text-center font-semibold">
-                      <span className="block">Ambulance</span>
-                      <span className="block text-[10px]">{rideAmbulancePhone}</span>
+                    <button type="button" disabled className="px-4 py-3 rounded-lg bg-muted text-muted-foreground text-sm text-center font-semibold">
+                      <span className="block">🚑 Ambulance</span>
+                      <span className="block text-xs mt-1">{rideAmbulancePhone}</span>
                     </button>
                   )}
                 </div>
@@ -880,16 +880,16 @@ const DriverDashboard = () => {
                   key={s.label}
                   {...card(i + 1)}
                   onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "today-earnings")}
-                  className="card-glass cursor-pointer"
+                  className="card-glass cursor-pointer hover:bg-muted/40 transition-colors"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-lg bg-primary/20 flex items-center justify-center">
                       <s.icon className="w-5 h-5 text-primary" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold font-display">{s.value}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold font-display text-foreground">{s.value}</p>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
                     <span className="text-xs text-green-400 flex items-center gap-0.5">
                       <TrendingUp className="w-3 h-3" /> {s.change}
                     </span>
@@ -899,33 +899,33 @@ const DriverDashboard = () => {
             </div>
 
             <motion.div {...card(6)} className="card-glass mt-4">
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-semibold font-display text-base">Performance Snapshot</h3>
-                <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">This month: {stats.thisMonth}</span>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-semibold font-display text-lg">Performance Snapshot</h3>
+                <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-full font-semibold">This month: {stats.thisMonth}</span>
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Completion Rate</span>
-                    <span className="font-semibold text-foreground">{stats.completionRate}%</span>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground font-medium">Completion Rate</span>
+                    <span className="font-bold text-foreground">{stats.completionRate}%</span>
                   </div>
                   <progress
                     max={100}
                     value={stats.completionRate}
-                    className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
+                    className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
                   />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Cancellation Rate</span>
-                    <span className="font-semibold text-foreground">{stats.cancellationRate}%</span>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground font-medium">Cancellation Rate</span>
+                    <span className="font-bold text-foreground">{stats.cancellationRate}%</span>
                   </div>
                   <progress
                     max={100}
                     value={stats.cancellationRate}
-                    className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
+                    className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">Cancelled rides: {stats.cancelled}</p>
+                  <p className="text-xs text-muted-foreground mt-2 font-medium">Cancelled rides: {stats.cancelled}</p>
                 </div>
               </div>
             </motion.div>
@@ -955,12 +955,12 @@ const DriverDashboard = () => {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-3">
                     <input
                       value={rideSearch}
                       onChange={(event) => setRideSearch(event.target.value)}
                       placeholder="Search by student, pickup, drop"
-                      className="bg-muted/50 border border-border rounded-xl py-2 px-3 text-xs"
+                      className="bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                   </div>
 
