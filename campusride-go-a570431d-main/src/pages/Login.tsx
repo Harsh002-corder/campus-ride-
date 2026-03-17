@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import BrandIcon from "@/components/BrandIcon";
@@ -13,6 +13,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authSuccess, setAuthSuccess] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
+  const successTimeoutRef = useRef<number | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +23,24 @@ const Login = () => {
   const tapSoft = {
     whileTap: { scale: 0.97 },
     transition: { duration: 0.12 },
+  };
+
+  useEffect(() => () => {
+    if (successTimeoutRef.current) {
+      window.clearTimeout(successTimeoutRef.current);
+    }
+  }, []);
+
+  const showSuccessAndNavigate = (targetPath: string, message: string) => {
+    if (successTimeoutRef.current) {
+      window.clearTimeout(successTimeoutRef.current);
+    }
+
+    setAuthSuccess({ open: true, message });
+    successTimeoutRef.current = window.setTimeout(() => {
+      setAuthSuccess({ open: false, message: "" });
+      navigate(targetPath);
+    }, 900);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +56,16 @@ const Login = () => {
     try {
       const response = await apiClient.auth.login({ email, password });
       login(response.user, response.token);
-      navigate(response.user.role === "super_admin" ? "/super-admin-dashboard" : response.user.role === "sub_admin" ? "/sub-admin-dashboard" : response.user.role === "admin" ? "/admin" : response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
+      const targetPath = response.user.role === "super_admin"
+        ? "/super-admin-dashboard"
+        : response.user.role === "sub_admin"
+          ? "/sub-admin-dashboard"
+          : response.user.role === "admin"
+            ? "/admin"
+            : response.user.role === "driver"
+              ? "/driver-dashboard"
+              : "/student-dashboard";
+      showSuccessAndNavigate(targetPath, "Login successful");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -203,6 +232,37 @@ const Login = () => {
           </div>
         </motion.div>
       </div>
+      <AnimatePresence>
+        {authSuccess.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-lg" />
+            <motion.div
+              initial={{ opacity: 0, y: 14, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="relative w-full max-w-sm rounded-3xl border border-primary/25 bg-background/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.26)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary"
+                animate={{ scale: [1, 1.08, 1], rotate: [0, -6, 0, 6, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <ShieldCheck className="h-7 w-7" />
+              </motion.div>
+              <h3 className="text-lg font-bold font-display text-foreground">{authSuccess.message}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 };

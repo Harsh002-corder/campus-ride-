@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import BrandIcon from "@/components/BrandIcon";
@@ -25,9 +25,13 @@ const Signup = () => {
   const [collegeOptions, setCollegeOptions] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
+  const [otpResendSeconds, setOtpResendSeconds] = useState(0);
+  const [resendingOtp, setResendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [signupSuccess, setSignupSuccess] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
+  const successTimeoutRef = useRef<number | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -54,6 +58,71 @@ const Signup = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!otpRequested || otpResendSeconds <= 0) return;
+    const timeoutId = window.setTimeout(() => setOtpResendSeconds((prev) => Math.max(0, prev - 1)), 1000);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [otpRequested, otpResendSeconds]);
+
+  useEffect(() => () => {
+    if (successTimeoutRef.current) {
+      window.clearTimeout(successTimeoutRef.current);
+    }
+  }, []);
+
+  const showSuccessAndNavigate = (targetPath: string, message: string) => {
+    if (successTimeoutRef.current) {
+      window.clearTimeout(successTimeoutRef.current);
+    }
+
+    setSignupSuccess({ open: true, message });
+    successTimeoutRef.current = window.setTimeout(() => {
+      setSignupSuccess({ open: false, message: "" });
+      navigate(targetPath);
+    }, 950);
+  };
+
+  const buildSignupOtpPayload = () => ({
+    name: name || email.split("@")[0],
+    email,
+    password,
+    role,
+    ...(phone ? { phone } : {}),
+    ...(collegeId ? { collegeId } : {}),
+    ...(role === "driver"
+      ? {
+          driverSecurity: {
+            licenseNumber: licenseNumber.trim(),
+            vehicleNumber: vehicleNumber.trim(),
+            emergencyContactName: emergencyContactName.trim(),
+            emergencyContactPhone: emergencyContactPhone.trim(),
+            idNumberLast4: idNumberLast4.trim(),
+          },
+        }
+      : {}),
+  });
+
+  const requestOtp = async () => {
+    if (role === "driver") {
+      if (!licenseNumber.trim() || !vehicleNumber.trim() || !emergencyContactName.trim() || !emergencyContactPhone.trim() || !idNumberLast4.trim()) {
+        setError("Please fill all driver security fields.");
+        return false;
+      }
+      if (!/^\d{4}$/.test(idNumberLast4.trim())) {
+        setError("ID number last 4 digits must be exactly 4 numbers.");
+        return false;
+      }
+    }
+
+    await apiClient.auth.requestSignupOtp(buildSignupOtpPayload());
+    setOtpRequested(true);
+    setOtpResendSeconds(30);
+    setInfo("OTP sent. Enter the 6-digit code to complete signup.");
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -66,38 +135,8 @@ const Signup = () => {
     setLoading(true);
     try {
       if (!otpRequested) {
-        if (role === "driver") {
-          if (!licenseNumber.trim() || !vehicleNumber.trim() || !emergencyContactName.trim() || !emergencyContactPhone.trim() || !idNumberLast4.trim()) {
-            setError("Please fill all driver security fields.");
-            return;
-          }
-          if (!/^\d{4}$/.test(idNumberLast4.trim())) {
-            setError("ID number last 4 digits must be exactly 4 numbers.");
-            return;
-          }
-        }
-
-        await apiClient.auth.requestSignupOtp({
-          name: name || email.split("@")[0],
-          email,
-          password,
-          role,
-          ...(phone ? { phone } : {}),
-          ...(collegeId ? { collegeId } : {}),
-          ...(role === "driver"
-            ? {
-                driverSecurity: {
-                  licenseNumber: licenseNumber.trim(),
-                  vehicleNumber: vehicleNumber.trim(),
-                  emergencyContactName: emergencyContactName.trim(),
-                  emergencyContactPhone: emergencyContactPhone.trim(),
-                  idNumberLast4: idNumberLast4.trim(),
-                },
-              }
-            : {}),
-        });
-        setOtpRequested(true);
-        setInfo("OTP sent. Enter the 6-digit code to complete signup.");
+        const otpSent = await requestOtp();
+        if (!otpSent) return;
       } else {
         if (!/^\d{6}$/.test(otp)) {
           setError("Enter a valid 6-digit OTP");
@@ -106,19 +145,32 @@ const Signup = () => {
         const response = await apiClient.auth.verifySignupOtp({ email, role, otp });
         if (response.token && response.user) {
           login(response.user, response.token);
-          navigate(response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard");
+          showSuccessAndNavigate(response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard", "Signup successful");
           return;
         }
 
         setInfo(response.message || "Signup completed. Please wait for admin approval before logging in.");
-        setTimeout(() => {
-          navigate("/login");
-        }, 1200);
+        showSuccessAndNavigate("/login", "Account created");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setInfo("");
+    setResendingOtp(true);
+    try {
+      const otpSent = await requestOtp();
+      if (!otpSent) return;
+      setInfo("A new OTP has been sent to your email.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend OTP");
+    } finally {
+      setResendingOtp(false);
     }
   };
 
@@ -364,6 +416,30 @@ const Signup = () => {
                 </motion.div>
               )}
 
+              {otpRequested && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-primary/90 font-medium">Didn't receive OTP?</span>
+                    <motion.button
+                      {...tapSoft}
+                      type="button"
+                      onClick={() => void handleResendOtp()}
+                      disabled={resendingOtp || loading || otpResendSeconds > 0}
+                      className="text-xs font-semibold text-primary disabled:text-muted-foreground"
+                    >
+                      {resendingOtp ? "Resending..." : otpResendSeconds > 0 ? `Resend in ${otpResendSeconds}s` : "Resend OTP"}
+                    </motion.button>
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full bg-primary/15 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-primary"
+                      animate={{ width: otpResendSeconds > 0 ? `${(otpResendSeconds / 30) * 100}%` : "0%" }}
+                      transition={{ duration: 0.25, ease: "linear" }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {info && (
                 <motion.p
                   initial={{ opacity: 0, y: -5 }}
@@ -448,6 +524,37 @@ const Signup = () => {
           </div>
         </motion.div>
       </div>
+      <AnimatePresence>
+        {signupSuccess.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-lg" />
+            <motion.div
+              initial={{ opacity: 0, y: 14, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="relative w-full max-w-sm rounded-3xl border border-primary/25 bg-background/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.26)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary"
+                animate={{ scale: [1, 1.08, 1], rotate: [0, -6, 0, 6, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <ShieldCheck className="h-7 w-7" />
+              </motion.div>
+              <h3 className="text-lg font-bold font-display text-foreground">{signupSuccess.message}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Redirecting to continue...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 };
