@@ -355,6 +355,15 @@ const StudentDashboard = () => {
     { icon: Shield, label: "Safety", desc: "Emergency contacts", gradient: false },
   ];
 
+  const tapSoft = {
+    whileTap: { scale: 0.97 },
+    transition: { duration: 0.12 },
+  };
+
+  const tapSnap = {
+    whileTap: { scale: 0.93 },
+  };
+
   const handleQuickAction = (label: string) => {
     if (label === "Book a Ride") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -824,21 +833,24 @@ const StudentDashboard = () => {
                             {favorites.map((fav) => (
                               <div key={fav.id} className="flex items-center bg-primary/10 border border-primary/20 rounded-full shrink-0 overflow-hidden">
                                 <span className="text-xs text-primary font-medium pl-2.5 pr-1 py-1.5 max-w-[88px] truncate">{fav.label}</span>
-                                <button
+                                <motion.button
+                                  {...tapSoft}
                                   onClick={() => applyFavorite(fav, "pickup")}
                                   className="text-[11px] text-primary/80 hover:bg-primary/20 px-1.5 py-1.5 transition-colors font-bold leading-none"
                                   title="Set as pickup"
-                                >↑</button>
-                                <button
+                                >↑</motion.button>
+                                <motion.button
+                                  {...tapSoft}
                                   onClick={() => applyFavorite(fav, "drop")}
                                   className="text-[11px] text-primary/80 hover:bg-primary/20 px-1.5 py-1.5 transition-colors font-bold leading-none"
                                   title="Set as drop-off"
-                                >↓</button>
-                                <button
+                                >↓</motion.button>
+                                <motion.button
+                                  {...tapSoft}
                                   onClick={() => void deleteFavoriteById(fav.id)}
                                   className="text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-1.5 py-1.5 transition-colors rounded-r-full leading-none"
                                   title="Remove"
-                                >✕</button>
+                                >✕</motion.button>
                               </div>
                             ))}
                           </div>
@@ -846,22 +858,23 @@ const StudentDashboard = () => {
                       )}
                       {recentLocations.length > 0 && (
                         <div>
-                          <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">🕐\
-                           Recent</p>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">🕐 Recent</p>
                           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                             {recentLocations.map((r) => (
                               <div key={r.name} className="flex items-center bg-muted/60 border border-border rounded-full shrink-0 overflow-hidden">
                                 <span className="text-xs text-foreground/80 font-medium pl-2.5 pr-1 py-1.5 max-w-[88px] truncate">{r.name}</span>
-                                <button
+                                <motion.button
+                                  {...tapSoft}
                                   onClick={() => { setPickup(r.name); setPickupStop(r as CampusStop); setGpsVerification({ state: "idle", message: "Press Find Ride to verify GPS" }); }}
                                   className="text-[11px] text-muted-foreground hover:text-primary hover:bg-primary/10 px-1.5 py-1.5 transition-colors font-bold leading-none"
                                   title="Set as pickup"
-                                >↑</button>
-                                <button
+                                >↑</motion.button>
+                                <motion.button
+                                  {...tapSoft}
                                   onClick={() => { setDrop(r.name); setDropStop(r as CampusStop); }}
                                   className="text-[11px] text-muted-foreground hover:text-primary hover:bg-primary/10 px-1.5 py-1.5 transition-colors font-bold rounded-r-full leading-none"
                                   title="Set as drop-off"
-                                >↓</button>
+                                >↓</motion.button>
                               </div>
                             ))}
                           </div>
@@ -877,24 +890,65 @@ const StudentDashboard = () => {
                       <div className="flex items-center gap-2.5 bg-muted/50 border border-border rounded-xl py-3 px-4 justify-center">
                         <Users className="w-4 h-4 text-muted-foreground" />
                         <div className="flex items-center gap-2">
-                          <button
+                          <motion.button
+                            {...tapSnap}
                             onClick={() => setPassengers(Math.max(1, passengers - 1))}
                             className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 active:scale-90 text-foreground text-base font-bold flex items-center justify-center transition-transform"
-                          >−</button>
+                          >−</motion.button>
                           <span className="w-7 text-center text-sm font-semibold text-foreground">{passengers}</span>
-                          <button
+                          <motion.button
+                            {...tapSnap}
                             onClick={() => setPassengers(Math.min(rideMaxPassengers, passengers + 1))}
                             className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 active:scale-90 text-foreground text-base font-bold flex items-center justify-center transition-transform"
-                          >+</button>
+                          >+</motion.button>
                         </div>
                       </div>
                       <motion.button
                         whileTap={{ scale: 0.95 }}
+                        animate={booking ? { scale: [1, 0.985, 1] } : { scale: 1 }}
+                        transition={booking ? { duration: 1.05, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}
                         onClick={handleFindRide}
                         disabled={booking || !rideBookingEnabled}
-                        className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap flex-1 disabled:opacity-70 transition-all"
+                        className="btn-primary-gradient relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap flex-1 disabled:opacity-70 transition-all"
                       >
-                        {!rideBookingEnabled ? "Booking Paused" : booking ? "🔍 Finding..." : "Find Ride"}
+                        {booking && (
+                          <>
+                            <motion.span
+                              aria-hidden="true"
+                              className="absolute inset-y-1 left-0 w-20 rounded-full bg-white/25 blur-md"
+                              animate={{ x: ["-120%", "320%"] }}
+                              transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+                            />
+                            <motion.span
+                              aria-hidden="true"
+                              className="absolute inset-0 bg-white/5"
+                              animate={{ opacity: [0.08, 0.2, 0.08] }}
+                              transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                          </>
+                        )}
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          {!rideBookingEnabled ? (
+                            "Booking Paused"
+                          ) : booking ? (
+                            <>
+                              <span className="relative inline-flex h-4 w-12 items-center overflow-hidden rounded-full bg-white/10">
+                                <span className="absolute left-1 right-1 h-px bg-white/35" />
+                                <motion.span
+                                  aria-hidden="true"
+                                  className="absolute left-1 top-1/2 -translate-y-1/2 text-white"
+                                  animate={{ x: [0, 18, 32, 18, 0], rotate: [0, -8, 0, 8, 0] }}
+                                  transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
+                                >
+                                  <Navigation className="h-3.5 w-3.5 fill-current" />
+                                </motion.span>
+                              </span>
+                              <span>Finding ride...</span>
+                            </>
+                          ) : (
+                            "Find Ride"
+                          )}
+                        </span>
                       </motion.button>
                     </div>
                   </div>
@@ -913,13 +967,14 @@ const StudentDashboard = () => {
                       GPS: {gpsVerification.state === "idle" ? "Not verified" : gpsVerification.state}
                     </span>
                     <span className="text-muted-foreground break-words flex-1">{gpsVerification.message}</span>
-                    <button
+                    <motion.button
+                      {...tapSoft}
                       type="button"
                       onClick={handleReverifyGps}
                       className="px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium whitespace-nowrap"
                     >
                       Reverify
-                    </button>
+                    </motion.button>
                   </div>
                   <div className="space-y-3">
                     <input
@@ -948,8 +1003,8 @@ const StudentDashboard = () => {
                     <span>Split fare among passengers</span>
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <button onClick={() => saveCurrentAsFavorite("pickup")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save pickup</button>
-                    <button onClick={() => saveCurrentAsFavorite("drop")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save drop-off</button>
+                    <motion.button {...tapSoft} onClick={() => saveCurrentAsFavorite("pickup")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save pickup</motion.button>
+                    <motion.button {...tapSoft} onClick={() => saveCurrentAsFavorite("drop")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save drop-off</motion.button>
                   </div>
                   <p className="text-xs text-muted-foreground">Passenger limit: {rideMaxPassengers} per ride</p>
                   {!rideBookingEnabled && (
