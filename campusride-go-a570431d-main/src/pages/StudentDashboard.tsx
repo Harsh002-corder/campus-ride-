@@ -971,9 +971,26 @@ const StudentDashboard = () => {
                       {...tapSoft}
                       type="button"
                       onClick={handleReverifyGps}
-                      className="px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium whitespace-nowrap"
+                      className="relative overflow-hidden px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium whitespace-nowrap"
                     >
-                      Reverify
+                      {gpsVerification.state === "checking" && (
+                        <motion.span
+                          aria-hidden="true"
+                          className="absolute inset-y-0 left-0 w-12 bg-primary/20 blur-sm"
+                          animate={{ x: ["-140%", "240%"] }}
+                          transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                        />
+                      )}
+                      <span className="relative z-10 inline-flex items-center gap-1.5">
+                        <motion.span
+                          aria-hidden="true"
+                          animate={gpsVerification.state === "checking" ? { rotate: [0, -18, 0, 18, 0] } : { rotate: 0 }}
+                          transition={gpsVerification.state === "checking" ? { duration: 0.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+                        >
+                          <Navigation className="h-3.5 w-3.5" />
+                        </motion.span>
+                        <span>{gpsVerification.state === "checking" ? "Verifying..." : "Reverify"}</span>
+                      </span>
                     </motion.button>
                   </div>
                   <div className="space-y-3">
@@ -1003,8 +1020,28 @@ const StudentDashboard = () => {
                     <span>Split fare among passengers</span>
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <motion.button {...tapSoft} onClick={() => saveCurrentAsFavorite("pickup")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save pickup</motion.button>
-                    <motion.button {...tapSoft} onClick={() => saveCurrentAsFavorite("drop")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save drop-off</motion.button>
+                    <motion.button
+                      {...tapSoft}
+                      whileHover={{ y: -1 }}
+                      onClick={() => saveCurrentAsFavorite("pickup")}
+                      className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <motion.span whileHover={{ rotate: [-8, 8, 0] }} transition={{ duration: 0.25 }} aria-hidden="true">⭐</motion.span>
+                        <span>Save pickup</span>
+                      </span>
+                    </motion.button>
+                    <motion.button
+                      {...tapSoft}
+                      whileHover={{ y: -1 }}
+                      onClick={() => saveCurrentAsFavorite("drop")}
+                      className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <motion.span whileHover={{ rotate: [-8, 8, 0] }} transition={{ duration: 0.25 }} aria-hidden="true">⭐</motion.span>
+                        <span>Save drop-off</span>
+                      </span>
+                    </motion.button>
                   </div>
                   <p className="text-xs text-muted-foreground">Passenger limit: {rideMaxPassengers} per ride</p>
                   {!rideBookingEnabled && (
