@@ -36,6 +36,10 @@ export default defineConfig(({ mode }) => ({
         enabled: mode === "development",
         type: "module",
       },
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+      },
     }),
   ],
   optimizeDeps: {
