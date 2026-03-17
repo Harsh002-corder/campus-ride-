@@ -97,6 +97,8 @@ const DriverDashboard = () => {
   });
   const newRequestPopupTimerRef = useRef<number | null>(null);
   const trackRideTimeoutRef = useRef<number | null>(null);
+  const logoutTimeoutRef = useRef<number | null>(null);
+  const [logoutTransitionOpen, setLogoutTransitionOpen] = useState(false);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -303,6 +305,9 @@ const DriverDashboard = () => {
     }
     if (trackRideTimeoutRef.current) {
       window.clearTimeout(trackRideTimeoutRef.current);
+    }
+    if (logoutTimeoutRef.current) {
+      window.clearTimeout(logoutTimeoutRef.current);
     }
   }, []);
 
@@ -513,9 +518,17 @@ const DriverDashboard = () => {
   };
 
   const handleLogout = () => {
-    logout();
-    navigate("/", { replace: true });
-    window.location.assign("/");
+    if (logoutTimeoutRef.current) {
+      window.clearTimeout(logoutTimeoutRef.current);
+    }
+
+    setLogoutTransitionOpen(true);
+    logoutTimeoutRef.current = window.setTimeout(() => {
+      setLogoutTransitionOpen(false);
+      logout();
+      navigate("/", { replace: true });
+      window.location.assign("/");
+    }, 900);
   };
 
   const toggleOnline = async () => {
@@ -836,8 +849,14 @@ const DriverDashboard = () => {
                 <span className="text-sm text-muted-foreground hidden sm:block">
                   <span className="text-foreground font-medium">{user?.name}</span>
                 </span>
-                <motion.button {...tapSoft} whileHover={{ y: -1 }} onClick={handleLogout} className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2">
-                  <LogOut className="w-4 h-4" /> Logout
+                <motion.button
+                  {...tapSoft}
+                  whileHover={{ y: -1 }}
+                  onClick={handleLogout}
+                  disabled={logoutTransitionOpen}
+                  className="btn-outline-glow px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 disabled:opacity-70"
+                >
+                  <LogOut className="w-4 h-4" /> {logoutTransitionOpen ? "Logging out..." : "Logout"}
                 </motion.button>
               </div>
             </div>
@@ -1069,6 +1088,38 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {logoutTransitionOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[95] flex items-center justify-center px-6"
+          >
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-lg" />
+            <motion.div
+              initial={{ opacity: 0, y: 14, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="relative w-full max-w-sm rounded-3xl border border-primary/25 bg-background/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.26)]"
+            >
+              <motion.div
+                aria-hidden="true"
+                className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary"
+                animate={{ scale: [1, 1.08, 1], rotate: [0, -6, 0, 6, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <LogOut className="h-7 w-7" />
+              </motion.div>
+              <h3 className="text-lg font-bold font-display text-foreground">Logout successful</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Returning to home...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {trackRideSplash.open && (
