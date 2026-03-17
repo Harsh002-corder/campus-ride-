@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle, Map, MessageCircle, Phone, Play, Users, XCircle } from "lucide-react";
 import type { RideDto } from "@/lib/apiClient";
@@ -44,6 +45,8 @@ export default function RideCard({
   onComplete,
   onTrack,
 }: RideCardProps) {
+  const [completeBurst, setCompleteBurst] = useState(false);
+
   const tapSoft = {
     whileTap: { scale: 0.97 },
     transition: { duration: 0.12 },
@@ -65,12 +68,26 @@ export default function RideCard({
   const createdAtText = new Date(ride.createdAt).toLocaleString();
   const shouldShowVerificationCode = ["accepted", "in_progress", "ongoing"].includes(ride.status) && Boolean(ride.verificationCode);
 
+  useEffect(() => {
+    if (!isCompleting) {
+      setCompleteBurst(false);
+    }
+  }, [isCompleting]);
+
   return (
     <motion.div
       whileHover={{ y: -3, scale: 1.004 }}
       transition={{ duration: 0.18 }}
-      className={`card-glass border ${isActive ? "border-primary/30" : "border-border/50"}`}
+      className={`card-glass border relative overflow-hidden ${isActive ? "border-primary/30" : "border-border/50"}`}
     >
+      {busy && (
+        <motion.span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-2 left-0 w-20 rounded-full bg-white/10 blur-md"
+          animate={{ x: ["-140%", "280%"] }}
+          transition={{ duration: 1.05, repeat: Infinity, ease: "linear" }}
+        />
+      )}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
@@ -186,11 +203,39 @@ export default function RideCard({
         </motion.button>
 
         {isInProgress && (
-          <motion.button {...tapSoft} whileHover={{ y: -1 }} onClick={() => onComplete(ride.id)} disabled={busy} className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+          <motion.button
+            {...tapSoft}
+            whileHover={{ y: -1 }}
+            onClick={() => {
+              setCompleteBurst(true);
+              window.setTimeout(() => setCompleteBurst(false), 620);
+              onComplete(ride.id);
+            }}
+            disabled={busy}
+            className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors relative overflow-hidden"
+          >
             <motion.span animate={isCompleting ? { scale: [1, 1.08, 1] } : { scale: 1 }} transition={isCompleting ? { duration: 0.7, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}>
               <CheckCircle className="w-3.5 h-3.5" />
             </motion.span>
             {isCompleting ? "Completing..." : "Complete Ride"}
+            {completeBurst && (
+              <span className="pointer-events-none absolute inset-0">
+                {[0, 1, 2, 3, 4, 5].map((p) => (
+                  <motion.span
+                    key={`complete-burst-${ride.id}-${p}`}
+                    className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-green-300"
+                    initial={{ x: 0, y: 0, opacity: 0.9, scale: 1 }}
+                    animate={{
+                      x: [0, -16, 14, -10, 18, -14][p],
+                      y: [0, -14, -16, 16, 12, 8][p],
+                      opacity: 0,
+                      scale: 0.4,
+                    }}
+                    transition={{ duration: 0.56, ease: "easeOut" }}
+                  />
+                ))}
+              </span>
+            )}
           </motion.button>
         )}
 
@@ -206,6 +251,26 @@ export default function RideCard({
           </motion.span>
           {isCancelling ? "Cancelling..." : "Cancel Ride"}
         </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+export function RideCardSkeleton({ index = 0 }: { index?: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="card-glass border border-border/40"
+    >
+      <div className="space-y-3">
+        <motion.div className="h-4 w-2/3 rounded bg-muted/60" animate={{ opacity: [0.35, 0.7, 0.35] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div className="h-3 w-1/2 rounded bg-muted/50" animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.08 }} />
+        <div className="grid grid-cols-2 gap-2">
+          <motion.div className="h-8 rounded-xl bg-muted/50" animate={{ opacity: [0.3, 0.55, 0.3] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.12 }} />
+          <motion.div className="h-8 rounded-xl bg-muted/50" animate={{ opacity: [0.3, 0.55, 0.3] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.18 }} />
+        </div>
       </div>
     </motion.div>
   );

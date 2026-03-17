@@ -180,6 +180,16 @@ const RideTracking = () => {
           ? "Ride Completed"
           : "Ride Active";
 
+  const timelineSteps = ["Searching", "Assigned", "On Trip", "Completed"];
+  const statusStepIndex = mapMode === "searching"
+    ? 0
+    : mapMode === "driver_arriving" || mapMode === "accepted"
+      ? 1
+      : mapMode === "ride_started"
+        ? 2
+        : 3;
+  const statusProgressPercent = (statusStepIndex / (timelineSteps.length - 1)) * 100;
+
   const introPickupLabel = ride?.pickup?.label || "Campus pickup";
   const introDropLabel = ride?.drop?.label || "Campus destination";
   const introDriverName = contactDisplayName || "Assigned contact";
@@ -805,6 +815,45 @@ const RideTracking = () => {
                   <Clock className="w-4 h-4" />
                   <span>ETA {rideEtaText}</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 sm:px-4">
+              <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                <span>Trip Progress</span>
+                <span>{Math.round(statusProgressPercent)}%</span>
+              </div>
+              <div className="relative mb-3 h-7">
+                <div className="absolute left-1 right-1 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary/20" />
+                <motion.div
+                  className="absolute left-1 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-primary"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `calc(${statusProgressPercent}% - 0.25rem)` }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                />
+                <motion.div
+                  className="absolute top-1/2 -translate-y-1/2"
+                  initial={{ left: "0%" }}
+                  animate={{ left: `calc(${statusProgressPercent}% - 0.6rem)` }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                    className="rounded-full bg-primary p-1 text-primary-foreground shadow-md"
+                  >
+                    <CarFront className="h-3.5 w-3.5" />
+                  </motion.div>
+                </motion.div>
+                <div className="absolute left-1 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-primary/45 bg-background" />
+                <div className="absolute right-1 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-primary/45 bg-background" />
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-[11px]">
+                {timelineSteps.map((step, index) => (
+                  <div key={step} className={`text-center font-medium ${index <= statusStepIndex ? "text-primary" : "text-muted-foreground"}`}>
+                    {step}
+                  </div>
+                ))}
               </div>
             </div>
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { useCountUp } from "@/hooks/useCountUp";
 import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import RideCompletionPopup from "@/components/ride/RideCompletionPopup";
@@ -374,6 +375,13 @@ const StudentDashboard = () => {
     () => rides.filter((ride) => ["completed", "cancelled"].includes(ride.status)).slice(0, 40),
     [rides],
   );
+
+  const animatedTotal = useCountUp(rideStats.total, 900, true);
+  const animatedCompleted = useCountUp(rideStats.completed, 900, true);
+  const animatedCancelled = useCountUp(rideStats.cancelled, 900, true);
+  const animatedActive = useCountUp(rideStats.active, 900, true);
+  const animatedCompletionRate = useCountUp(rideStats.completionRate, 900, true);
+  const animatedCancellationRate = useCountUp(rideStats.cancellationRate, 900, true);
 
   const quickActions = [
     { icon: MapPin, label: "Book a Ride", desc: "Find your next campus ride", gradient: true },
@@ -1121,10 +1129,10 @@ const StudentDashboard = () => {
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   {[
-                    { label: "Total Rides", value: String(rideStats.total) },
-                    { label: "Completed", value: String(rideStats.completed) },
-                    { label: "Cancelled", value: String(rideStats.cancelled) },
-                    { label: "Active", value: String(rideStats.active) },
+                    { label: "Total Rides", value: String(animatedTotal) },
+                    { label: "Completed", value: String(animatedCompleted) },
+                    { label: "Cancelled", value: String(animatedCancelled) },
+                    { label: "Active", value: String(animatedActive) },
                   ].map((s) => (
                     <div key={s.label} className="bg-muted/30 rounded-xl p-4 text-center hover:bg-muted/40 transition-colors">
                       <p className="text-2xl font-bold font-display text-foreground">{s.value}</p>
@@ -1137,24 +1145,30 @@ const StudentDashboard = () => {
                   <div>
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted-foreground font-medium">Completion Rate</span>
-                      <span className="font-bold text-foreground">{rideStats.completionRate}%</span>
+                      <span className="font-bold text-foreground">{animatedCompletionRate}%</span>
                     </div>
                     <progress
                       max={100}
-                      value={rideStats.completionRate}
+                      value={animatedCompletionRate}
                       className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
                     />
+                    <svg viewBox="0 0 100 20" className="mt-2 h-4 w-full text-primary/60" aria-hidden="true">
+                      <polyline fill="none" stroke="currentColor" strokeWidth="2" points="0,15 18,12 36,13 54,9 72,10 100,6" />
+                    </svg>
                   </div>
                   <div>
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted-foreground font-medium">Cancellation Rate</span>
-                      <span className="font-bold text-foreground">{rideStats.cancellationRate}%</span>
+                      <span className="font-bold text-foreground">{animatedCancellationRate}%</span>
                     </div>
                     <progress
                       max={100}
-                      value={rideStats.cancellationRate}
+                      value={animatedCancellationRate}
                       className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
                     />
+                    <svg viewBox="0 0 100 20" className="mt-2 h-4 w-full text-destructive/60" aria-hidden="true">
+                      <polyline fill="none" stroke="currentColor" strokeWidth="2" points="0,6 20,8 40,10 60,9 80,13 100,15" />
+                    </svg>
                   </div>
                 </div>
               </motion.div>

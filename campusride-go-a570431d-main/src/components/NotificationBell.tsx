@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiClient } from "@/lib/apiClient";
@@ -22,6 +23,7 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [pulseBurst, setPulseBurst] = useState(false);
 
   const loadNotifications = async () => {
     setLoading(true);
@@ -44,6 +46,8 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
         }
         return [notification, ...prev].slice(0, 100);
       });
+      setPulseBurst(true);
+      window.setTimeout(() => setPulseBurst(false), 420);
     };
 
     socket.on("notification:new", onNew);
@@ -76,14 +80,42 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className={cn("relative p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors", className)}>
-          <Bell className="w-5 h-5 text-muted-foreground" />
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.94 }}
+          animate={pulseBurst ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+          transition={pulseBurst ? { duration: 0.34, ease: "easeOut" } : { duration: 0.15 }}
+          className={cn("relative p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors", className)}
+        >
+          <motion.span
+            animate={unreadCount > 0 ? { rotate: [0, -8, 6, -4, 0] } : { rotate: 0 }}
+            transition={unreadCount > 0 ? { duration: 0.85, repeat: Infinity, repeatDelay: 2.4, ease: "easeInOut" } : { duration: 0.2 }}
+            className="inline-flex"
+          >
+            <Bell className="w-5 h-5 text-muted-foreground" />
+          </motion.span>
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+            <motion.span
+              initial={{ scale: 0.7, opacity: 0.3 }}
+              animate={{ scale: [1, 1.14, 1], opacity: [0.95, 1, 0.95] }}
+              transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center"
+            >
               {Math.min(unreadCount, 9)}
-            </span>
+            </motion.span>
           )}
-        </button>
+          <AnimatePresence>
+            {pulseBurst && (
+              <motion.span
+                initial={{ opacity: 0.55, scale: 0.8 }}
+                animate={{ opacity: 0, scale: 1.6 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="absolute inset-0 rounded-xl border border-primary/40"
+              />
+            )}
+          </AnimatePresence>
+        </motion.button>
       </PopoverTrigger>
 
       <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden">
@@ -96,24 +128,30 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
           {loading && <div className="p-4 text-xs text-muted-foreground">Loading notifications...</div>}
           {!loading && items.length === 0 && <div className="p-4 text-xs text-muted-foreground">No notifications yet.</div>}
 
-          {!loading && items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => markRead(item.id)}
-              className={cn(
-                "w-full text-left px-4 py-3 border-b border-border/40 hover:bg-muted/30 transition-colors",
-                !item.readAt && "bg-primary/5",
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium">{item.title}</p>
-                {!item.readAt && <span className="w-2 h-2 rounded-full bg-primary mt-1" />}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{item.body}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
-            </button>
-          ))}
+          <AnimatePresence initial={false}>
+            {!loading && items.map((item, i) => (
+              <motion.button
+                key={item.id}
+                type="button"
+                onClick={() => markRead(item.id)}
+                initial={{ opacity: 0, y: -8, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.99 }}
+                transition={{ duration: 0.2, delay: i < 4 ? i * 0.03 : 0 }}
+                className={cn(
+                  "w-full text-left px-4 py-3 border-b border-border/40 hover:bg-muted/30 transition-colors",
+                  !item.readAt && "bg-primary/5",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{item.title}</p>
+                  {!item.readAt && <span className="w-2 h-2 rounded-full bg-primary mt-1" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{item.body}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+              </motion.button>
+            ))}
+          </AnimatePresence>
         </div>
       </PopoverContent>
     </Popover>

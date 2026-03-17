@@ -6,8 +6,9 @@ import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import IncomingRequestsList from "@/components/ride/IncomingRequestsList";
 import NewRideRequestPopup from "@/components/ride/NewRideRequestPopup";
-import RideCard from "@/components/ride/RideCard";
+import RideCard, { RideCardSkeleton } from "@/components/ride/RideCard";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { useCountUp } from "@/hooks/useCountUp";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
@@ -99,6 +100,9 @@ const DriverDashboard = () => {
   const trackRideTimeoutRef = useRef<number | null>(null);
   const logoutTimeoutRef = useRef<number | null>(null);
   const [logoutTransitionOpen, setLogoutTransitionOpen] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [completionBurstOpen, setCompletionBurstOpen] = useState(false);
+  const completionBurstTimeoutRef = useRef<number | null>(null);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -223,6 +227,7 @@ const DriverDashboard = () => {
   }, []);
 
   const loadData = useCallback(async () => {
+    setLoadingData(true);
     try {
       const [profileResult, mineResult, availableResult, verificationResult, settingsResult] = await Promise.allSettled([
         apiClient.users.me() as Promise<{ user: { isOnline?: boolean; driverVerificationStatus?: "pending" | "approved" | "rejected" } }>,
@@ -274,6 +279,8 @@ const DriverDashboard = () => {
       setRideSupportPhone("+91 90000 00000");
       setRideSecurityPhone("+91 100");
       setRideAmbulancePhone("+91 108");
+    } finally {
+      setLoadingData(false);
     }
   }, [toast]);
 
@@ -308,6 +315,9 @@ const DriverDashboard = () => {
     }
     if (logoutTimeoutRef.current) {
       window.clearTimeout(logoutTimeoutRef.current);
+    }
+    if (completionBurstTimeoutRef.current) {
+      window.clearTimeout(completionBurstTimeoutRef.current);
     }
   }, []);
 
@@ -462,6 +472,14 @@ const DriverDashboard = () => {
       .reduce((total, ride) => total + Number(ride.fareBreakdown?.totalFare || 0) - Number(ride.fareBreakdown?.platformFee || 0), 0)
       .toFixed(2);
   }, [myRides]);
+
+  const animatedTotal = useCountUp(stats.total, 900, true);
+  const animatedToday = useCountUp(stats.today, 900, true);
+  const animatedActive = useCountUp(stats.active, 900, true);
+  const animatedCompleted = useCountUp(stats.completed, 900, true);
+  const animatedCompletionRate = useCountUp(stats.completionRate, 900, true);
+  const animatedCancellationRate = useCountUp(stats.cancellationRate, 900, true);
+  const animatedTodayEarnings = useCountUp(Math.round(todayEarnings.netDriverEarnings), 900, true);
 
   const tapSoft = {
     whileTap: { scale: 0.97 },
@@ -668,6 +686,13 @@ const DriverDashboard = () => {
 
     try {
       await apiClient.rides.complete(rideId);
+      setCompletionBurstOpen(true);
+      if (completionBurstTimeoutRef.current) {
+        window.clearTimeout(completionBurstTimeoutRef.current);
+      }
+      completionBurstTimeoutRef.current = window.setTimeout(() => {
+        setCompletionBurstOpen(false);
+      }, 1100);
       toast.success("Ride completed", "Student can now submit rating and feedback.");
     } catch (error) {
       await loadData();
@@ -944,12 +969,12 @@ const DriverDashboard = () => {
 
             <div className="grid grid-cols-2 xl:grid-cols-6 gap-4">
               {[
-                { key: "total", icon: Wallet, label: "Total Rides", value: String(stats.total), change: "all time" },
-                { key: "today", icon: Navigation, label: "Rides Today", value: String(stats.today), change: "today" },
-                { key: "active", icon: Users, label: "Active", value: String(stats.active), change: "in progress" },
-                { key: "completed", icon: Star, label: "Completed", value: String(stats.completed), change: "finished" },
+                { key: "total", icon: Wallet, label: "Total Rides", value: String(animatedTotal), change: "all time" },
+                { key: "today", icon: Navigation, label: "Rides Today", value: String(animatedToday), change: "today" },
+                { key: "active", icon: Users, label: "Active", value: String(animatedActive), change: "in progress" },
+                { key: "completed", icon: Star, label: "Completed", value: String(animatedCompleted), change: "finished" },
                 { key: "earnings", icon: Wallet, label: "Earnings", value: `₹${estimatedEarnings}`, change: "net total" },
-                { key: "today-earnings", icon: TrendingUp, label: "Today Earnings", value: `₹${todayEarnings.netDriverEarnings.toFixed(2)}`, change: `${todayEarnings.completedRides} completed` },
+                { key: "today-earnings", icon: TrendingUp, label: "Today Earnings", value: `₹${animatedTodayEarnings}`, change: `${todayEarnings.completedRides} completed` },
               ].map((s, i) => (
                 <motion.div
                   key={s.label}
@@ -984,24 +1009,30 @@ const DriverDashboard = () => {
                 <div>
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground font-medium">Completion Rate</span>
-                    <span className="font-bold text-foreground">{stats.completionRate}%</span>
+                    <span className="font-bold text-foreground">{animatedCompletionRate}%</span>
                   </div>
                   <progress
                     max={100}
-                    value={stats.completionRate}
+                    value={animatedCompletionRate}
                     className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
                   />
+                  <svg viewBox="0 0 100 20" className="mt-2 h-4 w-full text-primary/60" aria-hidden="true">
+                    <polyline fill="none" stroke="currentColor" strokeWidth="2" points="0,15 22,13 40,12 60,9 80,8 100,6" />
+                  </svg>
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground font-medium">Cancellation Rate</span>
-                    <span className="font-bold text-foreground">{stats.cancellationRate}%</span>
+                    <span className="font-bold text-foreground">{animatedCancellationRate}%</span>
                   </div>
                   <progress
                     max={100}
-                    value={stats.cancellationRate}
+                    value={animatedCancellationRate}
                     className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
                   />
+                  <svg viewBox="0 0 100 20" className="mt-2 h-4 w-full text-destructive/60" aria-hidden="true">
+                    <polyline fill="none" stroke="currentColor" strokeWidth="2" points="0,6 20,7 40,9 60,11 80,13 100,14" />
+                  </svg>
                   <p className="text-xs text-muted-foreground mt-2 font-medium">Cancelled rides: {stats.cancelled}</p>
                 </div>
               </div>
@@ -1041,11 +1072,19 @@ const DriverDashboard = () => {
                     />
                   </div>
 
-                  {activeRides.length === 0 && (
+                  {loadingData && (
+                    <div className="space-y-2">
+                      {[0, 1].map((idx) => (
+                        <RideCardSkeleton key={`ride-skeleton-${idx}`} index={idx} />
+                      ))}
+                    </div>
+                  )}
+
+                  {!loadingData && activeRides.length === 0 && (
                     <div className="card-glass text-sm text-muted-foreground">No assigned rides match your current search.</div>
                   )}
 
-                  {activeRides.length > 0 && (
+                  {!loadingData && activeRides.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-green-400">Assigned Rides (accepted + in_progress)</h4>
                       {activeRides.map((ride, index) => (
@@ -1088,6 +1127,33 @@ const DriverDashboard = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {completionBurstOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[94] pointer-events-none"
+          >
+            {Array.from({ length: 16 }).map((_, i) => (
+              <motion.span
+                key={`completion-global-burst-${i}`}
+                className="absolute left-1/2 top-[22%] h-2 w-2 rounded-full bg-primary"
+                initial={{ x: 0, y: 0, opacity: 0.95, scale: 1 }}
+                animate={{
+                  x: [0, -150, -110, -60, 60, 110, 150, -90, 90, -130, 130, -40, 40, -70, 70, 0][i],
+                  y: [0, -60, -40, 30, 30, -30, -70, 60, 60, -20, -20, 80, 80, 45, 45, 95][i],
+                  opacity: 0,
+                  scale: 0.35,
+                }}
+                transition={{ duration: 0.85, ease: "easeOut" }}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {logoutTransitionOpen && (

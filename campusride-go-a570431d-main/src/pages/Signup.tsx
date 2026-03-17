@@ -25,6 +25,7 @@ const Signup = () => {
   const [collegeOptions, setCollegeOptions] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
+  const [otpSuccessWave, setOtpSuccessWave] = useState(false);
   const [otpResendSeconds, setOtpResendSeconds] = useState(0);
   const [resendingOtp, setResendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -145,7 +146,11 @@ const Signup = () => {
         const response = await apiClient.auth.verifySignupOtp({ email, role, otp });
         if (response.token && response.user) {
           login(response.user, response.token);
-          showSuccessAndNavigate(response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard", "Signup successful");
+          setOtpSuccessWave(true);
+          window.setTimeout(() => {
+            setOtpSuccessWave(false);
+            showSuccessAndNavigate(response.user.role === "driver" ? "/driver-dashboard" : "/student-dashboard", "Signup successful");
+          }, 520);
           return;
         }
 
@@ -397,23 +402,41 @@ const Signup = () => {
               </div>
 
               {otpRequested && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.985 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.28, ease: "easeOut" }}
-                  className="relative"
-                >
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="6-digit OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className={inputClass}
-                    maxLength={6}
-                  />
-                </motion.div>
+                <div className="space-y-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.985 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.28, ease: "easeOut" }}
+                    className="relative"
+                  >
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="6-digit OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className={inputClass}
+                      maxLength={6}
+                    />
+                  </motion.div>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <motion.div
+                        key={`otp-slot-${i}`}
+                        className={`h-9 rounded-lg border flex items-center justify-center text-sm font-semibold ${otpSuccessWave ? "border-green-400/60 bg-green-500/10 text-green-400" : "border-border bg-muted/35 text-foreground"}`}
+                        animate={otpSuccessWave
+                          ? { y: [0, -5, 0], scale: [1, 1.08, 1], opacity: [0.95, 1, 0.95] }
+                          : { y: 0, scale: 1, opacity: 1 }}
+                        transition={otpSuccessWave
+                          ? { duration: 0.34, delay: i * 0.05, ease: "easeOut" }
+                          : { duration: 0.15 }}
+                      >
+                        {otp[i] || "•"}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {otpRequested && (

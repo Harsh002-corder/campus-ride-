@@ -26,6 +26,7 @@ interface RideHistoryTabsProps {
   initialTab?: RideStatus;
   allowedTabs?: RideStatus[];
   allTabFilter?: "allRides" | "finalizedOnly";
+  refreshKey?: number;
 }
 
 const RideHistoryTabs = ({
@@ -33,11 +34,13 @@ const RideHistoryTabs = ({
   initialTab = "all",
   allowedTabs,
   allTabFilter = "allRides",
+  refreshKey = 0,
 }: RideHistoryTabsProps) => {
   const { user } = useAuth();
   const toast = useAppToast();
   const [activeTab, setActiveTab] = useState<RideStatus>(initialTab);
   const [rides, setRides] = useState<RideDto[]>([]);
+  const [loadingRides, setLoadingRides] = useState(true);
 
   const visibleTabs = useMemo(() => {
     const configuredTabs = allowedTabs && allowedTabs.length > 0 ? allowedTabs : tabs.map((tab) => tab.value);
@@ -58,6 +61,7 @@ const RideHistoryTabs = ({
     let mounted = true;
 
     const loadRides = async () => {
+      setLoadingRides(true);
       try {
         const response = await apiClient.rides.my();
 
@@ -68,6 +72,10 @@ const RideHistoryTabs = ({
         if (mounted) {
           toast.error("Unable to load ride history", error, "Please refresh and try again.");
         }
+      } finally {
+        if (mounted) {
+          setLoadingRides(false);
+        }
       }
     };
 
@@ -75,7 +83,7 @@ const RideHistoryTabs = ({
     return () => {
       mounted = false;
     };
-  }, [toast, user?.role]);
+  }, [toast, user?.role, refreshKey]);
 
   const filtered = useMemo(() => {
     return rides.filter((ride) => {
@@ -135,7 +143,33 @@ const RideHistoryTabs = ({
 
       {/* Ride list */}
       <div className="space-y-2">
-        {filtered.length === 0 ? (
+        {loadingRides ? (
+          Array.from({ length: compact ? 3 : 5 }).map((_, i) => (
+            <motion.div
+              key={`ride-skeleton-${i}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="card-glass"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <motion.div
+                    className="w-9 h-9 rounded-xl bg-muted/60 shrink-0"
+                    animate={{ opacity: [0.35, 0.7, 0.35] }}
+                    transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut", delay: i * 0.08 }}
+                  />
+                  <div className="space-y-2 w-full">
+                    <motion.div className="h-3 rounded bg-muted/60 w-3/4" animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut", delay: i * 0.08 + 0.05 }} />
+                    <motion.div className="h-2.5 rounded bg-muted/50 w-2/3" animate={{ opacity: [0.28, 0.55, 0.28] }} transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut", delay: i * 0.08 + 0.1 }} />
+                    <motion.div className="h-2.5 rounded bg-muted/50 w-1/2" animate={{ opacity: [0.25, 0.5, 0.25] }} transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut", delay: i * 0.08 + 0.15 }} />
+                  </div>
+                </div>
+                <motion.div className="h-5 rounded bg-muted/50 w-16" animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut", delay: i * 0.08 + 0.2 }} />
+              </div>
+            </motion.div>
+          ))
+        ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">No {activeTab} rides</p>
         ) : (
           filtered.slice(0, compact ? 3 : undefined).map((ride, i) => (
