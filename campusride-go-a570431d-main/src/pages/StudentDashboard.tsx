@@ -731,10 +731,10 @@ const StudentDashboard = () => {
                     <motion.button
                       whileTap={{ scale: 0.9, rotate: 180 }}
                       onClick={handleSwapLocations}
-                      className="p-2.5 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary transition-colors shrink-0"
+                      className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary transition-colors shrink-0 sm:self-center self-center"
                       title="Swap locations"
                     >
-                      <ArrowUpDown className="w-4 h-4" />
+                      <ArrowUpDown className="w-3.5 h-3.5" />
                     </motion.button>
                     <StopTypeahead
                       placeholder="Drop-off location"
@@ -757,34 +757,36 @@ const StudentDashboard = () => {
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground">Select pickup and drop-off from suggestions to continue.</p>
-                  <div className="flex flex-col sm:flex-row gap-3 items-center">
-                    {/* Passenger count */}
-                    <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl py-2.5 px-4 w-full sm:w-auto justify-center">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setPassengers(Math.max(1, passengers - 1))}
-                          className="w-6 h-6 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-sm font-bold flex items-center justify-center"
-                        >−</button>
-                        <span className="w-6 text-center text-sm font-semibold">{passengers}</span>
-                        <button
-                          onClick={() => setPassengers(Math.min(rideMaxPassengers, passengers + 1))}
-                          className="w-6 h-6 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-sm font-bold flex items-center justify-center"
-                        >+</button>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex sm:flex-row gap-3 items-stretch sm:items-center">
+                      {/* Passenger count */}
+                      <div className="flex items-center gap-2.5 bg-muted/50 border border-border rounded-xl py-3 px-4 justify-center">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPassengers(Math.max(1, passengers - 1))}
+                            className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 active:scale-90 text-foreground text-base font-bold flex items-center justify-center transition-transform"
+                          >−</button>
+                          <span className="w-7 text-center text-sm font-semibold text-foreground">{passengers}</span>
+                          <button
+                            onClick={() => setPassengers(Math.min(rideMaxPassengers, passengers + 1))}
+                            className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 active:scale-90 text-foreground text-base font-bold flex items-center justify-center transition-transform"
+                          >+</button>
+                        </div>
                       </div>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleFindRide}
+                        disabled={booking || !rideBookingEnabled}
+                        className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap flex-1 disabled:opacity-70 transition-all"
+                      >
+                        {!rideBookingEnabled ? "Booking Paused" : booking ? "🔍 Finding..." : "Find Ride"}
+                      </motion.button>
                     </div>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleFindRide}
-                      disabled={booking || !rideBookingEnabled}
-                      className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap w-full sm:w-auto sm:flex-1 disabled:opacity-70"
-                    >
-                      {!rideBookingEnabled ? "Booking Paused" : booking ? "Finding..." : "Find Ride"}
-                    </motion.button>
                   </div>
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
-                      className={`px-2.5 py-1 rounded-lg border ${
+                      className={`px-3 py-1.5 rounded-lg border ${
                         gpsVerification.state === "verified"
                           ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
                           : gpsVerification.state === "failed"
@@ -796,43 +798,44 @@ const StudentDashboard = () => {
                     >
                       GPS: {gpsVerification.state === "idle" ? "Not verified" : gpsVerification.state}
                     </span>
-                    <span className="text-muted-foreground break-words">{gpsVerification.message}</span>
+                    <span className="text-muted-foreground break-words flex-1">{gpsVerification.message}</span>
                     <button
                       type="button"
                       onClick={handleReverifyGps}
-                      className="px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted/70 text-foreground transition-colors"
+                      className="px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium whitespace-nowrap"
                     >
-                      Reverify GPS
+                      Reverify
                     </button>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <input
                       type="datetime-local"
                       title="Schedule ride date and time"
                       placeholder="Schedule date and time"
                       value={scheduledAt}
                       onChange={(event) => setScheduledAt(event.target.value)}
-                      className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm"
+                      className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                     <input
                       type="text"
                       value={passengerNamesText}
                       onChange={(event) => setPassengerNamesText(event.target.value)}
                       placeholder="Passenger names (comma separated)"
-                      className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-4 text-sm"
+                      className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <label className="flex items-center gap-3 text-sm text-foreground cursor-pointer py-2">
                     <input
                       type="checkbox"
                       checked={splitFare}
                       onChange={(event) => setSplitFare(event.target.checked)}
+                      className="w-4 h-4 cursor-pointer"
                     />
-                    Split fare among passengers
+                    <span>Split fare among passengers</span>
                   </label>
-                  <div className="flex items-center gap-2 text-xs flex-wrap">
-                    <button onClick={() => saveCurrentAsFavorite("pickup")} className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70">Save pickup as favorite</button>
-                    <button onClick={() => saveCurrentAsFavorite("drop")} className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70">Save drop as favorite</button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button onClick={() => saveCurrentAsFavorite("pickup")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save pickup</button>
+                    <button onClick={() => saveCurrentAsFavorite("drop")} className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors">⭐ Save drop-off</button>
                   </div>
                   <p className="text-xs text-muted-foreground">Passenger limit: {rideMaxPassengers} per ride</p>
                   {!rideBookingEnabled && (
@@ -843,46 +846,46 @@ const StudentDashboard = () => {
 
               {/* Stats card */}
               <motion.div {...card(1)} className="lg:col-span-2 card-glass flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center justify-between mb-5">
                   <h3 className="font-semibold font-display text-lg">Your Stats</h3>
-                  <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">This month: {rideStats.thisMonth}</span>
+                  <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-full font-semibold">This month: {rideStats.thisMonth}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-3 mb-5">
                   {[
                     { label: "Total Rides", value: String(rideStats.total) },
                     { label: "Completed", value: String(rideStats.completed) },
                     { label: "Cancelled", value: String(rideStats.cancelled) },
                     { label: "Active", value: String(rideStats.active) },
                   ].map((s) => (
-                    <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-lg font-bold font-display text-foreground">{s.value}</p>
-                      <p className="text-xs text-muted-foreground">{s.label}</p>
+                    <div key={s.label} className="bg-muted/30 rounded-xl p-4 text-center hover:bg-muted/40 transition-colors">
+                      <p className="text-2xl font-bold font-display text-foreground">{s.value}</p>
+                      <p className="text-xs text-muted-foreground mt-1.5 font-medium">{s.label}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Completion Rate</span>
-                      <span className="font-semibold text-foreground">{rideStats.completionRate}%</span>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground font-medium">Completion Rate</span>
+                      <span className="font-bold text-foreground">{rideStats.completionRate}%</span>
                     </div>
                     <progress
                       max={100}
                       value={rideStats.completionRate}
-                      className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
+                      className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
                     />
                   </div>
                   <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Cancellation Rate</span>
-                      <span className="font-semibold text-foreground">{rideStats.cancellationRate}%</span>
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground font-medium">Cancellation Rate</span>
+                      <span className="font-bold text-foreground">{rideStats.cancellationRate}%</span>
                     </div>
                     <progress
                       max={100}
                       value={rideStats.cancellationRate}
-                      className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
+                      className="w-full h-2.5 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
                     />
                   </div>
                 </div>
