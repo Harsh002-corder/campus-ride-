@@ -119,14 +119,14 @@ const DriverTodayEarnings = () => {
                 { label: "Net Driver Earnings", value: formatCurrency(summary.netDriverEarnings, summary.currency), icon: CircleDollarSign },
                 { label: "Completed Rides Today", value: String(summary.completedRides), icon: Navigation },
               ].map((item, index) => (
-                <motion.div key={item.label} {...card(index + 1)} className="card-glass">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center">
-                      <item.icon className="w-5 h-5 text-primary" />
+                <motion.div key={item.label} {...card(index + 1)} className="card-glass hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                      <item.icon className="w-6 h-6 text-primary" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold font-display break-words">{item.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
+                  <p className="text-2xl font-bold font-display break-words text-foreground">{item.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1.5 font-medium">{item.label}</p>
                 </motion.div>
               ))}
             </div>
@@ -140,9 +140,9 @@ const DriverTodayEarnings = () => {
                 <button
                   type="button"
                   onClick={() => void loadEarnings()}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                  className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
                 >
-                  Refresh
+                  🔄 Refresh
                 </button>
               </div>
 

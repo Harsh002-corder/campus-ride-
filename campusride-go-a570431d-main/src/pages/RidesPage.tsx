@@ -22,15 +22,16 @@ const RidesPage = () => {
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="relative z-10">
           {/* Navbar */}
-          <nav className="glass py-3 sm:py-4 px-3 sm:px-6 sticky top-0 z-20">
-            <div className="container mx-auto flex items-center justify-between gap-2">
+          <nav className="glass py-4 sm:py-5 px-3 sm:px-6 sticky top-0 z-20">
+            <div className="container mx-auto flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => navigate(backPath)}
-                  className="p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                  className="p-2.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                  title="Back to dashboard"
                 >
-                  <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+                  <ArrowLeft className="w-5 h-5" />
                 </motion.button>
                 <a href="/" className="flex items-center gap-2">
                   <BrandIcon className="w-9 h-9" />

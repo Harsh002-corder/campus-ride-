@@ -151,25 +151,26 @@ const Signup = () => {
             <h1 className="text-2xl font-bold font-display mb-2">Create your account</h1>
             <p className="text-muted-foreground text-sm mb-6">Join the smart campus transportation network</p>
 
-            <div className="rounded-xl bg-muted/40 border border-border/50 p-2.5 text-xs text-muted-foreground flex items-center gap-2 mb-6">
-              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-              {otpRequested ? "Step 2/2: Verify OTP to finish signup" : "Step 1/2: Enter details to receive OTP"}
+            <div className="space-y-3 mb-6">
+              <div className="rounded-lg bg-primary/10 border border-primary/30 p-3.5 text-sm text-primary font-medium flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                <span>{otpRequested ? "🔐 Step 2/2: Verify OTP to finish signup" : "🔐 Step 1/2: Enter details to receive OTP"}</span>
+              </div>
             </div>
 
             {/* Role toggle */}
-            <div className="flex gap-2 mb-6 p-1 rounded-xl bg-muted/50">
+            <div className="flex gap-3 mb-6 p-2 rounded-lg bg-muted/40 border border-border/60">
               {(["student", "driver"] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setRole(r)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-300 capitalize ${
-                    role === r
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 capitalize ${ role === r
                       ? "btn-primary-gradient text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground bg-muted/30"
                   }`}
                 >
-                  {r}
+                  {r === "student" ? "👨‍🎓 Student" : "🚗 Driver"}
                 </button>
               ))}
             </div>
@@ -370,11 +371,11 @@ const Signup = () => {
 
               <motion.button
                 type="submit"
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.95 }}
                 disabled={loading}
-                className="w-full btn-primary-gradient py-3 rounded-xl font-semibold text-sm shadow-lg shadow-primary/20"
+                className="w-full btn-primary-gradient py-3.5 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 transition-all disabled:opacity-70"
               >
-                {loading ? "Please wait..." : otpRequested ? "Verify OTP & Create Account" : "Send OTP"}
+                {loading ? "⏳ Please wait..." : otpRequested ? "✓ Verify & Create Account" : "📨 Send OTP"}
               </motion.button>
             </form>
 

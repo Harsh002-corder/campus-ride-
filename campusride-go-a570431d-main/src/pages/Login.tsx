@@ -83,12 +83,13 @@ const Login = () => {
               </motion.p>
             )}
 
-            <div className="grid grid-cols-2 gap-2 mb-6">
-              <div className="rounded-xl bg-muted/40 border border-border/50 p-2.5 text-xs text-muted-foreground flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Secure JWT Login
+            <div className="space-y-3 mb-6">
+              <div className="rounded-lg bg-primary/10 border border-primary/30 p-3.5 text-sm text-primary font-medium flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                <span>🔒 Secure JWT Login</span>
               </div>
-              <div className="rounded-xl bg-muted/40 border border-border/50 p-2.5 text-xs text-muted-foreground text-center">
-                OTP Signup Verified
+              <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-3.5 text-sm text-green-600 font-medium text-center">
+                ✓ OTP Verified Signup
               </div>
             </div>
 
@@ -138,13 +139,13 @@ const Login = () => {
                   {error}
                 </motion.p>
               )}
-              <motion.button
+            <motion.button
                 type="submit"
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.95 }}
                 disabled={loading}
-                className="w-full btn-primary-gradient py-3 rounded-xl font-semibold text-sm shadow-lg shadow-primary/20"
+                className="w-full btn-primary-gradient py-3.5 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 transition-all disabled:opacity-70"
               >
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? "🔄 Signing In..." : "Sign In"}
               </motion.button>
             </form>
 
