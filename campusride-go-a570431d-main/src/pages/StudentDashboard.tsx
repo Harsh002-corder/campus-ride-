@@ -1106,12 +1106,20 @@ const StudentDashboard = () => {
                   <motion.div
                     key={item.label}
                     {...card(i + 2)}
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => handleQuickAction(item.label)}
-                    className="card-glass cursor-pointer group text-center"
+                    className="card-glass cursor-pointer group text-center transition-shadow hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
                   >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3 ${item.gradient ? "btn-primary-gradient" : "bg-primary/20"}`}>
-                      <item.icon className={`w-5 h-5 ${item.gradient ? "text-primary-foreground" : "text-primary"}`} />
-                    </div>
+                    <motion.div
+                      animate={item.gradient ? { boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 10px 24px rgba(59,130,246,0.18)", "0 0 0 rgba(0,0,0,0)"] } : undefined}
+                      transition={item.gradient ? { duration: 2.2, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3 ${item.gradient ? "btn-primary-gradient" : "bg-primary/20 group-hover:bg-primary/25"}`}
+                    >
+                      <motion.div whileHover={{ rotate: [-6, 6, 0] }} transition={{ duration: 0.25 }}>
+                        <item.icon className={`w-5 h-5 ${item.gradient ? "text-primary-foreground" : "text-primary"}`} />
+                      </motion.div>
+                    </motion.div>
                     <h3 className="font-semibold text-sm mb-0.5">{item.label}</h3>
                     <p className="text-xs text-muted-foreground">{item.desc}</p>
                   </motion.div>
@@ -1228,9 +1236,14 @@ const StudentDashboard = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold font-display">My Rides</h2>
-                <button onClick={() => navigate("/rides")} className="text-sm text-primary hover:underline flex items-center gap-1">
+                <motion.button
+                  {...tapSoft}
+                  whileHover={{ x: 2 }}
+                  onClick={() => navigate("/rides")}
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
                   View all <ChevronRight className="w-4 h-4" />
-                </button>
+                </motion.button>
               </div>
               <RideHistoryTabs compact />
             </div>
@@ -1265,13 +1278,24 @@ const StudentDashboard = () => {
                   ))}
                 </select>
 
-                <button
+                <motion.button
+                  {...tapSoft}
+                  animate={submittingIssue ? { scale: [1, 0.985, 1] } : { scale: 1 }}
+                  transition={submittingIssue ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}
                   onClick={handleSubmitIssue}
                   disabled={submittingIssue}
-                  className="btn-primary-gradient rounded-xl text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+                  className="btn-primary-gradient relative overflow-hidden rounded-xl text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
                 >
-                  {submittingIssue ? "Submitting..." : "Submit Issue"}
-                </button>
+                  {submittingIssue && (
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-y-1 left-0 w-16 rounded-full bg-white/20 blur-md"
+                      animate={{ x: ["-140%", "260%"] }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+                  <span className="relative z-10">{submittingIssue ? "Submitting..." : "Submit Issue"}</span>
+                </motion.button>
               </div>
 
               <textarea
