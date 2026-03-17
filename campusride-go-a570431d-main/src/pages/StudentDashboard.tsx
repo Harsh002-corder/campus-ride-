@@ -1159,12 +1159,17 @@ const StudentDashboard = () => {
                     )}
                     <div className="flex items-center gap-2">
                     {callDriverHref ? (
-                      <a
+                      <motion.a
+                        {...tapSoft}
+                        whileHover={{ y: -1 }}
                         href={callDriverHref}
                         className="px-3 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex items-center gap-1"
                       >
-                        <Phone className="w-3.5 h-3.5" /> Call
-                      </a>
+                        <motion.span whileHover={{ rotate: [-6, 6, 0] }} transition={{ duration: 0.25 }}>
+                          <Phone className="w-3.5 h-3.5" />
+                        </motion.span>
+                        Call
+                      </motion.a>
                     ) : (
                       <button
                         type="button"
@@ -1175,12 +1180,17 @@ const StudentDashboard = () => {
                       </button>
                     )}
                     {chatDriverHref ? (
-                      <a
+                      <motion.a
+                        {...tapSoft}
+                        whileHover={{ y: -1 }}
                         href={chatDriverHref}
                         className="px-3 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex items-center gap-1"
                       >
-                        <MessageCircle className="w-3.5 h-3.5" /> Chat
-                      </a>
+                        <motion.span whileHover={{ scale: 1.08 }} transition={{ duration: 0.2 }}>
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </motion.span>
+                        Chat
+                      </motion.a>
                     ) : (
                       <button
                         type="button"
@@ -1207,24 +1217,38 @@ const StudentDashboard = () => {
                     </div>
                     </div>
                     <motion.button
-                      whileTap={{ scale: 0.95 }}
+                      {...tapSoft}
+                      whileHover={{ y: -1 }}
                       onClick={handleCancelRide}
                       className="px-4 py-2 rounded-xl text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors flex items-center gap-1"
                     >
-                      <XCircle className="w-3.5 h-3.5" /> Cancel
+                      <motion.span whileHover={{ rotate: [-8, 8, 0] }} transition={{ duration: 0.25 }}>
+                        <XCircle className="w-3.5 h-3.5" />
+                      </motion.span>
+                      Cancel
                     </motion.button>
                     <motion.button
-                      whileTap={{ scale: 0.95 }}
+                      {...tapSoft}
+                      whileHover={{ y: -1 }}
+                      animate={{ boxShadow: ["0 0 0 rgba(0,0,0,0)", "0 8px 20px rgba(59,130,246,0.18)", "0 0 0 rgba(0,0,0,0)"] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
                       onClick={() => navigate("/ride-tracking")}
-                      className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold"
+                      className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1"
                     >
+                      <motion.span animate={{ x: [0, 2, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
+                        <Navigation className="w-3.5 h-3.5" />
+                      </motion.span>
                       Track Ride
                     </motion.button>
                     <motion.button
-                      whileTap={{ scale: 0.95 }}
+                      {...tapSoft}
+                      whileHover={{ y: -1 }}
                       onClick={() => handleShareTracking(activeRide.shareTrackingUrl)}
-                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors flex items-center gap-1"
                     >
+                      <motion.span animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </motion.span>
                       Share Live
                     </motion.button>
                   </div>
