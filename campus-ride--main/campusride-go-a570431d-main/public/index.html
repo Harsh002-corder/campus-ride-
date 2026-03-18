@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusRide – Smart Campus Transport</title>
+  <link rel="icon" type="image/x-icon" href="/campusride-icon.ico?v=3" />
+  <link rel="shortcut icon" type="image/x-icon" href="/campusride-icon.ico?v=3" />
+  <link rel="apple-touch-icon" href="/campusride-icon.png?v=3" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="topbar glass">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>Campus Ride Live Tracking</h1>
+    </div>
+
+    <div class="controls">
+      <label>
+        Role
+        <select id="roleSelect">
+          <option value="passenger">Passenger</option>
+          <option value="driver">Driver</option>
+        </select>
+      </label>
+
+      <label>
+        Name
+        <input id="nameInput" type="text" value="Campus User" />
+      </label>
+
+      <label>
+        Ride ID
+        <input id="rideIdInput" type="text" value="demo-ride-1" />
+      </label>
+
+      <button id="connectBtn">Connect</button>
+      <button id="acceptBtn">Ride Accepted</button>
+      <button id="completeBtn">Ride Completed</button>
+    </div>
+  </div>
+
+  <div id="statusPill" class="status-pill">Status: requested</div>
+
+  <div id="rideCard" class="ride-card glass">
+    <h2>Ride Info</h2>
+    <p><strong>Driver:</strong> <span id="driverName">Campus Driver</span></p>
+    <p><strong>Distance:</strong> <span id="distanceText">--</span></p>
+    <p><strong>ETA:</strong> <span id="etaText">--</span></p>
+    <p><strong>Ride Status:</strong> <span id="rideStatus">requested</span></p>
+    <p class="muted" id="modeText">Mode: GPS</p>
+  </div>
+
+  <script>
+    window.GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY";
+  </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
