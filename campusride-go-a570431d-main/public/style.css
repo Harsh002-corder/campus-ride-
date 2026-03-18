@@ -1,0 +1,153 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#map {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: #0b1020;
+}
+
+.glass {
+  background: rgba(9, 15, 35, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+}
+
+.topbar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 20;
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #e9f0ff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand h1 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  box-shadow: 0 0 10px #2dd4bf;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #c9d5ff;
+}
+
+input,
+select,
+button {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+button {
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border: none;
+  font-weight: 600;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+.status-pill {
+  position: fixed;
+  top: 92px;
+  right: 12px;
+  z-index: 15;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.ride-card {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 15;
+  width: 280px;
+  border-radius: 14px;
+  color: #edf2ff;
+  padding: 14px;
+}
+
+.ride-card h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.ride-card p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.muted {
+  color: #9fb2e8;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    position: fixed;
+    top: auto;
+    bottom: 12px;
+    max-height: 42vh;
+    overflow: auto;
+  }
+
+  .status-pill {
+    top: 12px;
+  }
+
+  .ride-card {
+    width: min(92vw, 320px);
+    bottom: 180px;
+  }
+}
