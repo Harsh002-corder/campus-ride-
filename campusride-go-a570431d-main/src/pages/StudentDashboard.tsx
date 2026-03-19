@@ -27,7 +27,7 @@ import { API_BASE_URL } from "@/config/api";
 import {
   MapPin, Clock, LogOut, Navigation,
   Calendar, CreditCard, Shield, ChevronRight, Search, Map as MapIcon,
-  ArrowUpDown, Users, XCircle, Phone, MessageCircle, UserCircle2,
+  ArrowUpDown, Users, XCircle, Phone, MessageCircle, UserCircle2, AlertTriangle,
 } from "lucide-react";
 
 const toPhoneDigits = (value?: string | null) => (value || "").replace(/\D/g, "");
@@ -658,42 +658,64 @@ const StudentDashboard = () => {
   const ambulanceDigits = toPhoneDigits(rideAmbulancePhone);
   const ambulanceCallHref = ambulanceDigits.length >= 3 ? `tel:${ambulanceDigits}` : undefined;
 
+  const boundaryDialogContent = boundaryDialogReason === "gps"
+    ? {
+        title: "You are currently outside the campus zone",
+        subtitle: "Your live GPS is outside the approved booking area.",
+        tips: [
+          "Enable high-accuracy location in your phone settings.",
+          "Move closer to campus and try verification again.",
+          "If GPS is drifting, wait a few seconds before retrying.",
+        ],
+      }
+    : {
+        title: "Selected pickup is outside campus",
+        subtitle: "Please choose a pickup stop that lies within the campus boundary.",
+        tips: [
+          "Pick a campus stop from the suggestion list.",
+          "Avoid manually typing off-campus landmarks.",
+          "Use Reverify GPS if your position has changed.",
+        ],
+      };
+
   return (
     <PageTransition>
       <Dialog open={showBoundaryDialog} onOpenChange={setShowBoundaryDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg border border-amber-400/30 bg-slate-950/95 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>Outside Campus Boundary</DialogTitle>
-            <DialogDescription>
-              {boundaryDialogReason === "pickup" && (
-                <>
-                  <b>Your selected pickup location is outside the campus boundary.</b><br />
-                  <ul className="list-disc pl-5 mt-2 text-sm">
-                    <li>Make sure you select a pickup point within the campus area.</li>
-                    <li>If you are outside, try moving closer to the campus or select a valid stop.</li>
-                  </ul>
-                </>
-              )}
-              {boundaryDialogReason === "gps" && (
-                <>
-                  <b>Your current GPS location is outside the campus boundary.</b><br />
-                  <ul className="list-disc pl-5 mt-2 text-sm">
-                    <li>Ensure your device location is enabled and accurate.</li>
-                    <li>Try moving closer to the campus or check your GPS settings.</li>
-                    <li>This restriction helps keep rides safe and within campus limits.</li>
-                  </ul>
-                </>
-              )}
-              <div className="mt-4 text-xs text-muted-foreground">
-                <b>Why does this happen?</b><br />
-                For safety and operational reasons, rides can only be booked from within the campus boundary. If you believe this is a mistake, please contact support.<br />
-                <b>Support:</b> <a href={`tel:${rideSupportPhone}`} className="text-primary underline">{rideSupportPhone}</a>
+            <DialogTitle className="flex items-center gap-2 text-amber-200">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-400/15 border border-amber-300/30">
+                <AlertTriangle className="w-4 h-4" />
+              </span>
+              Out of Campus Boundary
+            </DialogTitle>
+            <DialogDescription className="space-y-4 pt-2 text-slate-200/90">
+              <div className="rounded-xl border border-amber-300/25 bg-amber-400/10 px-3 py-3">
+                <p className="text-sm font-semibold text-amber-100">{boundaryDialogContent.title}</p>
+                <p className="text-xs text-amber-50/85 mt-1">{boundaryDialogContent.subtitle}</p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                <p className="text-xs font-semibold tracking-wide uppercase text-slate-300 mb-2">What you can do</p>
+                <ul className="space-y-2">
+                  {boundaryDialogContent.tips.map((tip) => (
+                    <li key={tip} className="text-xs text-slate-200/85 flex items-start gap-2">
+                      <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="text-xs text-slate-300/90">
+                Rides are restricted to the campus boundary for rider safety and operations.
+                If this looks incorrect, contact support at <a href={supportCallHref || `tel:${rideSupportPhone}`} className="text-cyan-300 underline">{rideSupportPhone}</a>.
               </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <button className="btn-primary-gradient px-4 py-2 rounded-md">OK</button>
+              <button className="btn-primary-gradient px-4 py-2 rounded-md">Got it</button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
