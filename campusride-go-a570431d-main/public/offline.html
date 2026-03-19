@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1d4ed8" />
+    <title>CampusRide Offline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #060b16;
+        --surface: #0d1630;
+        --text: #d6e3ff;
+        --muted: #8aa3d1;
+        --accent: #38bdf8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: radial-gradient(circle at 20% 10%, #132d62, transparent 45%), var(--bg);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(520px, 100%);
+        border-radius: 18px;
+        border: 1px solid #24427a;
+        background: linear-gradient(180deg, #101f44, var(--surface));
+        padding: 28px;
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
+      }
+      h1 { margin: 0 0 10px; font-size: 1.8rem; }
+      p { margin: 0; line-height: 1.6; color: var(--muted); }
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1><span class="dot"></span>CampusRide is offline</h1>
+      <p>Your connection is currently unavailable. You can still open cached screens. Reconnect to sync rides and request new bookings.</p>
+    </main>
+  </body>
+</html>
