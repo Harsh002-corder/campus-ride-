@@ -4,6 +4,15 @@ import { MapPin, Clock, CheckCircle, XCircle, Navigation, List } from "lucide-re
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type RideStatus = "all" | "active" | "completed" | "cancelled";
 
@@ -38,6 +47,7 @@ const RideHistoryTabs = ({
   const toast = useAppToast();
   const [activeTab, setActiveTab] = useState<RideStatus>(initialTab);
   const [rides, setRides] = useState<RideDto[]>([]);
+  const [selectedRide, setSelectedRide] = useState<RideDto | null>(null);
 
   const visibleTabs = useMemo(() => {
     const configuredTabs = allowedTabs && allowedTabs.length > 0 ? allowedTabs : tabs.map((tab) => tab.value);
@@ -171,13 +181,53 @@ const RideHistoryTabs = ({
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-semibold text-sm">—</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRide(ride)}
+                  className="font-semibold text-xs px-2 py-1 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                >
+                  View
+                </button>
                 <p className={`text-xs capitalize ${statusColors[ride.status === "completed" ? "completed" : ride.status === "cancelled" ? "cancelled" : "active"]}`}>{ride.status}</p>
               </div>
             </motion.div>
           ))
         )}
       </div>
+
+      <Dialog open={Boolean(selectedRide)} onOpenChange={(open) => !open && setSelectedRide(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ride Details</DialogTitle>
+            <DialogDescription>Detailed history for this ride.</DialogDescription>
+          </DialogHeader>
+
+          {selectedRide && (
+            <div className="space-y-2 text-sm">
+              <div><b>Status:</b> {selectedRide.status}</div>
+              <div><b>Pickup:</b> {selectedRide.pickup?.label || "—"}</div>
+              <div><b>Drop:</b> {selectedRide.drop?.label || "—"}</div>
+              <div><b>Passengers:</b> {selectedRide.passengers || 1}</div>
+              <div><b>Driver:</b> {selectedRide.driver?.name || "—"}</div>
+              <div><b>Booked:</b> {formatDate(selectedRide.createdAt)}</div>
+              <div><b>Updated:</b> {formatDate(selectedRide.updatedAt)}</div>
+              {selectedRide.acceptedAt && <div><b>Accepted:</b> {formatDate(selectedRide.acceptedAt)}</div>}
+              {selectedRide.ongoingAt && <div><b>Started:</b> {formatDate(selectedRide.ongoingAt)}</div>}
+              {selectedRide.completedAt && <div><b>Completed:</b> {formatDate(selectedRide.completedAt)}</div>}
+              {selectedRide.cancelledAt && <div><b>Cancelled:</b> {formatDate(selectedRide.cancelledAt)}</div>}
+              {selectedRide.cancelReason && <div><b>Cancel reason:</b> {selectedRide.cancelReason}</div>}
+              {selectedRide.studentRating && <div><b>Rating:</b> {selectedRide.studentRating}/5</div>}
+              {selectedRide.studentFeedback && <div><b>Feedback:</b> {selectedRide.studentFeedback}</div>}
+            </div>
+          )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <button className="btn-primary-gradient px-4 py-2 rounded-md">Close</button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
