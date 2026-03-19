@@ -517,13 +517,13 @@ const StudentDashboard = () => {
         return;
       }
 
-      // Removed 200m pickup distance check
+      // 200m pickup distance check permanently removed; any pickup allowed
 
       setGpsVerification({
         state: "verified",
         message: isCoarseGps
           ? "Low GPS accuracy detected; pickup stop verification accepted"
-          : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
+          : `GPS verified`,
       });
 
       if (isCoarseGps) {
@@ -592,7 +592,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    // Removed 200m pickup distance check
+    // 200m pickup distance check permanently removed; any pickup allowed
 
     setGpsVerification({
       state: "verified",
