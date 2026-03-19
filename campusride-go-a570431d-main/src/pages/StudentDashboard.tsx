@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,6 +132,13 @@ function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy: num
 }
 
 const StudentDashboard = () => {
+    const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+    // Helper to get the most relevant ride for info
+    const infoRide = useMemo(() => {
+      if (activeRide) return activeRide;
+      if (rides.length > 0) return rides[0];
+      return null;
+    }, [activeRide, rides]);
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
   const navigate = useNavigate();
@@ -794,6 +802,48 @@ const StudentDashboard = () => {
                     >
                       {!rideBookingEnabled ? "Booking Paused" : booking ? "Finding..." : "Find Ride"}
                     </motion.button>
+                    {/* Info button */}
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setInfoDialogOpen(true)}
+                      className="btn-outline-glow px-4 py-3 rounded-xl font-semibold text-sm flex items-center gap-2"
+                      type="button"
+                      title="View ride info"
+                    >
+                      <Info className="w-4 h-4" /> Info
+                    </motion.button>
+                        {/* Ride Info Dialog */}
+                        <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Ride Info</DialogTitle>
+                              <DialogDescription>
+                                View details of your current or most recent ride.
+                              </DialogDescription>
+                            </DialogHeader>
+                            {infoRide ? (
+                              <div className="space-y-2 text-sm">
+                                <div><b>Status:</b> {infoRide.status}</div>
+                                <div><b>Pickup:</b> {infoRide.pickup?.label || infoRide.pickup?.address || `${infoRide.pickup?.lat},${infoRide.pickup?.lng}`}</div>
+                                <div><b>Drop:</b> {infoRide.drop?.label || infoRide.drop?.address || `${infoRide.drop?.lat},${infoRide.drop?.lng}`}</div>
+                                {infoRide.driver && (
+                                  <div><b>Driver:</b> {infoRide.driver.name} ({infoRide.driver.phone})</div>
+                                )}
+                                <div><b>Passengers:</b> {infoRide.passengers}</div>
+                                <div><b>Booked at:</b> {new Date(infoRide.createdAt).toLocaleString()}</div>
+                                {infoRide.scheduledFor && <div><b>Scheduled for:</b> {new Date(infoRide.scheduledFor).toLocaleString()}</div>}
+                                {infoRide.verificationCode && <div><b>Verification Code:</b> {infoRide.verificationCode}</div>}
+                              </div>
+                            ) : (
+                              <div className="text-muted-foreground">No ride info available.</div>
+                            )}
+                            <DialogFooter>
+                              <DialogClose asChild>
+                                <button className="btn-primary-gradient px-4 py-2 rounded-md">Close</button>
+                              </DialogClose>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                   </div>
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
