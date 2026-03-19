@@ -106,7 +106,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {/* Ripple will be injected dynamically, but ensure content is above */}
-        <span style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span className="button-content-wrapper">
           {children}
         </span>
       </Comp>
