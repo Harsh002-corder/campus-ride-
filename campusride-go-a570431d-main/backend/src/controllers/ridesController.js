@@ -58,7 +58,8 @@ const DEFAULT_RIDE_SETTINGS = {
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
 const REQUESTED_LIKE_STATUSES = [RIDE_STATUS.REQUESTED, "requested"];
 const ONGOING_LIKE_STATUSES = [RIDE_STATUS.ONGOING, "ongoing"];
-const ENFORCE_CAMPUS_BOUNDARY = true;
+const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = true;
+const ENFORCE_CAMPUS_BOUNDARY = !ALLOW_ANYWHERE_BOOKING_FOR_TESTING;
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 
 function isRequestedLikeStatus(status) {
@@ -90,6 +91,8 @@ function assertRidePointsWithinCampus(pickup, drop, boundaryPolygon) {
 }
 
 function assertPickupGpsVerification(pickup, studentGps, boundaryPolygon) {
+  if (ALLOW_ANYWHERE_BOOKING_FOR_TESTING) return;
+
   if (!studentGps || typeof studentGps.lat !== "number" || typeof studentGps.lng !== "number") {
     throw new AppError(400, "Enable GPS location to verify your pickup point.");
   }

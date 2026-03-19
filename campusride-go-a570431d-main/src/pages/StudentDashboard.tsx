@@ -44,6 +44,7 @@ type GpsVerificationState = {
 };
 
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
+const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = true;
 
 function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {
@@ -385,20 +386,20 @@ const StudentDashboard = () => {
     const resolvedPickup = resolveStop(pickup, pickupStop, runtimeStops);
     const resolvedDrop = resolveStop(drop, dropStop, runtimeStops);
 
-    if (!resolvedPickup || !resolvedDrop) {
+    if (!ALLOW_ANYWHERE_BOOKING_FOR_TESTING && (!resolvedPickup || !resolvedDrop)) {
       setGpsVerification({ state: "failed", message: "Select pickup and drop first" });
       toast.info("Select valid stops", "Choose pickup and drop-off from stop suggestions.");
       return;
     }
 
-    if (!isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
+    if (!ALLOW_ANYWHERE_BOOKING_FOR_TESTING && resolvedPickup && !isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
       setBoundaryDialogReason("pickup");
       setShowBoundaryDialog(true);
       return;
     }
 
-    if (resolvedPickup.lat === resolvedDrop.lat && resolvedPickup.lng === resolvedDrop.lng) {
+    if (resolvedPickup && resolvedDrop && resolvedPickup.lat === resolvedDrop.lat && resolvedPickup.lng === resolvedDrop.lng) {
       setGpsVerification({ state: "failed", message: "Pickup and drop cannot be the same" });
       toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
       return;
@@ -414,7 +415,7 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
+    if (!ALLOW_ANYWHERE_BOOKING_FOR_TESTING && !isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
       setBoundaryDialogReason("gps");
       setShowBoundaryDialog(true);
@@ -425,7 +426,7 @@ const StudentDashboard = () => {
       { lat: gpsLocation.lat, lng: gpsLocation.lng },
       { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
     );
-    if (pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
+    if (!ALLOW_ANYWHERE_BOOKING_FOR_TESTING && pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
       setGpsVerification({
         state: "failed",
         message: `Pickup too far from GPS (${Math.round(pickupDistanceMeters)}m)`,
@@ -434,9 +435,22 @@ const StudentDashboard = () => {
       return;
     }
 
+    const pickupPoint = resolvedPickup || {
+      name: pickup.trim() || "Manual pickup",
+      lat: gpsLocation.lat,
+      lng: gpsLocation.lng,
+    };
+    const dropPoint = resolvedDrop || {
+      name: drop.trim() || "Manual drop-off",
+      lat: gpsLocation.lat + 0.003,
+      lng: gpsLocation.lng + 0.003,
+    };
+
     setGpsVerification({
       state: "verified",
-      message: `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
+      message: ALLOW_ANYWHERE_BOOKING_FOR_TESTING
+        ? "Testing mode: booking allowed from any location"
+        : `GPS verified (${Math.round(pickupDistanceMeters)}m from pickup)`,
     });
 
     const passengerNames = passengerNamesText
@@ -448,8 +462,8 @@ const StudentDashboard = () => {
     setBooking(true);
     try {
       const response = await apiClient.rides.book({
-        pickup: { lat: gpsLocation.lat, lng: gpsLocation.lng, label: resolvedPickup.name || pickup },
-        drop: { lat: resolvedDrop.lat, lng: resolvedDrop.lng, label: resolvedDrop.name || drop },
+        pickup: { lat: pickupPoint.lat, lng: pickupPoint.lng, label: pickupPoint.name || pickup },
+        drop: { lat: dropPoint.lat, lng: dropPoint.lng, label: dropPoint.name || drop },
         studentGps: { lat: gpsLocation.lat, lng: gpsLocation.lng, accuracy: gpsLocation.accuracy || undefined },
         passengers,
         passengerNames,
@@ -472,6 +486,15 @@ const StudentDashboard = () => {
   };
 
   const handleReverifyGps = async () => {
+    if (ALLOW_ANYWHERE_BOOKING_FOR_TESTING) {
+      setGpsVerification({
+        state: "verified",
+        message: "Testing mode: GPS and campus checks are bypassed",
+      });
+      toast.success("Testing mode active", "Booking is allowed from any location right now.");
+      return;
+    }
+
     const resolvedPickup = resolveStop(pickup, pickupStop, runtimeStops);
 
     if (!resolvedPickup) {
@@ -769,7 +792,11 @@ const StudentDashboard = () => {
                       icon={<Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Select pickup and drop-off from suggestions to continue.</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {ALLOW_ANYWHERE_BOOKING_FOR_TESTING
+                      ? "Testing mode: you can type any pickup and drop location."
+                      : "Select pickup and drop-off from suggestions to continue."}
+                  </p>
                   <div className="flex flex-col sm:flex-row gap-3 items-center">
                     {/* Passenger count */}
                     <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl py-2.5 px-4 w-full sm:w-auto justify-center">
