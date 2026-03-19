@@ -33,14 +33,15 @@ const rippleStyle = `
   position: absolute;
   border-radius: 50%;
   transform: scale(0);
-  animation: ripple 0.6s linear;
-  background-color: rgba(255,255,255,0.4);
+  animation: ripple 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  background: radial-gradient(circle, rgba(0,212,255,0.35) 0%, rgba(9,9,121,0.18) 70%, rgba(2,0,36,0.10) 100%);
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
+  opacity: 1;
 }
 @keyframes ripple {
   to {
-    transform: scale(2.5);
+    transform: scale(3.5);
     opacity: 0;
   }
 }
@@ -95,15 +96,19 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }, []);
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size, className }), "relative")}
         ref={(node) => {
           if (typeof ref === "function") ref(node);
           else if (ref) (ref as React.MutableRefObject<HTMLButtonElement | null>).current = node;
           buttonRef.current = node;
         }}
+        style={{ overflow: "hidden", position: "relative" }}
         {...props}
       >
-        {children}
+        {/* Ripple will be injected dynamically, but ensure content is above */}
+        <span style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {children}
+        </span>
       </Comp>
     );
   },
