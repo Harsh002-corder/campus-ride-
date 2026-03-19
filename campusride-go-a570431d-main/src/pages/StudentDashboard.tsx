@@ -26,7 +26,7 @@ import { getSocketClient } from "@/lib/socketClient";
 import { API_BASE_URL } from "@/config/api";
 import {
   MapPin, Clock, LogOut, Navigation,
-  Calendar, CreditCard, Shield, ChevronRight, Search, Map,
+  Calendar, CreditCard, Shield, ChevronRight, Search, Map as MapIcon,
   ArrowUpDown, Users, XCircle, Phone, MessageCircle, UserCircle2,
 } from "lucide-react";
 
@@ -422,9 +422,14 @@ const StudentDashboard = () => {
       return;
     }
 
+    const pickupDistanceTarget = resolvedPickup || {
+      lat: gpsLocation.lat,
+      lng: gpsLocation.lng,
+    };
+
     const pickupDistanceMeters = getDistanceMeters(
       { lat: gpsLocation.lat, lng: gpsLocation.lng },
-      { lat: resolvedPickup.lat, lng: resolvedPickup.lng },
+      { lat: pickupDistanceTarget.lat, lng: pickupDistanceTarget.lng },
     );
     if (!ALLOW_ANYWHERE_BOOKING_FOR_TESTING && pickupDistanceMeters > MAX_PICKUP_GPS_DISTANCE_METERS) {
       setGpsVerification({
@@ -956,7 +961,7 @@ const StudentDashboard = () => {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl btn-primary-gradient flex items-center justify-center">
-                      <Map className="w-5 h-5 text-primary-foreground" />
+                      <MapIcon className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <div>
                       <p className="font-semibold text-sm">Active Ride — {activeRide.pickup?.label || "—"} → {activeRide.drop?.label || "—"}</p>
@@ -1134,7 +1139,7 @@ const StudentDashboard = () => {
               className="relative btn-primary-gradient w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center"
               title="Track your ride"
             >
-              <Map className="w-7 h-7 text-primary-foreground" />
+              <MapIcon className="w-7 h-7 text-primary-foreground" />
               {/* Pulse ring */}
               <span className="absolute inset-0 rounded-2xl animate-ping opacity-30 btn-primary-gradient" />
             </motion.button>
