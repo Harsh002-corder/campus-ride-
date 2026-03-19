@@ -15,6 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
