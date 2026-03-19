@@ -725,6 +725,50 @@ const StudentDashboard = () => {
                 </h1>
                 <p className="text-muted-foreground text-sm mb-6">Where are you heading today?</p>
 
+                <div className="flex justify-end mb-4">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setInfoDialogOpen(true)}
+                    className="btn-outline-glow px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2"
+                    type="button"
+                    title="View ride info"
+                  >
+                    <Info className="w-4 h-4" /> Info
+                  </motion.button>
+                </div>
+
+                <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Ride Info</DialogTitle>
+                      <DialogDescription>
+                        View details of your current or most recent ride.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {infoRide ? (
+                      <div className="space-y-2 text-sm">
+                        <div><b>Status:</b> {infoRide.status}</div>
+                        <div><b>Pickup:</b> {infoRide.pickup?.label || infoRide.pickup?.address || `${infoRide.pickup?.lat},${infoRide.pickup?.lng}`}</div>
+                        <div><b>Drop:</b> {infoRide.drop?.label || infoRide.drop?.address || `${infoRide.drop?.lat},${infoRide.drop?.lng}`}</div>
+                        {infoRide.driver && (
+                          <div><b>Driver:</b> {infoRide.driver.name} ({infoRide.driver.phone})</div>
+                        )}
+                        <div><b>Passengers:</b> {infoRide.passengers}</div>
+                        <div><b>Booked at:</b> {new Date(infoRide.createdAt).toLocaleString()}</div>
+                        {infoRide.scheduledFor && <div><b>Scheduled for:</b> {new Date(infoRide.scheduledFor).toLocaleString()}</div>}
+                        {infoRide.verificationCode && <div><b>Verification Code:</b> {infoRide.verificationCode}</div>}
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground">No ride info available.</div>
+                    )}
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <button className="btn-primary-gradient px-4 py-2 rounded-md">Close</button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                     <StopTypeahead
@@ -802,48 +846,6 @@ const StudentDashboard = () => {
                     >
                       {!rideBookingEnabled ? "Booking Paused" : booking ? "Finding..." : "Find Ride"}
                     </motion.button>
-                    {/* Info button */}
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => setInfoDialogOpen(true)}
-                      className="btn-outline-glow px-4 py-3 rounded-xl font-semibold text-sm flex items-center gap-2"
-                      type="button"
-                      title="View ride info"
-                    >
-                      <Info className="w-4 h-4" /> Info
-                    </motion.button>
-                        {/* Ride Info Dialog */}
-                        <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Ride Info</DialogTitle>
-                              <DialogDescription>
-                                View details of your current or most recent ride.
-                              </DialogDescription>
-                            </DialogHeader>
-                            {infoRide ? (
-                              <div className="space-y-2 text-sm">
-                                <div><b>Status:</b> {infoRide.status}</div>
-                                <div><b>Pickup:</b> {infoRide.pickup?.label || infoRide.pickup?.address || `${infoRide.pickup?.lat},${infoRide.pickup?.lng}`}</div>
-                                <div><b>Drop:</b> {infoRide.drop?.label || infoRide.drop?.address || `${infoRide.drop?.lat},${infoRide.drop?.lng}`}</div>
-                                {infoRide.driver && (
-                                  <div><b>Driver:</b> {infoRide.driver.name} ({infoRide.driver.phone})</div>
-                                )}
-                                <div><b>Passengers:</b> {infoRide.passengers}</div>
-                                <div><b>Booked at:</b> {new Date(infoRide.createdAt).toLocaleString()}</div>
-                                {infoRide.scheduledFor && <div><b>Scheduled for:</b> {new Date(infoRide.scheduledFor).toLocaleString()}</div>}
-                                {infoRide.verificationCode && <div><b>Verification Code:</b> {infoRide.verificationCode}</div>}
-                              </div>
-                            ) : (
-                              <div className="text-muted-foreground">No ride info available.</div>
-                            )}
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <button className="btn-primary-gradient px-4 py-2 rounded-md">Close</button>
-                              </DialogClose>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
                   </div>
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span
