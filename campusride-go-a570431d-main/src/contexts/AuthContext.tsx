@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/apiClient";
+import { disconnectSocketClient } from "@/lib/socketClient";
 
 interface User {
   id?: string;
@@ -67,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    disconnectSocketClient();
     clearAuthToken();
     localStorage.removeItem("campusride_user");
     setToken(null);

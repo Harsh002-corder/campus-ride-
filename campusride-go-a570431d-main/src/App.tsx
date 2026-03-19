@@ -18,6 +18,7 @@ import RidesPage from "./pages/RidesPage";
 import PublicRideTracking from "./pages/PublicRideTracking";
 import TMUCampusMapPage from "./pages/TMUCampusMapPage";
 import JarviouWidget from "./components/JarviouWidget";
+import { useRideRealtime } from "@/hooks/useRideRealtime";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,11 @@ const AnimatedRoutes = () => {
   );
 };
 
+const RealtimeBootstrap = () => {
+  useRideRealtime();
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -71,6 +77,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
+          <RealtimeBootstrap />
           <AnimatedRoutes />
           <JarviouWidget />
         </BrowserRouter>

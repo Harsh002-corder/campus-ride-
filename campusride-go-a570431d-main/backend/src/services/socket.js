@@ -122,6 +122,7 @@ export function emitRideUpdate(ride) {
   const driverId = ride?.driverId?.toString?.() || ride?.driverId || null;
 
   io.to(`ride:${rideId}`).emit("ride:updated", ride);
+  io.emit("ride-updated", ride);
 
   if (studentId) {
     io.to(`user:${studentId}`).emit("ride:updated", ride);
@@ -155,17 +156,21 @@ export function emitNewRideRequest(ride, onlineDriverIds = []) {
     return;
   }
 
+  io.emit("new-ride", ride);
+
   const uniqueDriverIds = [...new Set((onlineDriverIds || []).filter(Boolean).map((id) => String(id)))];
 
   if (uniqueDriverIds.length > 0) {
     for (const driverId of uniqueDriverIds) {
       io.to(`user:${driverId}`).emit("newRideRequest", ride);
       io.to(`user:${driverId}`).emit("ride:requested", ride);
+      io.to(`user:${driverId}`).emit("new-ride", ride);
     }
   } else {
     // Fallback for legacy behavior if caller does not provide online driver ids.
     io.to("role:driver").emit("newRideRequest", ride);
     io.to("role:driver").emit("ride:requested", ride);
+    io.to("role:driver").emit("new-ride", ride);
   }
 
   io.to("role:admin").emit("admin:ride-requested", ride);

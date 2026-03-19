@@ -13,6 +13,7 @@ import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
 import { apiClient, type AuthUser, type RideDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
+import { useRideRealtimeStore } from "@/stores/rideRealtimeStore";
 import {
   Navigation, Wallet, Users, LogOut, Power,
   TrendingUp, ChevronRight, Star,
@@ -41,8 +42,14 @@ const DriverDashboard = () => {
   const toast = useAppToast();
   const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(false);
-  const [availableRides, setAvailableRides] = useState<RideDto[]>([]);
-  const [myRides, setMyRides] = useState<RideDto[]>([]);
+  const availableRides = useRideRealtimeStore((state) => state.availableRides);
+  const myRides = useRideRealtimeStore((state) => state.myRides);
+  const lastNewRideId = useRideRealtimeStore((state) => state.lastNewRideId);
+  const hydrateDriverData = useRideRealtimeStore((state) => state.hydrateDriverData);
+  const removeAvailableRide = useRideRealtimeStore((state) => state.removeAvailableRide);
+  const upsertMyRideInStore = useRideRealtimeStore((state) => state.upsertMyRide);
+  const patchMyRideInStore = useRideRealtimeStore((state) => state.patchMyRide);
+  const consumeLastNewRide = useRideRealtimeStore((state) => state.consumeLastNewRide);
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [rideActionBusyByRide, setRideActionBusyByRide] = useState<Record<string, boolean>>({});
   const [rideActionTypeByRide, setRideActionTypeByRide] = useState<Record<string, RideActionType>>({});
@@ -122,23 +129,12 @@ const DriverDashboard = () => {
   }, [rideActionTypeByRide]);
 
   const upsertMyRide = useCallback((ride: RideDto) => {
-    setMyRides((prev) => {
-      const exists = prev.some((item) => item.id === ride.id);
-      return toQueueRides(exists ? prev.map((item) => (item.id === ride.id ? ride : item)) : [...prev, ride]);
-    });
-  }, []);
+    upsertMyRideInStore(ride);
+  }, [upsertMyRideInStore]);
 
   const patchMyRide = useCallback((rideId: string, patcher: (ride: RideDto) => RideDto) => {
-    setMyRides((prev) => {
-      let found = false;
-      const next = prev.map((ride) => {
-        if (ride.id !== rideId) return ride;
-        found = true;
-        return patcher(ride);
-      });
-      return found ? toQueueRides(next) : prev;
-    });
-  }, []);
+    patchMyRideInStore(rideId, patcher);
+  }, [patchMyRideInStore]);
 
   const playRequestAlertTone = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -207,8 +203,7 @@ const DriverDashboard = () => {
       }
 
       setIsOnline(Boolean(profile.user?.isOnline));
-      setMyRides(toQueueRides(mine.rides || []));
-      setAvailableRides(toIncomingRequestRides(available.rides || []));
+      hydrateDriverData(mine.rides || [], available.rides || []);
       setVerificationStatus(profile.user?.driverVerificationStatus || verification?.verification?.status || "not_submitted");
       setVerificationNotes(verification?.verification?.reviewNotes || "");
 
@@ -230,7 +225,7 @@ const DriverDashboard = () => {
       setRideSecurityPhone("+91 100");
       setRideAmbulancePhone("+91 108");
     }
-  }, [toast]);
+  }, [hydrateDriverData, toast]);
 
   useEffect(() => {
     loadData();
@@ -261,88 +256,19 @@ const DriverDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const socket = getSocketClient();
+    if (!lastNewRideId) {
+      return;
+    }
 
-    const onRideRequested = (incomingRide: RideDto) => {
-      if (!incomingRide?.id) {
-        void loadData();
-        return;
-      }
+    const incomingRide = availableRides.find((ride) => ride.id === lastNewRideId);
+    if (incomingRide) {
+      playRequestAlertTone();
+      showNewRequestPopup(incomingRide);
+      toast.success("New Ride Request 🚗", "A new rider is waiting for pickup.");
+    }
 
-      if (!["pending", "requested"].includes(incomingRide.status) || incomingRide.driverId) {
-        return;
-      }
-
-      let isNewRequest = false;
-      setAvailableRides((prev) => {
-        const exists = prev.some((ride) => ride.id === incomingRide.id);
-        isNewRequest = !exists;
-        const next = exists
-          ? prev.map((ride) => (ride.id === incomingRide.id ? incomingRide : ride))
-          : [incomingRide, ...prev];
-        return toIncomingRequestRides(next);
-      });
-
-      if (isNewRequest) {
-        playRequestAlertTone();
-        showNewRequestPopup(incomingRide);
-      }
-    };
-
-    const onRideUpdated = (updatedRide: RideDto) => {
-      if (!updatedRide?.id) {
-        void loadData();
-        return;
-      }
-
-      setAvailableRides((prev) => {
-        if (["pending", "requested"].includes(updatedRide.status) && !updatedRide.driverId) {
-          const exists = prev.some((ride) => ride.id === updatedRide.id);
-          const next = exists
-            ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
-            : [updatedRide, ...prev];
-
-          if (!exists) {
-            playRequestAlertTone();
-            showNewRequestPopup(updatedRide);
-          }
-
-          return toIncomingRequestRides(next);
-        }
-
-        return prev.filter((ride) => ride.id !== updatedRide.id);
-      });
-
-      if (!user?.id) {
-        return;
-      }
-
-      setMyRides((prev) => {
-        const belongsToMe = updatedRide.driverId === user.id;
-        const exists = prev.some((ride) => ride.id === updatedRide.id);
-
-        if (!belongsToMe) {
-          return toQueueRides(prev.filter((ride) => ride.id !== updatedRide.id));
-        }
-
-        const next = exists
-          ? prev.map((ride) => (ride.id === updatedRide.id ? updatedRide : ride))
-          : [...prev, updatedRide];
-
-        return toQueueRides(next);
-      });
-    };
-
-    socket.on("newRideRequest", onRideRequested);
-    socket.on("ride:requested", onRideRequested);
-    socket.on("ride:updated", onRideUpdated);
-
-    return () => {
-      socket.off("newRideRequest", onRideRequested);
-      socket.off("ride:requested", onRideRequested);
-      socket.off("ride:updated", onRideUpdated);
-    };
-  }, [loadData, playRequestAlertTone, showNewRequestPopup, user?.id]);
+    consumeLastNewRide();
+  }, [availableRides, consumeLastNewRide, lastNewRideId, playRequestAlertTone, showNewRequestPopup, toast]);
 
   const incomingRequests = useMemo(() => toIncomingRequestRides(availableRides), [availableRides]);
 
@@ -456,7 +382,7 @@ const DriverDashboard = () => {
     const sourceRide = availableRides.find((ride) => ride.id === rideId)
       || (newRequestPopupRide?.id === rideId ? newRequestPopupRide : null);
 
-    setAvailableRides((prev) => prev.filter((ride) => ride.id !== rideId));
+    removeAvailableRide(rideId);
     setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
 
     if (sourceRide) {
@@ -484,7 +410,7 @@ const DriverDashboard = () => {
   const declineRide = async (rideId: string) => {
     setRideActionBusy(rideId, true);
     setRideActionType(rideId, "decline");
-    setAvailableRides((prev) => prev.filter((ride) => ride.id !== rideId));
+    removeAvailableRide(rideId);
     setNewRequestPopupRide((current) => (current?.id === rideId ? null : current));
 
     try {

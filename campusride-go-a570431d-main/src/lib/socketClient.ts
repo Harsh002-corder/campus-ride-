@@ -46,6 +46,11 @@ export function getSocketClient(allowGuest = false) {
     socket = io(SOCKET_BASE_URL, {
       autoConnect: false,
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      timeout: 10000,
     });
   }
 
@@ -61,4 +66,14 @@ export function getSocketClient(allowGuest = false) {
   }
 
   return socket;
+}
+
+export function disconnectSocketClient() {
+  if (!socket) {
+    return;
+  }
+
+  socket.removeAllListeners();
+  socket.disconnect();
+  socket = null;
 }
