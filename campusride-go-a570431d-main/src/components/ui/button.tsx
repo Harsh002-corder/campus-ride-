@@ -1,11 +1,53 @@
+
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-
 import { cn } from "@/lib/utils";
 
+// Ripple effect hook
+function useRipple(ref: React.RefObject<HTMLButtonElement>) {
+  React.useEffect(() => {
+    const button = ref.current;
+    if (!button) return;
+    const handleClick = (e: MouseEvent) => {
+      const circle = document.createElement("span");
+      const diameter = Math.max(button.clientWidth, button.clientHeight);
+      const radius = diameter / 2;
+      circle.style.width = circle.style.height = `${diameter}px`;
+      circle.style.left = `${e.clientX - button.getBoundingClientRect().left - radius}px`;
+      circle.style.top = `${e.clientY - button.getBoundingClientRect().top - radius}px`;
+      circle.classList.add("ripple");
+      button.appendChild(circle);
+      setTimeout(() => {
+        circle.remove();
+      }, 600);
+    };
+    button.addEventListener("click", handleClick);
+    return () => button.removeEventListener("click", handleClick);
+  }, [ref]);
+}
+
+// Ripple effect styles
+const rippleStyle = `
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  background-color: rgba(255,255,255,0.4);
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes ripple {
+  to {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+`;
+
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative overflow-hidden inline-flex flex-col items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -36,10 +78,34 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+    const buttonRef = React.useRef<HTMLButtonElement>(null);
+    useRipple(buttonRef as React.RefObject<HTMLButtonElement>);
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    // Inject ripple style globally once
+    React.useEffect(() => {
+      if (!document.getElementById("ripple-style")) {
+        const style = document.createElement("style");
+        style.id = "ripple-style";
+        style.innerHTML = rippleStyle;
+        document.head.appendChild(style);
+      }
+    }, []);
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={(node) => {
+          if (typeof ref === "function") ref(node);
+          else if (ref) (ref as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+          buttonRef.current = node;
+        }}
+        {...props}
+      >
+        {children}
+      </Comp>
+    );
   },
 );
 Button.displayName = "Button";

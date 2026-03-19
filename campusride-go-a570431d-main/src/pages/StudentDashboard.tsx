@@ -166,6 +166,8 @@ const StudentDashboard = () => {
     state: "idle",
     message: "Select pickup to verify GPS",
   });
+  const [showBoundaryDialog, setShowBoundaryDialog] = useState(false);
+  const [boundaryDialogReason, setBoundaryDialogReason] = useState("");
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },
@@ -390,7 +392,8 @@ const StudentDashboard = () => {
 
     if (!isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
-      toast.info("Pickup location must be inside the campus.");
+      setBoundaryDialogReason("pickup");
+      setShowBoundaryDialog(true);
       return;
     }
 
@@ -412,7 +415,8 @@ const StudentDashboard = () => {
 
     if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary)) {
       setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-      toast.info("Pickup location must be inside the campus.");
+      setBoundaryDialogReason("gps");
+      setShowBoundaryDialog(true);
       return;
     }
 
@@ -627,6 +631,44 @@ const StudentDashboard = () => {
 
   return (
     <PageTransition>
+      <Dialog open={showBoundaryDialog} onOpenChange={setShowBoundaryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Outside Campus Boundary</DialogTitle>
+            <DialogDescription>
+              {boundaryDialogReason === "pickup" && (
+                <>
+                  <b>Your selected pickup location is outside the campus boundary.</b><br />
+                  <ul className="list-disc pl-5 mt-2 text-sm">
+                    <li>Make sure you select a pickup point within the campus area.</li>
+                    <li>If you are outside, try moving closer to the campus or select a valid stop.</li>
+                  </ul>
+                </>
+              )}
+              {boundaryDialogReason === "gps" && (
+                <>
+                  <b>Your current GPS location is outside the campus boundary.</b><br />
+                  <ul className="list-disc pl-5 mt-2 text-sm">
+                    <li>Ensure your device location is enabled and accurate.</li>
+                    <li>Try moving closer to the campus or check your GPS settings.</li>
+                    <li>This restriction helps keep rides safe and within campus limits.</li>
+                  </ul>
+                </>
+              )}
+              <div className="mt-4 text-xs text-muted-foreground">
+                <b>Why does this happen?</b><br />
+                For safety and operational reasons, rides can only be booked from within the campus boundary. If you believe this is a mistake, please contact support.<br />
+                <b>Support:</b> <a href={`tel:${rideSupportPhone}`} className="text-primary underline">{rideSupportPhone}</a>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <button className="btn-primary-gradient px-4 py-2 rounded-md">OK</button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="min-h-screen bg-background relative overflow-hidden">
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
