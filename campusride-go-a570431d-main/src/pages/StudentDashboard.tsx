@@ -44,7 +44,7 @@ type GpsVerificationState = {
 };
 
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
-const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = true;
+const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = false;
 
 function resolveStop(value: string, selectedStop: CampusStop | null, stops: CampusStop[]) {
   if (selectedStop && selectedStop.name === value) {
