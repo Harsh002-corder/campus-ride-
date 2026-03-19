@@ -499,6 +499,7 @@ export const getRideById = asyncHandler(async (req, res) => {
 
 export const getRideByShareToken = asyncHandler(async (req, res) => {
   const token = String(req.params.token || "").trim();
+  const otp = String(req.query.otp || "").trim();
   if (!token || token.length < 20) {
     throw new AppError(400, "Invalid tracking token");
   }
@@ -510,6 +511,14 @@ export const getRideByShareToken = asyncHandler(async (req, res) => {
 
   if (!ride) {
     throw new AppError(404, "Tracking link not found");
+  }
+
+  if (!otp) {
+    throw new AppError(401, "Tracking OTP is required");
+  }
+
+  if (String(ride.verificationCode || "").trim() !== otp) {
+    throw new AppError(403, "Invalid tracking OTP");
   }
 
   const expired = !ride.sharedLinkExpiresAt || new Date(ride.sharedLinkExpiresAt).getTime() < Date.now();

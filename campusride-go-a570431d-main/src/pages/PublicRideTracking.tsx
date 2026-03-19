@@ -31,6 +31,9 @@ const PublicRideTracking = () => {
   const { token = "" } = useParams<{ token: string }>();
   const mapRef = useRef<google.maps.Map | null>(null);
   const [ride, setRide] = useState<RideDto | null>(null);
+  const [otp, setOtp] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpBusy, setOtpBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [socketInfo, setSocketInfo] = useState<string | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
@@ -51,22 +54,45 @@ const PublicRideTracking = () => {
   });
 
   const loadTracking = useCallback(async () => {
+    if (!otpVerified) return;
+
     try {
-      const response = await apiClient.public.tracking(token);
+      const response = await apiClient.public.tracking(token, otp);
       setRide(response.ride || null);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load tracking link");
     }
-  }, [token]);
+  }, [otp, otpVerified, token]);
+
+  const verifyOtpAndLoad = useCallback(async () => {
+    if (!otp.trim()) {
+      setError("Enter tracking OTP to continue");
+      return;
+    }
+
+    setOtpBusy(true);
+    try {
+      const response = await apiClient.public.tracking(token, otp);
+      setRide(response.ride || null);
+      setOtpVerified(true);
+      setError(null);
+    } catch (loadError) {
+      setOtpVerified(false);
+      setRide(null);
+      setError(loadError instanceof Error ? loadError.message : "Unable to verify tracking OTP");
+    } finally {
+      setOtpBusy(false);
+    }
+  }, [otp, token]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !otpVerified) return;
     void loadTracking();
-  }, [loadTracking, token]);
+  }, [loadTracking, otpVerified, token]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !otpVerified) return;
 
     const socket = getSocketClient(true);
     const onConnect = () => {
@@ -97,7 +123,7 @@ const PublicRideTracking = () => {
       socket.off("connect_error", onConnectError);
       socket.off("ride:tracking-update", onTrackingUpdate);
     };
-  }, [token]);
+  }, [otpVerified, token]);
 
   useEffect(() => {
     if (!isLoaded || !pickup || !drop || typeof window === "undefined" || !window.google?.maps) {
@@ -152,7 +178,32 @@ const PublicRideTracking = () => {
         {error && <div className="glass rounded-xl px-4 py-3 text-sm text-destructive">{error}</div>}
         {socketInfo && <div className="glass rounded-xl px-4 py-3 text-sm text-muted-foreground">{socketInfo}</div>}
 
-        <div className="grid lg:grid-cols-3 gap-4">
+        {!otpVerified && (
+          <div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
+            <p className="text-sm font-semibold">Enter Ride OTP</p>
+            <p className="text-xs text-muted-foreground">Tracking is protected. Ask the rider for the OTP code.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Enter OTP"
+                className="w-full bg-muted/50 border border-border rounded-xl py-2.5 px-3 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => void verifyOtpAndLoad()}
+                disabled={otpBusy}
+                className="btn-primary-gradient px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
+              >
+                {otpBusy ? "Verifying..." : "Verify OTP"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid lg:grid-cols-3 gap-4 ${!otpVerified ? "opacity-60 pointer-events-none" : ""}`}>
           <div className="lg:col-span-2 h-[55vh] min-h-[300px] max-h-[520px] glass rounded-2xl overflow-hidden">
             {isLoaded && (
               <GoogleMap

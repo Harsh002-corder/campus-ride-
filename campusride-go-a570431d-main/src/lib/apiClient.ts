@@ -300,8 +300,9 @@ export const apiClient = {
     },
   },
   public: {
-    tracking(token: string) {
-      return request<{ ride: RideDto; socketRoom: string }>(`/public/rides/${token}`);
+    tracking(token: string, otp: string) {
+      const safeOtp = encodeURIComponent(otp.trim());
+      return request<{ ride: RideDto; socketRoom: string }>(`/public/rides/${token}?otp=${safeOtp}`);
     },
   },
   users: {
