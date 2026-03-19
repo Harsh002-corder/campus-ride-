@@ -119,6 +119,71 @@ const RideHistoryTabs = ({
     return new Date(value).toLocaleString();
   };
 
+  const formatCurrency = (value?: number | null) => {
+    if (value == null || Number.isNaN(Number(value))) return "—";
+    return `₹${value}`;
+  };
+
+  const formatCoordinate = (lat?: number, lng?: number) => {
+    if (typeof lat !== "number" || typeof lng !== "number") return "—";
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  };
+
+  const detailSections = selectedRide
+    ? [
+        {
+          title: "Ride Details",
+          rows: [
+            { label: "Ride ID", value: selectedRide.id },
+            { label: "Status", value: selectedRide.status.replace(/_/g, " ") },
+            { label: "Pickup", value: selectedRide.pickup?.label || "—" },
+            { label: "Pickup Coordinates", value: formatCoordinate(selectedRide.pickup?.lat, selectedRide.pickup?.lng) },
+            { label: "Drop", value: selectedRide.drop?.label || "—" },
+            { label: "Drop Coordinates", value: formatCoordinate(selectedRide.drop?.lat, selectedRide.drop?.lng) },
+            { label: "Passengers", value: String(selectedRide.passengers || 1) },
+            { label: "Passenger Names", value: selectedRide.passengerNames?.length ? selectedRide.passengerNames.join(", ") : "—" },
+          ],
+        },
+        {
+          title: "Student Details",
+          rows: [
+            { label: "Name", value: selectedRide.student?.name || "—" },
+            { label: "Email", value: selectedRide.student?.email || "—" },
+            { label: "Phone", value: selectedRide.student?.phone || "—" },
+            { label: "Student ID", value: selectedRide.studentId || "—" },
+            { label: "Student Rating", value: selectedRide.studentRating != null ? `${selectedRide.studentRating}/5` : "—" },
+            { label: "Feedback", value: selectedRide.studentFeedback || "—" },
+          ],
+        },
+        {
+          title: "Driver Details",
+          rows: [
+            { label: "Name", value: selectedRide.driver?.name || "Not assigned" },
+            { label: "Email", value: selectedRide.driver?.email || "—" },
+            { label: "Phone", value: selectedRide.driver?.phone || "—" },
+            { label: "Driver ID", value: selectedRide.driverId || "—" },
+            { label: "ETA", value: typeof selectedRide.etaMinutes === "number" ? `${selectedRide.etaMinutes} min` : "—" },
+            { label: "Distance", value: typeof selectedRide.etaDistanceKm === "number" ? `${selectedRide.etaDistanceKm.toFixed(2)} km` : "—" },
+          ],
+        },
+        {
+          title: "Timeline & Fare",
+          rows: [
+            { label: "Requested At", value: formatDate(selectedRide.requestedAt) },
+            { label: "Accepted At", value: formatDate(selectedRide.acceptedAt) },
+            { label: "Started At", value: formatDate(selectedRide.ongoingAt) },
+            { label: "Completed At", value: formatDate(selectedRide.completedAt) },
+            { label: "Cancelled At", value: formatDate(selectedRide.cancelledAt) },
+            { label: "Created At", value: formatDate(selectedRide.createdAt) },
+            { label: "Updated At", value: formatDate(selectedRide.updatedAt) },
+            { label: "Total Fare", value: formatCurrency(selectedRide.fareBreakdown?.totalFare) },
+            { label: "Platform Fee", value: formatCurrency(selectedRide.fareBreakdown?.platformFee) },
+            { label: "Cancellation Reason", value: selectedRide.cancellationCustomReason || selectedRide.cancelReason || "—" },
+          ],
+        },
+      ]
+    : [];
+
   return (
     <div>
       {/* Tabs */}
@@ -196,28 +261,31 @@ const RideHistoryTabs = ({
       </div>
 
       <Dialog open={Boolean(selectedRide)} onOpenChange={(open) => !open && setSelectedRide(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Ride Details</DialogTitle>
-            <DialogDescription>Detailed history for this ride.</DialogDescription>
+            <DialogDescription>Professional summary of ride, student, and driver details.</DialogDescription>
           </DialogHeader>
 
           {selectedRide && (
-            <div className="space-y-2 text-sm">
-              <div><b>Status:</b> {selectedRide.status}</div>
-              <div><b>Pickup:</b> {selectedRide.pickup?.label || "—"}</div>
-              <div><b>Drop:</b> {selectedRide.drop?.label || "—"}</div>
-              <div><b>Passengers:</b> {selectedRide.passengers || 1}</div>
-              <div><b>Driver:</b> {selectedRide.driver?.name || "—"}</div>
-              <div><b>Booked:</b> {formatDate(selectedRide.createdAt)}</div>
-              <div><b>Updated:</b> {formatDate(selectedRide.updatedAt)}</div>
-              {selectedRide.acceptedAt && <div><b>Accepted:</b> {formatDate(selectedRide.acceptedAt)}</div>}
-              {selectedRide.ongoingAt && <div><b>Started:</b> {formatDate(selectedRide.ongoingAt)}</div>}
-              {selectedRide.completedAt && <div><b>Completed:</b> {formatDate(selectedRide.completedAt)}</div>}
-              {selectedRide.cancelledAt && <div><b>Cancelled:</b> {formatDate(selectedRide.cancelledAt)}</div>}
-              {selectedRide.cancelReason && <div><b>Cancel reason:</b> {selectedRide.cancelReason}</div>}
-              {selectedRide.studentRating && <div><b>Rating:</b> {selectedRide.studentRating}/5</div>}
-              {selectedRide.studentFeedback && <div><b>Feedback:</b> {selectedRide.studentFeedback}</div>}
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              {detailSections.map((section) => (
+                <section key={section.title} className="rounded-lg border border-border/60 overflow-hidden bg-background/40">
+                  <div className="px-3 py-2 text-sm font-semibold bg-muted/40 border-b border-border/60">
+                    {section.title}
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {section.rows.map((row) => (
+                        <tr key={`${section.title}-${row.label}`} className="border-b border-border/40 last:border-b-0 align-top">
+                          <th className="w-[42%] text-left font-medium text-muted-foreground px-3 py-2">{row.label}</th>
+                          <td className="w-[58%] text-foreground px-3 py-2 break-words">{row.value || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              ))}
             </div>
           )}
 
