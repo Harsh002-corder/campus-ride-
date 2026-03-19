@@ -132,13 +132,7 @@ function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy: num
 }
 
 const StudentDashboard = () => {
-    const [infoDialogOpen, setInfoDialogOpen] = useState(false);
-    // Helper to get the most relevant ride for info
-    const infoRide = useMemo(() => {
-      if (activeRide) return activeRide;
-      if (rides.length > 0) return rides[0];
-      return null;
-    }, [activeRide, rides]);
+  const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const { user, logout, login } = useAuth();
   const toast = useAppToast();
   const navigate = useNavigate();
@@ -177,6 +171,12 @@ const StudentDashboard = () => {
   });
   const [showBoundaryDialog, setShowBoundaryDialog] = useState(false);
   const [boundaryDialogReason, setBoundaryDialogReason] = useState("");
+
+  const infoRide = useMemo(() => {
+    if (activeRide) return activeRide;
+    if (rides.length > 0) return rides[0];
+    return null;
+  }, [activeRide, rides]);
 
   const cancellationReasons = [
     { key: "driver_delayed", label: "Driver delayed" },

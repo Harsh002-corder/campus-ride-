@@ -5,9 +5,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 // Ripple effect hook
-function useRipple(ref: React.RefObject<HTMLButtonElement>) {
+function useRipple(button: HTMLButtonElement | null) {
   React.useEffect(() => {
-    const button = ref.current;
     if (!button) return;
     const handleClick = (e: MouseEvent) => {
       const circle = document.createElement("span");
@@ -24,7 +23,7 @@ function useRipple(ref: React.RefObject<HTMLButtonElement>) {
     };
     button.addEventListener("click", handleClick);
     return () => button.removeEventListener("click", handleClick);
-  }, [ref]);
+  }, [button]);
 }
 
 // Ripple effect styles
@@ -82,8 +81,8 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
-    const buttonRef = React.useRef<HTMLButtonElement>(null);
-    useRipple(buttonRef as React.RefObject<HTMLButtonElement>);
+    const [buttonEl, setButtonEl] = React.useState<HTMLButtonElement | null>(null);
+    useRipple(buttonEl);
     const Comp = asChild ? Slot : "button";
     // Inject ripple style globally once
     React.useEffect(() => {
@@ -100,7 +99,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={(node) => {
           if (typeof ref === "function") ref(node);
           else if (ref) (ref as React.MutableRefObject<HTMLButtonElement | null>).current = node;
-          buttonRef.current = node;
+          setButtonEl(node);
         }}
         style={{ overflow: "hidden", position: "relative" }}
         {...props}
@@ -115,4 +114,5 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };
