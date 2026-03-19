@@ -10,7 +10,6 @@ export const CAMPUS_BOUNDARY_POLYGON: LatLng[] = [
   { lat: 28.822246, lng: 78.663600 },
   { lat: 28.822058, lng: 78.655897 },
   { lat: 28.824051, lng: 78.653022 },
-  { lat: 28.828318, lng: 78.657056 },
 ];
 
 function getCampusBounds(polygon = CAMPUS_BOUNDARY_POLYGON) {
