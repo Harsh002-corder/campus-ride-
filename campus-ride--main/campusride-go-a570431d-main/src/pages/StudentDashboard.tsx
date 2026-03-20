@@ -1188,7 +1188,9 @@ const StudentDashboard = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-sm">Active Ride — {activeRide.pickup?.label || "—"} → {activeRide.drop?.label || "—"}</p>
-                      <p className="text-xs text-muted-foreground">Status: {activeRide.status}</p>
+                      <p className={`text-xs ${activeRide.status === "accepted" ? "text-green-400" : "text-muted-foreground"}`}>
+                        Status: {activeRide.status}
+                      </p>
                       {activeRide.status === "scheduled" && activeRide.scheduledFor && (
                         <p className="text-xs text-primary">Scheduled for: {new Date(activeRide.scheduledFor).toLocaleString()}</p>
                       )}
