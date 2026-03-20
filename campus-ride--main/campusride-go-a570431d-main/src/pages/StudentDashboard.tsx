@@ -8,6 +8,7 @@ import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import RideCompletionPopup from "@/components/ride/RideCompletionPopup";
 import StopTypeahead from "@/components/ride/StopTypeahead";
+import CancelRideDialog from "@/components/ride/CancelRideDialog";
 import ProfileDialog from "@/components/ProfileDialog";
 import {
   Dialog,
@@ -172,6 +173,7 @@ const StudentDashboard = () => {
   const [outsideCampusAlertOpen, setOutsideCampusAlertOpen] = useState(false);
   const [cancelReasonKey, setCancelReasonKey] = useState("change_of_plans");
   const [cancelCustomReason, setCancelCustomReason] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [issueRideId, setIssueRideId] = useState("");
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
@@ -683,6 +685,10 @@ const StudentDashboard = () => {
 
   const handleCancelRide = async () => {
     if (!activeRide) return;
+    if (cancelReasonKey === "other" && !cancelCustomReason.trim()) {
+      toast.info("Reason required", "Please enter a custom reason.");
+      return false;
+    }
     try {
       await apiClient.rides.cancel(activeRide.id, {
         reasonKey: cancelReasonKey,
@@ -690,8 +696,10 @@ const StudentDashboard = () => {
       });
       toast.success("Ride cancelled", "Your cancellation has been recorded.");
       await loadMyRides();
+      return true;
     } catch (error) {
       toast.error("Could not cancel ride", error);
+      return false;
     }
   };
 
@@ -761,6 +769,21 @@ const StudentDashboard = () => {
 
   return (
     <PageTransition>
+      <CancelRideDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        title="Cancel Your Ride"
+        description="Please select why you want to cancel this ride."
+        reasonKey={cancelReasonKey}
+        customReason={cancelCustomReason}
+        reasons={cancellationReasons}
+        onReasonKeyChange={setCancelReasonKey}
+        onCustomReasonChange={setCancelCustomReason}
+        onConfirm={async () => {
+          const cancelled = await handleCancelRide();
+          if (cancelled) setCancelDialogOpen(false);
+        }}
+      />
       <div className="min-h-screen bg-background relative overflow-hidden">
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
@@ -1253,26 +1276,11 @@ const StudentDashboard = () => {
                         <MessageCircle className="w-3.5 h-3.5" /> Chat
                       </button>
                     )}
-                    <div className="flex items-center gap-2">
-                      <select title="Cancellation reason" value={cancelReasonKey} onChange={(event) => setCancelReasonKey(event.target.value)} className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs">
-                        {cancellationReasons.map((item) => (
-                          <option key={item.key} value={item.key}>{item.label}</option>
-                        ))}
-                      </select>
-                      {cancelReasonKey === "other" && (
-                        <input
-                          value={cancelCustomReason}
-                          onChange={(event) => setCancelCustomReason(event.target.value)}
-                          placeholder="Custom reason"
-                          className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
-                        />
-                      )}
-                    </div>
                     </div>
                     <motion.button
                       {...tapSoft}
                       whileHover={{ y: -1 }}
-                      onClick={handleCancelRide}
+                      onClick={() => setCancelDialogOpen(true)}
                       className="px-4 py-2 rounded-xl text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors flex items-center gap-1"
                     >
                       <motion.span whileHover={{ rotate: [-8, 8, 0] }} transition={{ duration: 0.25 }}>

@@ -6,6 +6,7 @@ import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import IncomingRequestsList from "@/components/ride/IncomingRequestsList";
 import NewRideRequestPopup from "@/components/ride/NewRideRequestPopup";
+import CancelRideDialog from "@/components/ride/CancelRideDialog";
 import RideCard, { RideCardSkeleton } from "@/components/ride/RideCard";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -80,6 +81,7 @@ const DriverDashboard = () => {
   const [verificationCodeByRide, setVerificationCodeByRide] = useState<Record<string, string>>({});
   const [verificationModalRideId, setVerificationModalRideId] = useState<string | null>(null);
   const [verificationModalCode, setVerificationModalCode] = useState("");
+  const [cancelDialogRideId, setCancelDialogRideId] = useState<string | null>(null);
   const [newRequestPopupRide, setNewRequestPopupRide] = useState<RideDto | null>(null);
   const [rideSearch, setRideSearch] = useState("");
   const [todayEarnings, setTodayEarnings] = useState<TodayEarningsSummary>({
@@ -710,6 +712,10 @@ const DriverDashboard = () => {
   const cancelRide = async (rideId: string) => {
     const reasonKey = cancelReasonByRide[rideId] || "driver_delayed";
     const customReason = cancelCustomReasonByRide[rideId] || "";
+    if (reasonKey === "other" && !customReason.trim()) {
+      toast.info("Reason required", "Please enter a custom reason.");
+      return false;
+    }
     const selectedReason = cancellationReasons.find((item) => item.key === reasonKey)?.label || "Other";
     const reasonText = reasonKey === "other"
       ? (customReason.trim() || "Other")
@@ -733,13 +739,23 @@ const DriverDashboard = () => {
         customReason: reasonKey === "other" ? customReason : undefined,
       });
       toast.success("Ride cancelled", "The cancellation was saved successfully.");
+      return true;
     } catch (error) {
       await loadData();
       toast.error("Could not cancel ride", error);
+      return false;
     } finally {
       setRideActionBusy(rideId, false);
       setRideActionType(rideId, null);
     }
+  };
+
+  const openCancelDialog = (rideId: string) => {
+    setCancelDialogRideId(rideId);
+  };
+
+  const closeCancelDialog = () => {
+    setCancelDialogRideId(null);
   };
 
   const handleCancelReasonKeyChange = (rideId: string, reasonKey: string) => {
@@ -835,6 +851,32 @@ const DriverDashboard = () => {
             </div>
           </div>
         )}
+
+        <CancelRideDialog
+          open={Boolean(cancelDialogRideId)}
+          onOpenChange={(open) => {
+            if (!open) closeCancelDialog();
+          }}
+          title="Cancel Ride"
+          description="Select a reason before cancelling this ride."
+          reasonKey={cancelDialogRideId ? (cancelReasonByRide[cancelDialogRideId] || "driver_delayed") : "driver_delayed"}
+          customReason={cancelDialogRideId ? (cancelCustomReasonByRide[cancelDialogRideId] || "") : ""}
+          reasons={cancellationReasons}
+          onReasonKeyChange={(reasonKey) => {
+            if (!cancelDialogRideId) return;
+            handleCancelReasonKeyChange(cancelDialogRideId, reasonKey);
+          }}
+          onCustomReasonChange={(customReason) => {
+            if (!cancelDialogRideId) return;
+            handleCancelCustomReasonChange(cancelDialogRideId, customReason);
+          }}
+          busy={Boolean(cancelDialogRideId && isRideBusy(cancelDialogRideId))}
+          onConfirm={async () => {
+            if (!cancelDialogRideId) return;
+            const cancelled = await cancelRide(cancelDialogRideId);
+            if (cancelled) closeCancelDialog();
+          }}
+        />
 
         <div className="absolute inset-0 [background:var(--gradient-hero)]" />
         <div className="absolute top-1/4 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-10 animate-pulse-glow [background:var(--gradient-glow)]" />
@@ -1100,13 +1142,8 @@ const DriverDashboard = () => {
                           queuePosition={index + 1}
                           isLatest={index === 0}
                           actionLabel={getRideActionLabel(ride.id)}
-                          cancelReasonKey={cancelReasonByRide[ride.id] || "driver_delayed"}
-                          cancelCustomReason={cancelCustomReasonByRide[ride.id] || ""}
-                          cancellationReasons={cancellationReasons}
-                          onCancelReasonKeyChange={handleCancelReasonKeyChange}
-                          onCancelCustomReasonChange={handleCancelCustomReasonChange}
                           onStart={startRide}
-                          onCancel={cancelRide}
+                          onCancel={openCancelDialog}
                           onComplete={completeRide}
                           onTrack={(rideId) => playTrackRideSplash(`/ride-tracking/${rideId}`, ride)}
                         />

@@ -2,11 +2,6 @@ import { motion } from "framer-motion";
 import { CheckCircle, Map, MessageCircle, Phone, Play, Users, XCircle } from "lucide-react";
 import type { RideDto } from "@/lib/apiClient";
 
-type CancellationReason = {
-  key: string;
-  label: string;
-};
-
 type RideCardProps = {
   ride: RideDto;
   busy: boolean;
@@ -14,11 +9,6 @@ type RideCardProps = {
   queuePosition: number;
   isLatest?: boolean;
   actionLabel?: string;
-  cancelReasonKey: string;
-  cancelCustomReason: string;
-  cancellationReasons: CancellationReason[];
-  onCancelReasonKeyChange: (rideId: string, reasonKey: string) => void;
-  onCancelCustomReasonChange: (rideId: string, customReason: string) => void;
   onStart: (rideId: string) => void;
   onCancel: (rideId: string) => void;
   onComplete: (rideId: string) => void;
@@ -34,11 +24,6 @@ export default function RideCard({
   queuePosition,
   isLatest,
   actionLabel,
-  cancelReasonKey,
-  cancelCustomReason,
-  cancellationReasons,
-  onCancelReasonKeyChange,
-  onCancelCustomReasonChange,
   onStart,
   onCancel,
   onComplete,
@@ -102,28 +87,6 @@ export default function RideCard({
           <button type="button" disabled className="flex-1 bg-muted/50 text-muted-foreground py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed">
             <MessageCircle className="w-3.5 h-3.5" /> Chat Student
           </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 mb-2">
-        <select
-          title="Cancellation reason"
-          value={cancelReasonKey}
-          onChange={(event) => onCancelReasonKeyChange(ride.id, event.target.value)}
-          className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
-        >
-          {cancellationReasons.map((item) => (
-            <option key={item.key} value={item.key}>{item.label}</option>
-          ))}
-        </select>
-
-        {cancelReasonKey === "other" && (
-          <input
-            value={cancelCustomReason}
-            onChange={(event) => onCancelCustomReasonChange(ride.id, event.target.value)}
-            placeholder="Custom reason"
-            className="bg-muted/50 border border-border rounded-xl py-2 px-2 text-xs"
-          />
         )}
       </div>
 
