@@ -4,7 +4,11 @@ import { Navigation, Search, Clock, Users } from "lucide-react";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
 
-const AdminRides = () => {
+interface AdminRidesProps {
+  refreshKey?: number;
+}
+
+const AdminRides = ({ refreshKey = 0 }: AdminRidesProps) => {
   const toast = useAppToast();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "completed" | "in_progress" | "cancelled" | "pending" | "accepted" | "ongoing" | "requested">("all");
@@ -34,7 +38,7 @@ const AdminRides = () => {
     return () => {
       mounted = false;
     };
-  }, [toast, filter, reasonFilter, fromDate, toDate, driverIdFilter]);
+  }, [toast, filter, reasonFilter, fromDate, toDate, driverIdFilter, refreshKey]);
 
   const filtered = useMemo(() => {
     return rides.filter((ride) => {

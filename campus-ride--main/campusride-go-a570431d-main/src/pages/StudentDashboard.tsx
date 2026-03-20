@@ -296,7 +296,7 @@ const StudentDashboard = () => {
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       void loadMyRides();
-    }, 5000);
+    }, 2000);
 
     return () => {
       window.clearInterval(intervalId);

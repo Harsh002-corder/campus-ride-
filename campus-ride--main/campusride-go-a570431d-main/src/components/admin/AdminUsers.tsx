@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminUsersProps {
   createSubAdminRequestKey?: number;
+  refreshKey?: number;
 }
 
 interface UserRow {
@@ -20,7 +21,7 @@ interface UserRow {
 
 const isAdminRole = (role: UserRow["role"]) => ["admin", "super_admin", "sub_admin"].includes(role);
 
-const AdminUsers = ({ createSubAdminRequestKey = 0 }: AdminUsersProps) => {
+const AdminUsers = ({ createSubAdminRequestKey = 0, refreshKey = 0 }: AdminUsersProps) => {
   const toast = useAppToast();
   const { user: authUser } = useAuth();
   const canCreateSubAdmin = authUser?.role === "admin";
@@ -60,7 +61,7 @@ const AdminUsers = ({ createSubAdminRequestKey = 0 }: AdminUsersProps) => {
     return () => {
       mounted = false;
     };
-  }, [toast]);
+  }, [toast, refreshKey]);
 
   useEffect(() => {
     if (canCreateSubAdmin && createSubAdminRequestKey > 0) {

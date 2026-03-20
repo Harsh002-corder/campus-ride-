@@ -226,7 +226,11 @@ function validateBoundary(points: Array<{ lat: number; lng: number }>) {
   }
 }
 
-const AdminSettings = () => {
+interface AdminSettingsProps {
+  refreshKey?: number;
+}
+
+const AdminSettings = ({ refreshKey = 0 }: AdminSettingsProps) => {
   const { user } = useAuth();
   const toast = useAppToast();
   const [settings, setSettings] = useState<SettingRow[]>([]);
@@ -276,7 +280,7 @@ const AdminSettings = () => {
     return () => {
       mounted = false;
     };
-  }, [loadSettings]);
+  }, [loadSettings, refreshKey]);
 
   const setRideSettingValue = (key: string, value: boolean | number | string) => {
     setRideSettings((prev) => ({ ...prev, [key]: value }));

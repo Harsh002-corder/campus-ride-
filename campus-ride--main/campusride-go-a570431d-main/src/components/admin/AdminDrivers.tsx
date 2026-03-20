@@ -21,7 +21,11 @@ const card = (i: number) => ({
   transition: { delay: i * 0.06 },
 });
 
-const AdminDrivers = () => {
+interface AdminDriversProps {
+  refreshKey?: number;
+}
+
+const AdminDrivers = ({ refreshKey = 0 }: AdminDriversProps) => {
   const toast = useAppToast();
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
   const [rides, setRides] = useState<RideDto[]>([]);
@@ -57,7 +61,7 @@ const AdminDrivers = () => {
     return () => {
       mounted = false;
     };
-  }, [loadData, toast]);
+  }, [loadData, toast, refreshKey]);
 
   const updateDriverApproval = async (driverId: string, status: "approved" | "rejected") => {
     setUpdatingDriverId(driverId);

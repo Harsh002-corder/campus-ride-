@@ -292,7 +292,7 @@ const DriverDashboard = () => {
     const intervalId = window.setInterval(() => {
       // Keep incoming request list fresh even if realtime events are delayed.
       void loadData();
-    }, 20000);
+    }, 2000);
 
     const socket = getSocketClient();
     const onSocketReconnect = () => {

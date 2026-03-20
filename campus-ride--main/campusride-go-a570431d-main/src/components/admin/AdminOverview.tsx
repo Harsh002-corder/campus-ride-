@@ -43,7 +43,11 @@ const card = (i: number) => ({
   transition: { delay: 0.05 + i * 0.05 },
 });
 
-const AdminOverview = () => {
+interface AdminOverviewProps {
+  refreshKey?: number;
+}
+
+const AdminOverview = ({ refreshKey = 0 }: AdminOverviewProps) => {
   const toast = useAppToast();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [cancellations, setCancellations] = useState<Array<{ id: string; cancelReason: string | null; cancelledBy: string | null; cancelledAt: string | null }>>([]);
@@ -79,7 +83,7 @@ const AdminOverview = () => {
     return () => {
       mounted = false;
     };
-  }, [toast]);
+  }, [toast, refreshKey]);
 
   const stats = [
     { label: "Total Users", value: String(metrics?.totalUsers ?? 0), change: "live", up: true, icon: Users },

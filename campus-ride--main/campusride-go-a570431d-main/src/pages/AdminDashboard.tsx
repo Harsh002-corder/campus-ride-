@@ -21,7 +21,9 @@ import { apiClient, type AuthUser, type RideIssueDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
 import { LogOut, UserCircle2, UserPlus } from "lucide-react";
 
-const tabs: Record<string, React.FC> = {
+type AdminTabProps = { refreshKey?: number };
+
+const tabs: Record<string, React.FC<AdminTabProps>> = {
   overview: AdminOverview,
   users: AdminUsers,
   rides: AdminRides,
@@ -44,6 +46,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
   const [sidebarAnalytics, setSidebarAnalytics] = useState({ todayRevenue: 0, activeUsers: 0, onlineUsers: 0, onlineDrivers: 0 });
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [createSubAdminRequestKey, setCreateSubAdminRequestKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [logoutTransitionOpen, setLogoutTransitionOpen] = useState(false);
   const logoutTimeoutRef = useRef<number | null>(null);
 
@@ -113,6 +116,16 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
     }
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setRefreshKey((value) => value + 1);
+    }, 2000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const handleLogout = () => {
     if (logoutTimeoutRef.current) {
       window.clearTimeout(logoutTimeoutRef.current);
@@ -134,11 +147,11 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
 
   const renderActiveComponent = () => {
     if (activeTab === "users") {
-      return <AdminUsers createSubAdminRequestKey={createSubAdminRequestKey} />;
+      return <AdminUsers createSubAdminRequestKey={createSubAdminRequestKey} refreshKey={refreshKey} />;
     }
 
     const ActiveComponent = tabs[activeTab] || AdminOverview;
-    return <ActiveComponent />;
+    return <ActiveComponent refreshKey={refreshKey} />;
   };
 
   return (

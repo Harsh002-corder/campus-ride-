@@ -5,7 +5,11 @@ import { apiClient, type RideIssueDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { getSocketClient } from "@/lib/socketClient";
 
-const AdminIssues = () => {
+interface AdminIssuesProps {
+  refreshKey?: number;
+}
+
+const AdminIssues = ({ refreshKey = 0 }: AdminIssuesProps) => {
   const toast = useAppToast();
   const [issues, setIssues] = useState<RideIssueDto[]>([]);
   const [search, setSearch] = useState("");
@@ -29,7 +33,7 @@ const AdminIssues = () => {
 
   useEffect(() => {
     void loadIssues();
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, refreshKey]);
 
   useEffect(() => {
     const socket = getSocketClient();
