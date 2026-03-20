@@ -53,7 +53,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        navigateFallback: "/offline.html",
+        // Use SPA shell for route reloads; offline page should not replace normal navigations.
+        navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

@@ -27,8 +27,18 @@ const toNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const normalizeRideStatus = (status?: string | null) => String(status || "").trim().toLowerCase();
+
+const isUnassignedRide = (ride: RideDto) => {
+  if (!ride.driverId) return true;
+  const normalizedDriverId = String(ride.driverId).trim().toLowerCase();
+  return normalizedDriverId === "null" || normalizedDriverId === "undefined";
+};
+
+const isIncomingRideRequest = (ride: RideDto) => ["pending", "requested"].includes(normalizeRideStatus(ride.status)) && isUnassignedRide(ride);
+
 const toIncomingRequestRides = (rides: RideDto[]) => rides
-  .filter((ride) => ["pending", "requested"].includes(ride.status) && !ride.driverId)
+  .filter(isIncomingRideRequest)
   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 const toQueueRides = (rides: RideDto[]) => rides

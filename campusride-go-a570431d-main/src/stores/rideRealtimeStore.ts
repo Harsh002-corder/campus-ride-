@@ -6,6 +6,14 @@ type DriverCoords = {
   lng: number;
 };
 
+const normalizeRideStatus = (status?: string | null) => String(status || "").trim().toLowerCase();
+
+const isUnassignedDriver = (ride: RideDto) => {
+  if (!ride.driverId) return true;
+  const normalizedDriverId = String(ride.driverId).trim().toLowerCase();
+  return normalizedDriverId === "null" || normalizedDriverId === "undefined";
+};
+
 type RideRealtimeState = {
   availableRides: RideDto[];
   myRides: RideDto[];
@@ -26,7 +34,7 @@ type RideRealtimeState = {
   setDriverCoords: (coords: DriverCoords | null) => void;
 };
 
-const isIncomingRide = (ride: RideDto) => ["pending", "requested"].includes(ride.status) && !ride.driverId;
+const isIncomingRide = (ride: RideDto) => ["pending", "requested"].includes(normalizeRideStatus(ride.status)) && isUnassignedDriver(ride);
 
 const sortIncoming = (rides: RideDto[]) => rides
   .filter(isIncomingRide)

@@ -57,6 +57,7 @@ const DEFAULT_RIDE_SETTINGS = {
 
 const DEFAULT_SHARE_LINK_TTL_MS = 1000 * 60 * 60 * 24;
 const REQUESTED_LIKE_STATUSES = [RIDE_STATUS.REQUESTED, "requested"];
+const REQUESTED_LIKE_STATUS_REGEX = /^(pending|requested)$/i;
 const ONGOING_LIKE_STATUSES = [RIDE_STATUS.ONGOING, "ongoing"];
 const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = false;
 const ENFORCE_CAMPUS_BOUNDARY = !ALLOW_ANYWHERE_BOOKING_FOR_TESTING;
@@ -472,10 +473,61 @@ export const listRideHistory = asyncHandler(async (req, res) => {
   res.json({ rides: rides.map(serializeRide) });
 });
 
+async function activateDueScheduledRidesForQueue(limit = 25) {
+  const now = new Date();
+
+  const dueScheduledRides = await Ride.find({
+    status: RIDE_STATUS.SCHEDULED,
+    scheduledFor: { $lte: now },
+  })
+    .sort({ scheduledFor: 1 })
+    .limit(limit)
+    .lean();
+
+  for (const scheduledRide of dueScheduledRides) {
+    const match = await findBestDriverForRide({
+      pickup: scheduledRide.pickup,
+      drop: scheduledRide.drop,
+      passengers: scheduledRide.passengers || 1,
+    });
+
+    const activated = await Ride.findOneAndUpdate(
+      {
+        _id: scheduledRide._id,
+        status: RIDE_STATUS.SCHEDULED,
+      },
+      {
+        $set: {
+          status: RIDE_STATUS.REQUESTED,
+          requestedAt: scheduledRide.requestedAt || now,
+          scheduleActivatedAt: now,
+          smartMatch: match,
+          deniedDriverIds: [],
+          updatedAt: now,
+        },
+      },
+      { new: true, lean: true },
+    );
+
+    if (!activated) continue;
+
+    const populatedActivated = await Ride.findById(activated._id)
+      .populate("studentId", "name email phone")
+      .populate("driverId", "name email phone")
+      .lean();
+
+    const serializedActivated = serializeRide(populatedActivated || activated);
+    emitRideUpdate(serializedActivated);
+    emitNewRideRequest(serializedActivated);
+  }
+}
+
 export const listAvailableRides = asyncHandler(async (req, res) => {
+  await activateDueScheduledRidesForQueue();
+
   const driverObjectId = new mongoose.Types.ObjectId(req.user.id);
   const rides = await Ride.find({
-    status: { $in: REQUESTED_LIKE_STATUSES },
+    status: { $regex: REQUESTED_LIKE_STATUS_REGEX },
     driverId: null,
     deniedDriverIds: { $ne: driverObjectId },
   })
@@ -572,7 +624,7 @@ export const acceptRide = asyncHandler(async (req, res) => {
   const updatedRide = await Ride.findOneAndUpdate(
     {
       _id: rideId,
-      status: { $in: REQUESTED_LIKE_STATUSES },
+      status: { $regex: REQUESTED_LIKE_STATUS_REGEX },
       driverId: null,
       deniedDriverIds: { $ne: new mongoose.Types.ObjectId(req.user.id) },
     },
@@ -614,7 +666,7 @@ export const rejectRide = asyncHandler(async (req, res) => {
   const deniedRide = await Ride.findOneAndUpdate(
     {
       _id: rideId,
-      status: { $in: REQUESTED_LIKE_STATUSES },
+      status: { $regex: REQUESTED_LIKE_STATUS_REGEX },
       driverId: null,
     },
     {
