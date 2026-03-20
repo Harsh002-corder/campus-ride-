@@ -430,6 +430,10 @@ const DriverDashboard = () => {
   const securityCallHref = securityDigits.length >= 3 ? `tel:${securityDigits}` : undefined;
   const ambulanceDigits = toPhoneDigits(rideAmbulancePhone);
   const ambulanceCallHref = ambulanceDigits.length >= 3 ? `tel:${ambulanceDigits}` : undefined;
+  const rideHistoryRefreshKey = useMemo(
+    () => myRides.map((ride) => `${ride.id}:${ride.status}:${ride.updatedAt || ""}`).join("|"),
+    [myRides],
+  );
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
@@ -1120,7 +1124,8 @@ const DriverDashboard = () => {
                 <RideHistoryTabs
                   compact
                   allowedTabs={["all", "completed", "cancelled"]}
-                  allTabFilter="finalizedOnly"
+                  allTabFilter="allRides"
+                  refreshKey={rideHistoryRefreshKey.length}
                 />
               </div>
             </div>
