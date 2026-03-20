@@ -29,6 +29,13 @@ const statusColors: Record<RideStatus, string> = {
   cancelled: "text-destructive",
 };
 
+const getRideStatusTextClass = (status: RideDto["status"]) => {
+  if (status === "accepted" || status === "completed") return "text-green-400";
+  if (status === "cancelled") return "text-destructive";
+  if (status === "pending" || status === "requested") return "text-blue-400";
+  return statusColors.active;
+};
+
 interface RideHistoryTabsProps {
   compact?: boolean;
   initialTab?: RideStatus;
@@ -191,7 +198,7 @@ const RideHistoryTabs = ({
   };
 
   const statusTone = (status: RideDto["status"]) => {
-    if (status === "completed") return "text-green-400";
+    if (status === "accepted" || status === "completed") return "text-green-400";
     if (status === "cancelled") return "text-destructive";
     return "text-blue-400";
   };
@@ -341,7 +348,7 @@ const RideHistoryTabs = ({
               </div>
               <div className="text-right shrink-0">
                 <p className="font-semibold text-xs text-primary">View details</p>
-                <p className={`text-xs capitalize ${statusColors[ride.status === "completed" ? "completed" : ride.status === "cancelled" ? "cancelled" : "active"]}`}>{ride.status}</p>
+                <p className={`text-xs capitalize ${getRideStatusTextClass(ride.status)}`}>{ride.status}</p>
                 {ride.fareBreakdown?.totalFare != null && <p className="text-[11px] text-muted-foreground">Rs {ride.fareBreakdown.totalFare}</p>}
               </div>
             </motion.button>

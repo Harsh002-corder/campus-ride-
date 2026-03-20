@@ -131,7 +131,8 @@ const AdminRides = ({ refreshKey = 0 }: AdminRidesProps) => {
                   <span className="text-xs text-muted-foreground">#{ride.id.slice(-6)}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     ride.status === "completed" ? "bg-green-500/20 text-green-400" :
-                    ride.status === "in_progress" || ride.status === "ongoing" || ride.status === "accepted" ? "bg-primary/20 text-primary" :
+                    ride.status === "accepted" ? "bg-green-500/20 text-green-400" :
+                    ride.status === "in_progress" || ride.status === "ongoing" ? "bg-primary/20 text-primary" :
                     ride.status === "pending" || ride.status === "requested" ? "bg-blue-500/20 text-blue-400" :
                     "bg-destructive/20 text-destructive"
                   }`}>{ride.status}</span>
