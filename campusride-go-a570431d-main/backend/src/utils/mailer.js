@@ -3,66 +3,117 @@ import { env } from "../config/env.js";
 
 let transporter;
 
+function logMail(level, message, extra = {}) {
+  const prefix = `[mailer] ${message}`;
+  if (level === "error") {
+    console.error(prefix, extra);
+    return;
+  }
+  if (level === "warn") {
+    console.warn(prefix, extra);
+    return;
+  }
+  console.log(prefix, extra);
+}
+
+function hasEmailCredentials() {
+  return Boolean(env.emailUser && env.emailPass);
+}
+
+function normalizeMailerError(error) {
+  const rawMessage = error instanceof Error ? error.message : "Unknown email error";
+  return {
+    reason: rawMessage,
+    code: "EMAIL_SEND_FAILED",
+  };
+}
+
 function getTransporter() {
   if (transporter) {
     return transporter;
   }
 
-  if (!env.emailUser || !env.emailPass) {
+  if (!hasEmailCredentials()) {
+    logMail("warn", "Email credentials are missing", {
+      hasEmailUser: Boolean(env.emailUser),
+      hasEmailPass: Boolean(env.emailPass),
+      nodeEnv: env.nodeEnv,
+    });
     return null;
   }
 
   transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
     auth: {
       user: env.emailUser,
       pass: env.emailPass,
     },
   });
 
+  logMail("info", "SMTP transporter initialized", {
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    nodeEnv: env.nodeEnv,
+  });
+
   return transporter;
 }
 
-export async function sendSignupOtpEmail({ to, name, otp, expiresMinutes }) {
+async function sendWithTransport(mailOptions) {
   const transport = getTransporter();
   if (!transport) {
-    return { sent: false, reason: "Email credentials are not configured" };
+    return {
+      sent: false,
+      reason: "Email credentials are not configured",
+      code: "EMAIL_CREDENTIALS_MISSING",
+    };
   }
 
-  await transport.sendMail({
+  try {
+    const info = await transport.sendMail(mailOptions);
+    logMail("info", "Email sent", {
+      messageId: info.messageId,
+      response: info.response,
+    });
+    return { sent: true };
+  } catch (error) {
+    const normalized = normalizeMailerError(error);
+    logMail("error", "Email send failed", {
+      code: normalized.code,
+      reason: normalized.reason,
+    });
+    return {
+      sent: false,
+      reason: normalized.reason,
+      code: normalized.code,
+    };
+  }
+}
+
+export async function sendSignupOtpEmail({ to, name, otp, expiresMinutes }) {
+  return sendWithTransport({
     from: env.emailFrom || env.emailUser,
     to,
     subject: "CampusRide OTP Verification",
     text: `Hi ${name || "there"},\n\nYour CampusRide OTP is: ${otp}\nIt expires in ${expiresMinutes} minutes.\n\nIf you did not request this, please ignore this email.`,
     html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">\n      <p>Hi ${name || "there"},</p>\n      <p>Your CampusRide OTP is:</p>\n      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${otp}</p>\n      <p>This OTP expires in ${expiresMinutes} minutes.</p>\n      <p>If you did not request this, please ignore this email.</p>\n    </div>`,
   });
-
-  return { sent: true };
 }
 
 export async function sendPasswordResetOtpEmail({ to, name, otp, expiresMinutes }) {
-  const transport = getTransporter();
-  if (!transport) {
-    return { sent: false, reason: "Email credentials are not configured" };
-  }
-
-  await transport.sendMail({
+  return sendWithTransport({
     from: env.emailFrom || env.emailUser,
     to,
     subject: "CampusRide Password Reset OTP",
     text: `Hi ${name || "there"},\n\nUse this OTP to reset your CampusRide password: ${otp}\nIt expires in ${expiresMinutes} minutes.\n\nIf you did not request this, please ignore this email.`,
     html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">\n      <p>Hi ${name || "there"},</p>\n      <p>Use this OTP to reset your CampusRide password:</p>\n      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${otp}</p>\n      <p>This OTP expires in ${expiresMinutes} minutes.</p>\n      <p>If you did not request this, please ignore this email.</p>\n    </div>`,
   });
-
-  return { sent: true };
 }
 
 export async function sendAccountStatusEmail({ to, name, title, message, details }) {
-  const transport = getTransporter();
-  if (!transport) {
-    return { sent: false, reason: "Email credentials are not configured" };
-  }
-
   const detailsBlock = Array.isArray(details) && details.length > 0
     ? `\n\nDetails:\n- ${details.join("\n- ")}`
     : "";
@@ -71,7 +122,7 @@ export async function sendAccountStatusEmail({ to, name, title, message, details
     ? `<ul>${details.map((item) => `<li>${item}</li>`).join("")}</ul>`
     : "";
 
-  await transport.sendMail({
+  return sendWithTransport({
     from: env.emailFrom || env.emailUser,
     to,
     subject: title || "CampusRide Account Update",
@@ -83,17 +134,10 @@ export async function sendAccountStatusEmail({ to, name, title, message, details
       <p>If you believe this is incorrect, contact support.</p>
     </div>`,
   });
-
-  return { sent: true };
 }
 
 export async function sendAccountDeletedEmail({ to, name }) {
-  const transport = getTransporter();
-  if (!transport) {
-    return { sent: false, reason: "Email credentials are not configured" };
-  }
-
-  await transport.sendMail({
+  return sendWithTransport({
     from: env.emailFrom || env.emailUser,
     to,
     subject: "CampusRide Account Deleted",
@@ -104,20 +148,13 @@ export async function sendAccountDeletedEmail({ to, name }) {
       <p>If this was not expected, please contact support immediately.</p>
     </div>`,
   });
-
-  return { sent: true };
 }
 
 export async function sendRideInvoiceEmail({ to, name, rideId, fare, pickup, drop, createdAt, completedAt, pdfBuffer }) {
-  const transport = getTransporter();
-  if (!transport) {
-    return { sent: false, reason: "Email credentials are not configured" };
-  }
-
   const subject = `CampusRide Receipt • Ride ${rideId}`;
   const safeFare = Number(fare || 0).toFixed(2);
 
-  await transport.sendMail({
+  return sendWithTransport({
     from: env.emailFrom || env.emailUser,
     to,
     subject,
@@ -142,6 +179,4 @@ export async function sendRideInvoiceEmail({ to, name, rideId, fare, pickup, dro
       }]
       : [],
   });
-
-  return { sent: true };
 }
