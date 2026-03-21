@@ -268,6 +268,17 @@
     z-index: 1;
   }
 
+  .btn-primary-gradient::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 193, 7, 0.32);
+    pointer-events: none;
+    z-index: 0;
+    animation: btn-ring-pulse 1.8s ease-in-out infinite;
+  }
+
   .btn-outline-glow {
     background: transparent;
     color: hsl(var(--foreground));
@@ -282,6 +293,17 @@
     border-color: hsl(var(--primary));
     box-shadow: var(--shadow-glow-sm);
     color: hsl(var(--primary));
+  }
+
+  .btn-outline-glow::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 193, 7, 0.22);
+    pointer-events: none;
+    z-index: 0;
+    animation: btn-ring-pulse 2.1s ease-in-out infinite;
   }
 
   /* Outer motion for all clickable controls. */
@@ -554,4 +576,9 @@
 @keyframes btn-outline-inlay {
   0%, 100% { opacity: 0.22; transform: scale(0.96); }
   50% { opacity: 0.48; transform: scale(1); }
+}
+
+@keyframes btn-ring-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.015); }
 }
