@@ -108,7 +108,7 @@ export const requestSignupOtp = asyncHandler(async (req, res) => {
   };
 
   if (!mailResult.sent) {
-    const emailNotConfigured = mailResult.reason === "Email credentials are not configured";
+    const emailNotConfigured = mailResult.code === "EMAIL_CREDENTIALS_MISSING";
     if (env.nodeEnv === "production" && !emailNotConfigured) {
       throw new AppError(500, `Failed to send OTP email: ${mailResult.reason}`);
     }
@@ -261,9 +261,13 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
     });
 
     if (emailNotConfigured) {
-      return res.status(503).json({
-        message: "Password reset service is temporarily unavailable. Configure EMAIL_USER and EMAIL_PASS.",
-        error: "Email credentials are not configured",
+      return res.status(201).json({
+        message: "Password reset OTP generated (email unavailable).",
+        email,
+        expiresAt,
+        delivery: "email-not-configured",
+        deliveryReason: mailResult.reason,
+        otp,
       });
     }
 
