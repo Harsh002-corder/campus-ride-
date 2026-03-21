@@ -1,7 +1,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { env } from "../config/env.js";
-import { verifyEmailTransport } from "../utils/mailer.js";
+import { sendOtpEmail, verifyEmailTransport } from "../utils/mailer.js";
 import adminRoutes from "./adminRoutes.js";
 import authRoutes from "./authRoutes.js";
 import chatbotRoutes from "./chatbotRoutes.js";
@@ -52,6 +52,38 @@ router.get("/health/email", async (_req, res, next) => {
 
     const statusCode = result.ok ? 200 : result.configured ? 502 : 503;
     res.status(statusCode).json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/test-email", async (req, res, next) => {
+  try {
+    const to = String(req.query.to || env.emailUser || "").trim();
+    const otp = String(req.query.otp || "123456").trim();
+    const result = await sendOtpEmail(to, otp, {
+      name: "CampusRide Admin",
+      subject: "CampusRide Test OTP Email",
+      intro: "This is a test OTP from CampusRide:",
+      expiresMinutes: 10,
+    });
+
+    if (!result.sent) {
+      const statusCode = result.code === "EMAIL_CREDENTIALS_MISSING" ? 503 : 502;
+      return res.status(statusCode).json({
+        ok: false,
+        message: "Test email failed",
+        reason: result.reason,
+        code: result.code || "EMAIL_SEND_FAILED",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Test email sent",
+      to,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     next(error);
   }

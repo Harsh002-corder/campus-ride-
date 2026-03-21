@@ -2,6 +2,8 @@ import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 
 let transporter;
+const MAIL_TIMEOUT_MS = 12_000;
+const MAIL_MAX_ATTEMPTS = 2;
 
 function logMail(level, message, extra = {}) {
   const prefix = `[mailer] ${message}`;
@@ -18,6 +20,20 @@ function logMail(level, message, extra = {}) {
 
 function hasEmailCredentials() {
   return Boolean(env.emailUser && env.emailPass);
+}
+
+function getMissingEmailEnvVars() {
+  const missing = [];
+  if (!env.emailUser) {
+    missing.push("EMAIL_USER");
+  }
+  if (!env.emailPass) {
+    missing.push("EMAIL_PASS");
+  }
+  if (!env.emailFrom) {
+    missing.push("EMAIL_FROM");
+  }
+  return missing;
 }
 
 function normalizeMailerError(error) {
@@ -94,51 +110,104 @@ export async function verifyEmailTransport() {
 async function sendWithTransport(mailOptions) {
   const transport = getTransporter();
   if (!transport) {
+    const missing = getMissingEmailEnvVars();
+    const reason = `Email credentials are not configured: missing ${missing.join(", ")}`;
+    logMail("error", reason, {
+      nodeEnv: env.nodeEnv,
+    });
     return {
       sent: false,
-      reason: "Email credentials are not configured",
+      reason,
       code: "EMAIL_CREDENTIALS_MISSING",
     };
   }
 
-  try {
-    const info = await transport.sendMail(mailOptions);
-    logMail("info", "Email sent", {
-      messageId: info.messageId,
-      response: info.response,
-    });
-    return { sent: true };
-  } catch (error) {
-    const normalized = normalizeMailerError(error);
-    logMail("error", "Email send failed", {
-      code: normalized.code,
-      reason: normalized.reason,
-    });
+  for (let attempt = 1; attempt <= MAIL_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const info = await Promise.race([
+        transport.sendMail(mailOptions),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Email send timeout after ${MAIL_TIMEOUT_MS}ms`)), MAIL_TIMEOUT_MS);
+        }),
+      ]);
+
+      logMail("info", "Email sent", {
+        attempt,
+        messageId: info?.messageId,
+        response: info?.response,
+      });
+
+      return { sent: true };
+    } catch (error) {
+      const normalized = normalizeMailerError(error);
+      logMail("error", "Email send failed", {
+        attempt,
+        code: normalized.code,
+        reason: normalized.reason,
+      });
+
+      if (attempt >= MAIL_MAX_ATTEMPTS) {
+        return {
+          sent: false,
+          reason: normalized.reason,
+          code: normalized.code,
+        };
+      }
+    }
+  }
+
+  return {
+    sent: false,
+    reason: "Email send failed after retry",
+    code: "EMAIL_SEND_FAILED",
+  };
+}
+
+export async function sendOtpEmail(to, otp, options = {}) {
+  const recipient = String(to || "").trim();
+  if (!recipient) {
     return {
       sent: false,
-      reason: normalized.reason,
-      code: normalized.code,
+      reason: "Recipient email is required",
+      code: "EMAIL_RECIPIENT_MISSING",
     };
   }
+
+  const name = options.name || "there";
+  const expiresMinutes = Number(options.expiresMinutes || env.otpTtlMinutes || 10);
+  const subject = options.subject || "CampusRide OTP Verification";
+  const intro = options.intro || "Your CampusRide OTP is:";
+
+  return sendWithTransport({
+    from: env.emailFrom || env.emailUser,
+    to: recipient,
+    subject,
+    text: `Hi ${name},\n\n${intro} ${otp}\nIt expires in ${expiresMinutes} minutes.\n\nIf you did not request this, please ignore this email.`,
+    html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
+      <p>Hi ${name},</p>
+      <p>${intro}</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${otp}</p>
+      <p>This OTP expires in ${expiresMinutes} minutes.</p>
+      <p>If you did not request this, please ignore this email.</p>
+    </div>`,
+  });
 }
 
 export async function sendSignupOtpEmail({ to, name, otp, expiresMinutes }) {
-  return sendWithTransport({
-    from: env.emailFrom || env.emailUser,
-    to,
+  return sendOtpEmail(to, otp, {
+    name,
+    expiresMinutes,
     subject: "CampusRide OTP Verification",
-    text: `Hi ${name || "there"},\n\nYour CampusRide OTP is: ${otp}\nIt expires in ${expiresMinutes} minutes.\n\nIf you did not request this, please ignore this email.`,
-    html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">\n      <p>Hi ${name || "there"},</p>\n      <p>Your CampusRide OTP is:</p>\n      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${otp}</p>\n      <p>This OTP expires in ${expiresMinutes} minutes.</p>\n      <p>If you did not request this, please ignore this email.</p>\n    </div>`,
+    intro: "Your CampusRide OTP is:",
   });
 }
 
 export async function sendPasswordResetOtpEmail({ to, name, otp, expiresMinutes }) {
-  return sendWithTransport({
-    from: env.emailFrom || env.emailUser,
-    to,
+  return sendOtpEmail(to, otp, {
+    name,
+    expiresMinutes,
     subject: "CampusRide Password Reset OTP",
-    text: `Hi ${name || "there"},\n\nUse this OTP to reset your CampusRide password: ${otp}\nIt expires in ${expiresMinutes} minutes.\n\nIf you did not request this, please ignore this email.`,
-    html: `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">\n      <p>Hi ${name || "there"},</p>\n      <p>Use this OTP to reset your CampusRide password:</p>\n      <p style="font-size:28px;font-weight:700;letter-spacing:4px">${otp}</p>\n      <p>This OTP expires in ${expiresMinutes} minutes.</p>\n      <p>If you did not request this, please ignore this email.</p>\n    </div>`,
+    intro: "Use this OTP to reset your CampusRide password:",
   });
 }
 
