@@ -53,6 +53,17 @@ type TrackRideSplashState = {
   driverName: string;
 };
 
+type RideBookingRequest = {
+  pickupStop: CampusStop;
+  dropStop: CampusStop;
+  passengerCount: number;
+  passengerNames: string[];
+  splitFare: boolean;
+  scheduledAt?: string;
+};
+
+type RecentRideFilter = "all" | "completed" | "cancelled";
+
 // Removed 200m pickup distance enforcement
 const COARSE_GPS_ACCURACY_THRESHOLD_METERS = 1200;
 // TODO: set back to false before going live
@@ -162,6 +173,7 @@ const StudentDashboard = () => {
   const [feedbackRide, setFeedbackRide] = useState<RideDto | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [recentRideFilter, setRecentRideFilter] = useState<RecentRideFilter>("all");
   const [rideBookingEnabled, setRideBookingEnabled] = useState(true);
   const [rideMaxPassengers, setRideMaxPassengers] = useState(4);
   const [rideSupportPhone, setRideSupportPhone] = useState("+91 90000 00000");
@@ -378,6 +390,24 @@ const StudentDashboard = () => {
     [rides],
   );
 
+  const recentBookableRides = useMemo(
+    () => rides
+      .filter((ride) => (
+        ["completed", "cancelled"].includes(ride.status)
+        && Boolean(ride.pickup?.label)
+        && Boolean(ride.drop?.label)
+      ))
+      .slice(0, 5),
+    [rides],
+  );
+
+  const filteredRecentBookableRides = useMemo(
+    () => recentBookableRides.filter((ride) => (
+      recentRideFilter === "all" ? true : ride.status === recentRideFilter
+    )),
+    [recentBookableRides, recentRideFilter],
+  );
+
   const animatedTotal = useCountUp(rideStats.total, 900, true);
   const animatedCompleted = useCountUp(rideStats.completed, 900, true);
   const animatedCancelled = useCountUp(rideStats.cancelled, 900, true);
@@ -467,6 +497,95 @@ const StudentDashboard = () => {
     setGpsVerification({ state: "idle", message: "Select pickup to verify GPS" });
   };
 
+  const requestRide = useCallback(async ({
+    pickupStop: resolvedPickup,
+    dropStop: resolvedDrop,
+    passengerCount,
+    passengerNames,
+    splitFare: splitFareValue,
+    scheduledAt: scheduledAtValue,
+  }: RideBookingRequest) => {
+    if (!rideBookingEnabled) {
+      toast.info("Ride booking disabled", "Admin has temporarily paused ride booking.");
+      return false;
+    }
+
+    if (!SKIP_GPS_VERIFICATION && !isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
+      setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
+      setOutsideCampusAlertOpen(true);
+      return false;
+    }
+
+    if (resolvedPickup.lat === resolvedDrop.lat && resolvedPickup.lng === resolvedDrop.lng) {
+      setGpsVerification({ state: "failed", message: "Pickup and drop cannot be the same" });
+      toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
+      return false;
+    }
+
+    let gpsLocation: { lat: number; lng: number; accuracy: number | null };
+
+    if (SKIP_GPS_VERIFICATION) {
+      gpsLocation = { lat: resolvedPickup.lat, lng: resolvedPickup.lng, accuracy: null };
+      setGpsVerification({ state: "verified", message: "GPS check bypassed (test mode)" });
+    } else {
+      setGpsVerification({ state: "checking", message: "Verifying pickup with GPS..." });
+      try {
+        gpsLocation = await getCurrentPosition();
+      } catch (error) {
+        setGpsVerification({ state: "failed", message: "GPS access required for booking" });
+        toast.error("Unable to verify your location", error, "Enable location access to book rides.");
+        return false;
+      }
+
+      const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
+        || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
+
+      if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
+        setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
+        setOutsideCampusAlertOpen(true);
+        return false;
+      }
+
+      setGpsVerification({
+        state: "verified",
+        message: isCoarseGps
+          ? "Low GPS accuracy detected; pickup stop verification accepted"
+          : "GPS verified",
+      });
+
+      if (isCoarseGps) {
+        toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
+      }
+    }
+
+    setBooking(true);
+    try {
+      const response = await apiClient.rides.book({
+        pickup: { lat: resolvedPickup.lat, lng: resolvedPickup.lng, label: resolvedPickup.name },
+        drop: { lat: resolvedDrop.lat, lng: resolvedDrop.lng, label: resolvedDrop.name },
+        studentGps: { lat: gpsLocation.lat, lng: gpsLocation.lng, accuracy: gpsLocation.accuracy || undefined },
+        passengers: passengerCount,
+        passengerNames,
+        splitFare: splitFareValue,
+        scheduledAt: scheduledAtValue || undefined,
+      });
+
+      toast.success(
+        response.ride.status === "scheduled" ? "Ride scheduled successfully" : "Ride requested successfully",
+        response.ride.status === "scheduled"
+          ? `Scheduled for ${new Date(response.ride.scheduledFor || response.ride.createdAt).toLocaleString()}`
+          : `Share verification code ${response.ride.verificationCode} with your driver.`,
+      );
+      await loadMyRides();
+      return true;
+    } catch (error) {
+      toast.error("Could not request ride", error);
+      return false;
+    } finally {
+      setBooking(false);
+    }
+  }, [campusBoundary, loadMyRides, rideBookingEnabled, toast]);
+
   const handleFindRide = async () => {
     if (!rideBookingEnabled) {
       toast.info("Ride booking disabled", "Admin has temporarily paused ride booking.");
@@ -482,86 +601,59 @@ const StudentDashboard = () => {
       return;
     }
 
-    if (!SKIP_GPS_VERIFICATION && !isWithinBoundary({ lat: resolvedPickup.lat, lng: resolvedPickup.lng }, campusBoundary)) {
-      setGpsVerification({ state: "failed", message: "Pickup outside campus boundary" });
-      setOutsideCampusAlertOpen(true);
-      return;
-    }
-
-    if (resolvedPickup.lat === resolvedDrop.lat && resolvedPickup.lng === resolvedDrop.lng) {
-      setGpsVerification({ state: "failed", message: "Pickup and drop cannot be the same" });
-      toast.info("Invalid route", "Pickup and drop locations cannot be the same.");
-      return;
-    }
-
-    let gpsLocation: { lat: number; lng: number; accuracy: number | null };
-
-    if (SKIP_GPS_VERIFICATION) {
-      // GPS check disabled for testing — use pickup stop coords as fake GPS
-      gpsLocation = { lat: resolvedPickup.lat, lng: resolvedPickup.lng, accuracy: null };
-      setGpsVerification({ state: "verified", message: "GPS check bypassed (test mode)" });
-    } else {
-      setGpsVerification({ state: "checking", message: "Verifying pickup with GPS..." });
-      try {
-        gpsLocation = await getCurrentPosition();
-      } catch (error) {
-        setGpsVerification({ state: "failed", message: "GPS access required for booking" });
-        toast.error("Unable to verify your location", error, "Enable location access to book rides.");
-        return;
-      }
-
-      const isCoarseGps = !Number.isFinite(gpsLocation.accuracy || NaN)
-        || (gpsLocation.accuracy || 0) > COARSE_GPS_ACCURACY_THRESHOLD_METERS;
-
-      if (!isWithinBoundary({ lat: gpsLocation.lat, lng: gpsLocation.lng }, campusBoundary) && !isCoarseGps) {
-        setGpsVerification({ state: "failed", message: "Your current GPS is outside campus" });
-        setOutsideCampusAlertOpen(true);
-        return;
-      }
-
-      // 200m pickup distance check permanently removed; any pickup allowed
-
-      setGpsVerification({
-        state: "verified",
-        message: isCoarseGps
-          ? "Low GPS accuracy detected; pickup stop verification accepted"
-          : `GPS verified`,
-      });
-
-      if (isCoarseGps) {
-        toast.info("Low GPS accuracy", "Proceeding with selected pickup stop because device GPS is coarse.");
-      }
-    }
-
     const passengerNames = passengerNamesText
       .split(",")
       .map((name) => name.trim())
       .filter(Boolean)
       .slice(0, passengers);
 
-    setBooking(true);
-    try {
-      const response = await apiClient.rides.book({
-        pickup: { lat: resolvedPickup.lat, lng: resolvedPickup.lng, label: resolvedPickup.name || pickup },
-        drop: { lat: resolvedDrop.lat, lng: resolvedDrop.lng, label: resolvedDrop.name || drop },
-        studentGps: { lat: gpsLocation.lat, lng: gpsLocation.lng, accuracy: gpsLocation.accuracy || undefined },
-        passengers,
-        passengerNames,
-        splitFare,
-        scheduledAt: scheduledAt || undefined,
-      });
+    void await requestRide({
+      pickupStop: resolvedPickup,
+      dropStop: resolvedDrop,
+      passengerCount: passengers,
+      passengerNames,
+      splitFare,
+      scheduledAt,
+    });
+  };
 
-      toast.success(
-        response.ride.status === "scheduled" ? "Ride scheduled successfully" : "Ride requested successfully",
-        response.ride.status === "scheduled"
-          ? `Scheduled for ${new Date(response.ride.scheduledFor || response.ride.createdAt).toLocaleString()}`
-          : `Share verification code ${response.ride.verificationCode} with your driver.`,
-      );
-      await loadMyRides();
-    } catch (error) {
-      toast.error("Could not request ride", error);
-    } finally {
-      setBooking(false);
+  const handleRebookRecentRide = async (ride: RideDto) => {
+    if (!ride.pickup || !ride.drop) {
+      toast.info("Route unavailable", "This recent ride does not have complete route details.");
+      return;
+    }
+
+    const pickupLabel = ride.pickup.label || "";
+    const dropLabel = ride.drop.label || "";
+
+    const nextPickupStop = runtimeStops.find((stop) => stop.name.toLowerCase() === pickupLabel.toLowerCase())
+      || { name: pickupLabel, lat: ride.pickup.lat, lng: ride.pickup.lng };
+    const nextDropStop = runtimeStops.find((stop) => stop.name.toLowerCase() === dropLabel.toLowerCase())
+      || { name: dropLabel, lat: ride.drop.lat, lng: ride.drop.lng };
+
+    const nextPassengers = Math.max(1, Math.min(rideMaxPassengers, ride.passengers || 1));
+    const nextPassengerNames = (ride.passengerNames || []).slice(0, nextPassengers);
+
+    setPickup(nextPickupStop.name);
+    setDrop(nextDropStop.name);
+    setPickupStop(nextPickupStop);
+    setDropStop(nextDropStop);
+    setPassengers(nextPassengers);
+    setPassengerNamesText(nextPassengerNames.join(", "));
+    setScheduledAt("");
+    setGpsVerification({ state: "idle", message: "Press Rebook to verify GPS" });
+
+    const booked = await requestRide({
+      pickupStop: nextPickupStop,
+      dropStop: nextDropStop,
+      passengerCount: nextPassengers,
+      passengerNames: nextPassengerNames,
+      splitFare,
+      scheduledAt: undefined,
+    });
+
+    if (booked) {
+      toast.success("Rebooked from recent ride", `${nextPickupStop.name} → ${nextDropStop.name}`);
     }
   };
 
@@ -1318,6 +1410,69 @@ const StudentDashboard = () => {
             )}
 
             {/* Ride History */}
+            {recentBookableRides.length > 0 && (
+              <motion.div {...card(8)} className="card-glass">
+                <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+                  <h2 className="text-lg font-bold font-display">Recent Rides</h2>
+                  <div className="inline-flex items-center rounded-lg border border-border bg-muted/30 p-1">
+                    {([
+                      { key: "all", label: "All" },
+                      { key: "completed", label: "Completed" },
+                      { key: "cancelled", label: "Cancelled" },
+                    ] as Array<{ key: RecentRideFilter; label: string }>).map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setRecentRideFilter(item.key)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-medium transition-colors ${
+                          recentRideFilter === item.key
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Use previous routes for faster booking</p>
+
+                <div className="space-y-2.5">
+                  {filteredRecentBookableRides.map((ride) => (
+                    <div
+                      key={ride.id}
+                      className="rounded-xl border border-border bg-muted/25 px-3 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">
+                          {ride.pickup?.label || "Unknown pickup"} → {ride.drop?.label || "Unknown drop"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(ride.createdAt).toLocaleString()} · {ride.passengers || 1} passenger{(ride.passengers || 1) > 1 ? "s" : ""}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground capitalize">{ride.status.replace("_", " ")}</p>
+                      </div>
+
+                      <motion.button
+                        {...tapSoft}
+                        whileHover={{ y: -1 }}
+                        onClick={() => void handleRebookRecentRide(ride)}
+                        disabled={booking || !rideBookingEnabled}
+                        className="btn-primary-gradient px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap disabled:opacity-70"
+                      >
+                        {booking ? "Booking..." : "Rebook Ride"}
+                      </motion.button>
+                    </div>
+                  ))}
+                  {filteredRecentBookableRides.length === 0 && (
+                    <p className="text-sm text-muted-foreground border border-dashed border-border rounded-xl px-3 py-4 text-center">
+                      No rides found for the selected filter.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold font-display">My Rides</h2>
@@ -1333,7 +1488,7 @@ const StudentDashboard = () => {
               <RideHistoryTabs compact />
             </div>
 
-            <motion.div {...card(8)} className="card-glass">
+            <motion.div {...card(9)} className="card-glass">
               <h2 className="text-lg font-bold font-display mb-1">Report Post-Ride Issue</h2>
               <p className="text-xs text-muted-foreground mb-4">Raise a complaint for completed or cancelled rides. Admin will review it in the Issue Center.</p>
 

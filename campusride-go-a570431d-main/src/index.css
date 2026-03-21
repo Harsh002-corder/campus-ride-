@@ -269,6 +269,96 @@
     color: hsl(var(--primary));
   }
 
+  /* Outer motion for all clickable controls. */
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]) {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 260ms ease,
+      filter 220ms ease,
+      background-color 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease;
+    will-change: transform;
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+    filter: saturate(1.05);
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  /* Inner motion for label/icon content. */
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow) > :where(span, svg) {
+    transition: transform 220ms ease, opacity 220ms ease;
+    transform-origin: center;
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover > :where(svg) {
+    transform: scale(1.08) rotate(-3deg);
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover > :where(span) {
+    transform: translateY(-0.5px);
+  }
+
+  /* Primary buttons: glossy sweep + stronger elevation. */
+  :where(button, [role="button"], a).btn-primary-gradient {
+    isolation: isolate;
+  }
+
+  :where(button, [role="button"], a).btn-primary-gradient::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -24%;
+    width: 32%;
+    border-radius: inherit;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0));
+    transform: skewX(-18deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :where(button, [role="button"], a).btn-primary-gradient:not(:disabled):not([aria-disabled="true"]):hover::before {
+    animation: btn-sheen 820ms ease forwards;
+    opacity: 1;
+  }
+
+  /* Outline/subtle actions: inlay surface fill on hover. */
+  :where(button, [role="button"], a).btn-outline-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: hsl(var(--primary) / 0.08);
+    opacity: 0;
+    transform: scale(0.94);
+    transition: transform 240ms ease, opacity 240ms ease;
+    z-index: -1;
+  }
+
+  :where(button, [role="button"], a).btn-outline-glow:not(:disabled):not([aria-disabled="true"]):hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Destructive actions: intentional warning pulse. */
+  :where(button, [role="button"])[data-button-tone="danger"],
+  :where(button, [role="button"])[class*="bg-destructive"],
+  :where(button, [role="button"])[class*="text-destructive"] {
+    box-shadow: inset 0 0 0 1px hsl(var(--destructive) / 0.12);
+  }
+
+  :where(button, [role="button"])[data-button-tone="danger"]:not(:disabled):not([aria-disabled="true"]):hover,
+  :where(button, [role="button"])[class*="bg-destructive"]:not(:disabled):not([aria-disabled="true"]):hover,
+  :where(button, [role="button"])[class*="text-destructive"]:not(:disabled):not([aria-disabled="true"]):hover {
+    box-shadow: 0 8px 20px hsl(var(--destructive) / 0.22), inset 0 0 0 1px hsl(var(--destructive) / 0.2);
+  }
+
   .card-glass {
     @apply glass rounded-2xl p-6;
     background: var(--gradient-card);
@@ -408,4 +498,10 @@
 @keyframes draw-line {
   from { stroke-dashoffset: 1000; }
   to { stroke-dashoffset: 0; }
+}
+
+@keyframes btn-sheen {
+  0% { transform: translateX(-160%) skewX(-18deg); opacity: 0; }
+  12% { opacity: 0.95; }
+  100% { transform: translateX(420%) skewX(-18deg); opacity: 0; }
 }
