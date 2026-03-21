@@ -252,7 +252,7 @@
     overflow: hidden;
     isolation: isolate;
     background-size: 180% 180%;
-    animation: btn-breathe 2.6s ease-in-out infinite;
+    animation: btn-breathe 2.6s ease-in-out infinite, btn-gradient-pan 2.2s ease-in-out infinite alternate;
     transition: transform 0.2s ease, box-shadow 0.3s ease;
   }
   .btn-primary-gradient:hover {
@@ -275,7 +275,7 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    animation: btn-outline-breathe 2.8s ease-in-out infinite;
+    animation: btn-outline-breathe 2s ease-in-out infinite;
     transition: all 0.3s ease;
   }
   .btn-outline-glow:hover {
@@ -334,10 +334,10 @@
     border-radius: inherit;
     background: linear-gradient(110deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0));
     transform: skewX(-18deg);
-    opacity: 0;
+    opacity: 0.3;
     z-index: 0;
     pointer-events: none;
-    animation: btn-sheen 2.6s ease-in-out infinite;
+    animation: btn-sheen 1.9s ease-in-out infinite;
   }
 
   :where(button, [role="button"], a).btn-primary-gradient:not(:disabled):not([aria-disabled="true"]):hover::before {
@@ -352,9 +352,10 @@
     inset: 0;
     border-radius: inherit;
     background: hsl(var(--primary) / 0.08);
-    opacity: 0;
+    opacity: 0.35;
     transform: scale(0.94);
     transition: transform 240ms ease, opacity 240ms ease;
+    animation: btn-outline-inlay 1.8s ease-in-out infinite;
     z-index: -1;
   }
 
@@ -548,4 +549,9 @@
     box-shadow: 0 10px 20px rgba(255, 193, 7, 0.28);
     border-color: hsl(var(--primary));
   }
+}
+
+@keyframes btn-outline-inlay {
+  0%, 100% { opacity: 0.22; transform: scale(0.96); }
+  50% { opacity: 0.48; transform: scale(1); }
 }
