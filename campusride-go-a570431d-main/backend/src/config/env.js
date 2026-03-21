@@ -1,7 +1,31 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { parseOriginList } from "../utils/originMatcher.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function loadEnv() {
+  const candidates = [
+    path.resolve(__dirname, "../../.env"),
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(__dirname, "../../../.env"),
+  ];
+
+  for (const envPath of candidates) {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath, override: false });
+      return envPath;
+    }
+  }
+
+  dotenv.config();
+  return null;
+}
+
+const loadedEnvPath = loadEnv();
 
 const DEFAULT_CLIENT_ORIGINS = "http://localhost:8080,https://campusride-deploy.vercel.app";
 const DEFAULT_WILDCARD_ORIGIN_PATTERNS = "*.vercel.app";
@@ -44,6 +68,14 @@ export const env = {
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120),
   otpTtlMinutes: Number(process.env.OTP_TTL_MINUTES || 10),
 };
+
+if (env.nodeEnv !== "production") {
+  console.log("[env] dotenv loaded", {
+    envPath: loadedEnvPath || "default",
+    hasEmailUser: Boolean(process.env.EMAIL_USER),
+    hasEmailPass: Boolean(process.env.EMAIL_PASS),
+  });
+}
 
 env.emailUser = process.env.EMAIL_USER || "";
 env.emailPass = process.env.EMAIL_PASS || "";
