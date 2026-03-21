@@ -62,6 +62,35 @@ function getTransporter() {
   return transporter;
 }
 
+export async function verifyEmailTransport() {
+  const transport = getTransporter();
+  if (!transport) {
+    return {
+      ok: false,
+      configured: false,
+      code: "EMAIL_CREDENTIALS_MISSING",
+      message: "Email credentials are not configured",
+    };
+  }
+
+  try {
+    await transport.verify();
+    return {
+      ok: true,
+      configured: true,
+      message: "SMTP connection verified",
+    };
+  } catch (error) {
+    const normalized = normalizeMailerError(error);
+    return {
+      ok: false,
+      configured: true,
+      code: normalized.code,
+      message: normalized.reason,
+    };
+  }
+}
+
 async function sendWithTransport(mailOptions) {
   const transport = getTransporter();
   if (!transport) {

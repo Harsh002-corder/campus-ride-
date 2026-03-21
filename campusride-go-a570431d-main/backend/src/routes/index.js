@@ -1,5 +1,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
+import { env } from "../config/env.js";
+import { verifyEmailTransport } from "../utils/mailer.js";
 import adminRoutes from "./adminRoutes.js";
 import authRoutes from "./authRoutes.js";
 import chatbotRoutes from "./chatbotRoutes.js";
@@ -29,6 +31,27 @@ router.get("/health", async (_req, res, next) => {
       mongoReadyState: mongoose.connection.readyState,
       timestamp: new Date().toISOString(),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/health/email", async (_req, res, next) => {
+  try {
+    const result = await verifyEmailTransport();
+    const payload = {
+      ok: result.ok,
+      service: "email",
+      configured: result.configured,
+      code: result.code || null,
+      message: result.message,
+      hasEmailUser: Boolean(env.emailUser),
+      hasEmailPass: Boolean(env.emailPass),
+      timestamp: new Date().toISOString(),
+    };
+
+    const statusCode = result.ok ? 200 : result.configured ? 502 : 503;
+    res.status(statusCode).json(payload);
   } catch (error) {
     next(error);
   }
