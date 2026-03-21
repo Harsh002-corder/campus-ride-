@@ -9,9 +9,9 @@ const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden" id="home">
       {/* Background effects */}
-      <div className="absolute inset-0" style={{ background: "var(--gradient-hero)" }} />
-      <div className="absolute top-1/4 left-1/4 w-[min(68vw,500px)] h-[min(68vw,500px)] rounded-full opacity-20 animate-pulse-glow" style={{ background: "var(--gradient-glow)" }} />
-      <div className="absolute bottom-1/3 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-15 animate-pulse-glow" style={{ background: "radial-gradient(ellipse, hsl(263, 70%, 50%, 0.2), transparent 70%)", animationDelay: "1.5s" }} />
+      <div className="hero-bg-layer absolute inset-0" />
+      <div className="hero-glow-primary absolute top-1/4 left-1/4 w-[min(68vw,500px)] h-[min(68vw,500px)] rounded-full opacity-20 animate-pulse-glow" />
+      <div className="hero-glow-secondary absolute bottom-1/3 right-1/4 w-[min(60vw,400px)] h-[min(60vw,400px)] rounded-full opacity-15 animate-pulse-glow" />
 
       <div className="container mx-auto px-6 relative z-10 pt-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -98,7 +98,7 @@ const HeroSection = () => {
             className="relative hidden lg:block"
           >
             <div className="relative floating">
-              <div className="absolute -inset-4 rounded-3xl opacity-30" style={{ background: "var(--gradient-glow)" }} />
+              <div className="hero-image-glow absolute -inset-4 rounded-3xl opacity-30" />
               <img
                 src={heroImg}
                 alt="CampusRide e-rickshaw"

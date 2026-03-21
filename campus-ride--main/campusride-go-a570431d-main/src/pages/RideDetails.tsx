@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
 import BrandIcon from "@/components/BrandIcon";
+import ThemeToggle from "@/components/ThemeToggle";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { ArrowLeft, Download } from "lucide-react";
 
@@ -107,16 +108,19 @@ const RideDetails = () => {
                   </span>
                 </a>
               </div>
-              {ride && (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => void handleDownloadInvoice()}
-                  disabled={downloading}
-                  className="btn-primary-gradient px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 disabled:opacity-70"
-                >
-                  <Download className="w-4 h-4" /> {downloading ? "Downloading..." : "Download Invoice"}
-                </motion.button>
-              )}
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                {ride && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => void handleDownloadInvoice()}
+                    disabled={downloading}
+                    className="btn-primary-gradient px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 disabled:opacity-70"
+                  >
+                    <Download className="w-4 h-4" /> {downloading ? "Downloading..." : "Download Invoice"}
+                  </motion.button>
+                )}
+              </div>
             </div>
           </nav>
 

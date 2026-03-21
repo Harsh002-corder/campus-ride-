@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { MotionPrefsProvider } from "@/contexts/MotionPrefsContext";
+import ThemeProvider from "@/contexts/ThemeProvider";
 import InstallAppButton from "@/components/InstallAppButton";
 import MotionToggle from "@/components/MotionToggle";
 import { usePwaUpdate } from "@/hooks/usePwaUpdate";
@@ -95,23 +96,25 @@ const PwaUpdateNotifier = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <MotionPrefsProvider>
-          <BrowserRouter>
-            <AnimatedRoutes />
-            <InstallAppButton />
-            <MotionToggle />
-            <PwaUpdateNotifier />
-            <Suspense fallback={null}>
-              <JarviouWidget />
-            </Suspense>
-          </BrowserRouter>
-        </MotionPrefsProvider>
-      </AuthProvider>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <MotionPrefsProvider>
+            <BrowserRouter>
+              <AnimatedRoutes />
+              <InstallAppButton />
+              <MotionToggle />
+              <PwaUpdateNotifier />
+              <Suspense fallback={null}>
+                <JarviouWidget />
+              </Suspense>
+            </BrowserRouter>
+          </MotionPrefsProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

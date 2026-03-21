@@ -837,7 +837,7 @@ const StudentDashboard = () => {
                 <p className="text-muted-foreground text-sm mb-6">Where are you heading today?</p>
 
                 <div className="flex flex-col gap-3">
-                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                     <StopTypeahead
                       placeholder="Pickup location"
                       value={pickup}
@@ -864,10 +864,10 @@ const StudentDashboard = () => {
                     <motion.button
                       whileTap={{ scale: 0.9, rotate: 180 }}
                       onClick={handleSwapLocations}
-                      className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary transition-colors shrink-0 sm:self-center self-center"
+                      className="mx-auto h-7 w-7 rounded-full border border-primary/35 bg-primary/20 text-primary transition-colors hover:bg-primary/35 shrink-0 flex items-center justify-center sm:-mt-1 shadow-[0_6px_16px_rgba(0,0,0,0.14)]"
                       title="Swap locations"
                     >
-                      <ArrowUpDown className="w-3.5 h-3.5" />
+                      <ArrowUpDown className="w-2.5 h-2.5" />
                     </motion.button>
                     <StopTypeahead
                       placeholder="Drop-off location"

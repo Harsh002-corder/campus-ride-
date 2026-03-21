@@ -5,7 +5,68 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .light {
+    color-scheme: light;
+
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 45 100% 50%;
+    --primary-foreground: 24 100% 18%;
+
+    --secondary: 45 100% 94%;
+    --secondary-foreground: 30 34% 18%;
+
+    --muted: 45 45% 96%;
+    --muted-foreground: 30 8% 32%;
+
+    --accent: 42 100% 49%;
+    --accent-foreground: 24 100% 18%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 49% 82%;
+    --input: 45 49% 82%;
+    --ring: 45 100% 50%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, #ffc107, #ffb300);
+    --gradient-hero: radial-gradient(circle at 15% 10%, rgba(255, 193, 7, 0.26), transparent 45%), linear-gradient(140deg, #ffffff 0%, #fff8e1 52%, #fff3c4 100%);
+    --gradient-card: linear-gradient(135deg, #ffffff 0%, #fffef9 100%);
+    --gradient-glow: radial-gradient(ellipse at center, rgba(255, 193, 7, 0.26), rgba(255, 193, 7, 0) 70%);
+    --gradient-cta: linear-gradient(135deg, #ffc107, #ffb300, #ff9800);
+
+    --shadow-glow-sm: 0 0 20px rgba(255, 193, 7, 0.2);
+    --shadow-glow-md: 0 0 40px rgba(255, 193, 7, 0.16), 0 0 80px rgba(255, 179, 0, 0.1);
+    --shadow-glow-lg: 0 0 60px rgba(255, 193, 7, 0.2), 0 0 120px rgba(255, 179, 0, 0.12);
+    --shadow-card: 0 8px 32px rgba(130, 106, 25, 0.16);
+    --shadow-elevated: 0 20px 60px rgba(130, 106, 25, 0.24);
+
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(255, 193, 7, 0.26);
+
+    --sidebar-background: 45 100% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 24 100% 18%;
+    --sidebar-accent: 45 100% 94%;
+    --sidebar-accent-foreground: 30 34% 18%;
+    --sidebar-border: 45 49% 82%;
+    --sidebar-ring: 45 100% 50%;
+  }
+
+  .dark {
+    color-scheme: dark;
+
     --background: 222 47% 6%;
     --foreground: 210 40% 96%;
 
@@ -33,8 +94,6 @@
     --border: 222 20% 18%;
     --input: 222 20% 18%;
     --ring: 221 83% 53%;
-
-    --radius: 0.75rem;
 
     --gradient-primary: linear-gradient(135deg, hsl(221, 83%, 53%), hsl(263, 70%, 50%));
     --gradient-hero: linear-gradient(135deg, hsl(222, 47%, 6%) 0%, hsl(230, 40%, 12%) 50%, hsl(263, 30%, 10%) 100%);
@@ -253,6 +312,96 @@
     transform: scaleX(1);
   }
 
+  /* Outer motion for all clickable controls. */
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]) {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 260ms ease,
+      filter 220ms ease,
+      background-color 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease;
+    will-change: transform;
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+    filter: saturate(1.05);
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  /* Inner motion for label/icon content. */
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow) > :where(span, svg) {
+    transition: transform 220ms ease, opacity 220ms ease;
+    transform-origin: center;
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover > :where(svg) {
+    transform: scale(1.08) rotate(-3deg);
+  }
+
+  :where(button, [role="button"], a.btn-primary-gradient, a.btn-outline-glow):not(:disabled):not([aria-disabled="true"]):hover > :where(span) {
+    transform: translateY(-0.5px);
+  }
+
+  /* Primary buttons: glossy sweep + stronger elevation. */
+  :where(button, [role="button"], a).btn-primary-gradient {
+    isolation: isolate;
+  }
+
+  :where(button, [role="button"], a).btn-primary-gradient::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -24%;
+    width: 32%;
+    border-radius: inherit;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0));
+    transform: skewX(-18deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :where(button, [role="button"], a).btn-primary-gradient:not(:disabled):not([aria-disabled="true"]):hover::before {
+    animation: btn-sheen 820ms ease forwards;
+    opacity: 1;
+  }
+
+  /* Outline/subtle actions: inlay surface fill on hover. */
+  :where(button, [role="button"], a).btn-outline-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: hsl(var(--primary) / 0.08);
+    opacity: 0;
+    transform: scale(0.94);
+    transition: transform 240ms ease, opacity 240ms ease;
+    z-index: -1;
+  }
+
+  :where(button, [role="button"], a).btn-outline-glow:not(:disabled):not([aria-disabled="true"]):hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Destructive actions: intentional warning pulse. */
+  :where(button, [role="button"])[data-button-tone="danger"],
+  :where(button, [role="button"])[class*="bg-destructive"],
+  :where(button, [role="button"])[class*="text-destructive"] {
+    box-shadow: inset 0 0 0 1px hsl(var(--destructive) / 0.12);
+  }
+
+  :where(button, [role="button"])[data-button-tone="danger"]:not(:disabled):not([aria-disabled="true"]):hover,
+  :where(button, [role="button"])[class*="bg-destructive"]:not(:disabled):not([aria-disabled="true"]):hover,
+  :where(button, [role="button"])[class*="text-destructive"]:not(:disabled):not([aria-disabled="true"]):hover {
+    box-shadow: 0 8px 20px hsl(var(--destructive) / 0.22), inset 0 0 0 1px hsl(var(--destructive) / 0.2);
+  }
+
   :where(button, [role="button"])[data-button-tone="solid"]:not(.no-under-anim)::after,
   .btn-primary-gradient:not(.no-under-anim)::after {
     opacity: 0.35;
@@ -330,6 +479,12 @@
 @keyframes btn-underline-pulse {
   0%, 100% { opacity: 0.24; transform: scaleX(0.25); }
   50% { opacity: 0.68; transform: scaleX(1); }
+}
+
+@keyframes btn-sheen {
+  0% { transform: translateX(-160%) skewX(-18deg); opacity: 0; }
+  12% { opacity: 0.95; }
+  100% { transform: translateX(420%) skewX(-18deg); opacity: 0; }
 }
 
 html.reduced-motion,

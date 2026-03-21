@@ -13,6 +13,7 @@ import { useCountUp } from "@/hooks/useCountUp";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
+import ThemeToggle from "@/components/ThemeToggle";
 import { apiClient, type AuthUser, type RideDto } from "@/lib/apiClient";
 import { buildTodayEarningsFromRides } from "@/lib/driverEarnings";
 import { getSocketClient } from "@/lib/socketClient";
@@ -904,6 +905,7 @@ const DriverDashboard = () => {
                   <Power className="w-4 h-4" />
                   <span className="hidden sm:inline">{isOnline ? "Online" : "Offline"}</span>
                 </motion.button>
+                <ThemeToggle />
                 <NotificationBell />
                 <motion.button
                   whileTap={{ scale: 0.95 }}

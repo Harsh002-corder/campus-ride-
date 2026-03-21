@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import RideHistoryTabs from "@/components/ride/RideHistoryTabs";
 import BrandIcon from "@/components/BrandIcon";
+import ThemeToggle from "@/components/ThemeToggle";
 import { ArrowLeft } from "lucide-react";
 
 const RidesPage = () => {
@@ -88,6 +89,7 @@ const RidesPage = () => {
                   </span>
                 </a>
               </div>
+              <ThemeToggle />
             </div>
           </nav>
 

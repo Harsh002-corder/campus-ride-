@@ -4,6 +4,7 @@ import { Download, Menu, X } from "lucide-react";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import BrandIcon from "@/components/BrandIcon";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navLinks = ["Home", "Features", "How It Works", "Drivers", "Contact"];
 
@@ -50,6 +51,7 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           {canInstall && (
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -87,6 +89,10 @@ const Navbar = () => {
             className="md:hidden glass mt-2 mx-4 rounded-2xl overflow-hidden"
           >
             <div className="flex flex-col p-4 gap-3">
+              <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                <span className="text-xs text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
               {navLinks.map((link) => (
                 <a
                   key={link}

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import PageTransition from "@/components/PageTransition";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { apiClient, type DriverTodayEarningsDto, type DriverTodayEarningsRideDto } from "@/lib/apiClient";
@@ -86,6 +87,7 @@ const DriverTodayEarnings = () => {
                 </div>
               </button>
               <div className="flex items-center gap-2">
+                <ThemeToggle />
                 <NotificationBell />
                 <button
                   type="button"

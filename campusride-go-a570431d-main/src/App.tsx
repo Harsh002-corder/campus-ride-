@@ -6,6 +6,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import ThemeProvider from "@/contexts/ThemeProvider";
 import JarviouWidget from "./components/JarviouWidget";
 import { useRideRealtime } from "@/hooks/useRideRealtime";
 import PwaController from "@/components/pwa/PwaController";
@@ -88,18 +89,20 @@ const RealtimeBootstrap = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <RealtimeBootstrap />
-          <PwaController />
-          <AnimatedRoutes />
-          <JarviouWidget />
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <RealtimeBootstrap />
+            <PwaController />
+            <AnimatedRoutes />
+            <JarviouWidget />
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

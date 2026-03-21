@@ -17,6 +17,7 @@ import AdminSettings from "@/components/admin/AdminSettings";
 import BrandIcon from "@/components/BrandIcon";
 import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
+import ThemeToggle from "@/components/ThemeToggle";
 import { apiClient, type AuthUser, type RideIssueDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
 import { LogOut, UserCircle2, UserPlus } from "lucide-react";
@@ -194,6 +195,7 @@ const AdminDashboard = ({ panelBadge = "Admin", sidebarLabel = "Admin Panel", in
                     <UserPlus className="w-4 h-4" /> Create Sub-Admin
                   </motion.button>
                 )}
+                <ThemeToggle />
                 <NotificationBell />
                 <motion.button
                   whileTap={{ scale: 0.95 }}

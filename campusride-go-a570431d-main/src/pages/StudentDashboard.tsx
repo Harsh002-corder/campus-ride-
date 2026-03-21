@@ -9,6 +9,8 @@ import RideCompletionPopup from "@/components/ride/RideCompletionPopup";
 import StopTypeahead from "@/components/ride/StopTypeahead";
 import CancelRideDialog from "@/components/ride/CancelRideDialog";
 import ProfileDialog from "@/components/ProfileDialog";
+import ProfileCard from "@/components/ProfileCard";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   Dialog,
   DialogContent,
@@ -759,6 +761,7 @@ const StudentDashboard = () => {
               </a>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <NotificationBell />
+                <ThemeToggle />
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setProfileDialogOpen(true)}
@@ -933,49 +936,19 @@ const StudentDashboard = () => {
 
               {/* Stats card */}
               <motion.div {...card(1)} className="lg:col-span-2 card-glass flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="font-semibold font-display text-lg">Your Stats</h3>
+                <div className="mb-3 flex items-center justify-end">
                   <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full font-medium">This month: {rideStats.thisMonth}</span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  {[
-                    { label: "Total Rides", value: String(rideStats.total) },
-                    { label: "Completed", value: String(rideStats.completed) },
-                    { label: "Cancelled", value: String(rideStats.cancelled) },
-                    { label: "Active", value: String(rideStats.active) },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-lg font-bold font-display text-foreground">{s.value}</p>
-                      <p className="text-xs text-muted-foreground">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Completion Rate</span>
-                      <span className="font-semibold text-foreground">{rideStats.completionRate}%</span>
-                    </div>
-                    <progress
-                      max={100}
-                      value={rideStats.completionRate}
-                      className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Cancellation Rate</span>
-                      <span className="font-semibold text-foreground">{rideStats.cancellationRate}%</span>
-                    </div>
-                    <progress
-                      max={100}
-                      value={rideStats.cancellationRate}
-                      className="w-full h-2 rounded-full overflow-hidden [&::-webkit-progress-bar]:bg-muted/40 [&::-webkit-progress-value]:bg-destructive/80 [&::-moz-progress-bar]:bg-destructive/80"
-                    />
-                  </div>
-                </div>
+                <ProfileCard
+                  user={user as AuthUser | null}
+                  stats={{
+                    total: rideStats.total,
+                    completed: rideStats.completed,
+                    cancelled: rideStats.cancelled,
+                    active: rideStats.active,
+                  }}
+                  onEditProfile={() => setProfileDialogOpen(true)}
+                />
               </motion.div>
             </div>
 

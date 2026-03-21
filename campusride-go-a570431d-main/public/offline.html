@@ -3,35 +3,70 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1d4ed8" />
+    <script>
+      (function () {
+        var KEY = "campusride-theme";
+        var root = document.documentElement;
+        var theme = "light";
+
+        try {
+          var stored = localStorage.getItem(KEY);
+          if (stored === "light" || stored === "dark") {
+            theme = stored;
+          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            theme = "dark";
+          }
+        } catch (_error) {
+          theme = "light";
+        }
+
+        root.classList.remove("light", "dark");
+        root.classList.add(theme);
+        root.style.colorScheme = theme;
+
+        var themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) {
+          themeMeta.setAttribute("content", theme === "dark" ? "#0F172A" : "#FFC107");
+        }
+      })();
+    </script>
     <title>CampusRide Offline</title>
     <style>
       :root {
-        color-scheme: dark;
-        --bg: #060b16;
-        --surface: #0d1630;
-        --text: #d6e3ff;
-        --muted: #8aa3d1;
-        --accent: #38bdf8;
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --text: #1a1a1a;
+        --muted: #5f5f5f;
+        --accent: #ffc107;
+        --line: #f3e2b2;
+      }
+      .dark {
+        --bg: #0f172a;
+        --surface: rgba(15, 23, 42, 0.82);
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #6366f1;
+        --line: rgba(148, 163, 184, 0.3);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         min-height: 100vh;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: radial-gradient(circle at 20% 10%, #132d62, transparent 45%), var(--bg);
+        background: radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 45%), var(--bg);
         color: var(--text);
         display: grid;
         place-items: center;
         padding: 24px;
+        transition: background-color 300ms ease, color 300ms ease;
       }
       .card {
         width: min(520px, 100%);
         border-radius: 18px;
-        border: 1px solid #24427a;
-        background: linear-gradient(180deg, #101f44, var(--surface));
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, white), var(--surface));
         padding: 28px;
-        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.2);
       }
       h1 { margin: 0 0 10px; font-size: 1.8rem; }
       p { margin: 0; line-height: 1.6; color: var(--muted); }
