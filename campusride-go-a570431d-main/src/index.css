@@ -252,6 +252,7 @@
     overflow: hidden;
     isolation: isolate;
     background-size: 180% 180%;
+    animation: btn-breathe 2.6s ease-in-out infinite;
     transition: transform 0.2s ease, box-shadow 0.3s ease;
   }
   .btn-primary-gradient:hover {
@@ -274,6 +275,7 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
+    animation: btn-outline-breathe 2.8s ease-in-out infinite;
     transition: all 0.3s ease;
   }
   .btn-outline-glow:hover {
@@ -335,6 +337,7 @@
     opacity: 0;
     z-index: 0;
     pointer-events: none;
+    animation: btn-sheen 2.6s ease-in-out infinite;
   }
 
   :where(button, [role="button"], a).btn-primary-gradient:not(:disabled):not([aria-disabled="true"]):hover::before {
@@ -523,4 +526,14 @@
 @keyframes btn-gradient-pan {
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
+}
+
+@keyframes btn-breathe {
+  0%, 100% { box-shadow: 0 8px 18px rgba(255, 193, 7, 0.22); }
+  50% { box-shadow: 0 14px 28px rgba(255, 193, 7, 0.38); }
+}
+
+@keyframes btn-outline-breathe {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 193, 7, 0); }
+  50% { box-shadow: 0 8px 16px rgba(255, 193, 7, 0.2); }
 }
