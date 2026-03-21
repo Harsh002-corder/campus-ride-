@@ -63,12 +63,13 @@ export default defineConfig(({ mode }) => ({
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === "script" || request.destination === "style",
-            handler: "CacheFirst",
+            handler: "NetworkFirst",
             options: {
-              cacheName: "static-assets-v1",
+              cacheName: "static-assets-v2",
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 120,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
               },
             },
           },
@@ -76,7 +77,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ url }) => url.pathname.startsWith("/api/") || url.href.includes("/api/"),
             handler: "NetworkFirst",
             options: {
-              cacheName: "api-cache-v1",
+              cacheName: "api-cache-v2",
               networkTimeoutSeconds: 5,
               expiration: {
                 maxEntries: 100,
@@ -91,7 +92,7 @@ export default defineConfig(({ mode }) => ({
             urlPattern: ({ request }) => request.destination === "image",
             handler: "CacheFirst",
             options: {
-              cacheName: "images-cache-v1",
+              cacheName: "images-cache-v2",
               expiration: {
                 maxEntries: 200,
                 maxAgeSeconds: 60 * 60 * 24 * 30,
