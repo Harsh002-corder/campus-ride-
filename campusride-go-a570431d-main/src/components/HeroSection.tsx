@@ -104,6 +104,8 @@ const HeroSection = () => {
                 alt="CampusRide e-rickshaw"
                 className="w-full rounded-3xl shadow-2xl"
                 loading="eager"
+                fetchPriority="high"
+                decoding="async"
               />
             </div>
           </motion.div>

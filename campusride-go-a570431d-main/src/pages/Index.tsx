@@ -1,15 +1,17 @@
+import { lazy, Suspense } from "react";
 import ScrollProgress from "@/components/ScrollProgress";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import TrustBar from "@/components/TrustBar";
-import FeaturesSection from "@/components/FeaturesSection";
-import HowItWorks from "@/components/HowItWorks";
-import AppPreview from "@/components/AppPreview";
-import WhyChoose from "@/components/WhyChoose";
-import Testimonials from "@/components/Testimonials";
-import StatsSection from "@/components/StatsSection";
-import CTASection from "@/components/CTASection";
-import Footer from "@/components/Footer";
+
+const FeaturesSection = lazy(() => import("@/components/FeaturesSection"));
+const HowItWorks = lazy(() => import("@/components/HowItWorks"));
+const AppPreview = lazy(() => import("@/components/AppPreview"));
+const WhyChoose = lazy(() => import("@/components/WhyChoose"));
+const Testimonials = lazy(() => import("@/components/Testimonials"));
+const StatsSection = lazy(() => import("@/components/StatsSection"));
+const CTASection = lazy(() => import("@/components/CTASection"));
+const Footer = lazy(() => import("@/components/Footer"));
 
 const Index = () => {
   return (
@@ -18,14 +20,16 @@ const Index = () => {
       <Navbar />
       <HeroSection />
       <TrustBar />
-      <FeaturesSection />
-      <HowItWorks />
-      <AppPreview />
-      <WhyChoose />
-      <Testimonials />
-      <StatsSection />
-      <CTASection />
-      <Footer />
+      <Suspense fallback={null}>
+        <FeaturesSection />
+        <HowItWorks />
+        <AppPreview />
+        <WhyChoose />
+        <Testimonials />
+        <StatsSection />
+        <CTASection />
+        <Footer />
+      </Suspense>
     </div>
   );
 };

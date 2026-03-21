@@ -2,14 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ThemeProvider from "@/contexts/ThemeProvider";
-import JarviouWidget from "./components/JarviouWidget";
 import { useRideRealtime } from "@/hooks/useRideRealtime";
-import PwaController from "@/components/pwa/PwaController";
 import OfflineFallback from "@/components/pwa/OfflineFallback";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -24,6 +22,8 @@ const RideTracking = lazy(() => import("./pages/RideTracking"));
 const RidesPage = lazy(() => import("./pages/RidesPage"));
 const PublicRideTracking = lazy(() => import("./pages/PublicRideTracking"));
 const TMUCampusMapPage = lazy(() => import("./pages/TMUCampusMapPage"));
+const JarviouWidget = lazy(() => import("./components/JarviouWidget"));
+const PwaController = lazy(() => import("@/components/pwa/PwaController"));
 
 const queryClient = new QueryClient();
 
@@ -87,6 +87,32 @@ const RealtimeBootstrap = () => {
   return null;
 };
 
+const DeferredUtilities = () => {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const onIdle = () => setShouldRender(true);
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(onIdle, { timeout: 1200 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = window.setTimeout(onIdle, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  if (!shouldRender) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <PwaController />
+      <JarviouWidget />
+    </Suspense>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -96,9 +122,8 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
             <RealtimeBootstrap />
-            <PwaController />
             <AnimatedRoutes />
-            <JarviouWidget />
+            <DeferredUtilities />
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
