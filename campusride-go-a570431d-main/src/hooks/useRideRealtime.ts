@@ -2,13 +2,14 @@ import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { type RideDto } from "@/lib/apiClient";
 import { getSocketClient } from "@/lib/socketClient";
+import { ENABLE_REALTIME } from "@/lib/runtimeConfig";
 import { useRideRealtimeStore } from "@/stores/rideRealtimeStore";
 
 export function useRideRealtime() {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!ENABLE_REALTIME || !isAuthenticated) {
       useRideRealtimeStore.getState().markSocketConnected(false);
       return;
     }

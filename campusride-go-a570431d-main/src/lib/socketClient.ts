@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { getAuthToken } from "@/lib/apiClient";
-import { SOCKET_BASE_URL } from "@/lib/runtimeConfig";
+import { ENABLE_REALTIME, SOCKET_BASE_URL } from "@/lib/runtimeConfig";
 
 let socket: Socket | null = null;
 
@@ -55,6 +55,10 @@ export function getSocketClient(allowGuest = false) {
       reconnectionDelayMax: 10000,
       timeout: 10000,
     });
+  }
+
+  if (!ENABLE_REALTIME) {
+    return socket;
   }
 
   const token = getAuthToken();
