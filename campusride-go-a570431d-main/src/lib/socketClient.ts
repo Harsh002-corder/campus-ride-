@@ -4,6 +4,17 @@ import { SOCKET_BASE_URL } from "@/lib/runtimeConfig";
 
 let socket: Socket | null = null;
 
+const isServerlessSocketHost = (() => {
+  try {
+    const { hostname } = new URL(SOCKET_BASE_URL);
+    return /vercel\.app$/i.test(hostname);
+  } catch {
+    return false;
+  }
+})();
+
+const disableRealtimeAutoConnect = import.meta.env.PROD && isServerlessSocketHost;
+
 type SocketConnectErrorShape = {
   message?: string;
   code?: string;
@@ -45,13 +56,18 @@ export function getSocketClient(allowGuest = false) {
   if (!socket) {
     socket = io(SOCKET_BASE_URL, {
       autoConnect: false,
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
+      transports: disableRealtimeAutoConnect ? ["polling"] : ["websocket", "polling"],
+      upgrade: !disableRealtimeAutoConnect,
+      reconnection: !disableRealtimeAutoConnect,
+      reconnectionAttempts: disableRealtimeAutoConnect ? 0 : Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       timeout: 10000,
     });
+  }
+
+  if (disableRealtimeAutoConnect) {
+    return socket;
   }
 
   const token = getAuthToken();

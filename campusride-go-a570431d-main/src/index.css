@@ -529,11 +529,23 @@
 }
 
 @keyframes btn-breathe {
-  0%, 100% { box-shadow: 0 8px 18px rgba(255, 193, 7, 0.22); }
-  50% { box-shadow: 0 14px 28px rgba(255, 193, 7, 0.38); }
+  0%, 100% {
+    box-shadow: 0 8px 16px rgba(255, 193, 7, 0.2);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 18px 34px rgba(255, 193, 7, 0.48);
+    filter: brightness(1.08);
+  }
 }
 
 @keyframes btn-outline-breathe {
-  0%, 100% { box-shadow: 0 0 0 rgba(255, 193, 7, 0); }
-  50% { box-shadow: 0 8px 16px rgba(255, 193, 7, 0.2); }
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(255, 193, 7, 0);
+    border-color: hsl(var(--border));
+  }
+  50% {
+    box-shadow: 0 10px 20px rgba(255, 193, 7, 0.28);
+    border-color: hsl(var(--primary));
+  }
 }
