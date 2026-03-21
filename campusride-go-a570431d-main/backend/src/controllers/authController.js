@@ -108,13 +108,14 @@ export const requestSignupOtp = asyncHandler(async (req, res) => {
   };
 
   if (!mailResult.sent) {
-    if (env.nodeEnv === "production") {
+    const emailNotConfigured = mailResult.reason === "Email credentials are not configured";
+    if (env.nodeEnv === "production" && !emailNotConfigured) {
       throw new AppError(500, `Failed to send OTP email: ${mailResult.reason}`);
     }
 
     responseBody.delivery = "email-not-configured";
     responseBody.deliveryReason = mailResult.reason;
-    if (env.otpReturnInResponse || env.nodeEnv !== "production") {
+    if (env.otpReturnInResponse || env.nodeEnv !== "production" || emailNotConfigured) {
       responseBody.otp = otp;
     }
   }
@@ -247,7 +248,8 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
   });
 
   if (!mailResult.sent) {
-    if (env.nodeEnv === "production") {
+    const emailNotConfigured = mailResult.reason === "Email credentials are not configured";
+    if (env.nodeEnv === "production" && !emailNotConfigured) {
       throw new AppError(500, `Failed to send password reset OTP email: ${mailResult.reason}`);
     }
 
@@ -259,7 +261,7 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
       deliveryReason: mailResult.reason,
     };
 
-    if (env.otpReturnInResponse || env.nodeEnv !== "production") {
+    if (env.otpReturnInResponse || env.nodeEnv !== "production" || emailNotConfigured) {
       response.otp = otp;
     }
 

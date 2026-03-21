@@ -32,7 +32,12 @@ const ForgotPassword = () => {
       try {
         const response = await apiClient.auth.forgotPassword({ email });
         setOtpRequested(true);
-        setInfo(response.message || "If this email exists, an OTP has been sent.");
+        if (response.otp) {
+          setOtp(response.otp);
+          setInfo("Email OTP is unavailable right now. Using fallback OTP from server response.");
+        } else {
+          setInfo(response.message || "If this email exists, an OTP has been sent.");
+        }
       } catch (submitError) {
         setError(submitError instanceof Error ? submitError.message : "Failed to request OTP");
       } finally {

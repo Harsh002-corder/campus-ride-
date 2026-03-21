@@ -52,7 +52,7 @@ const Signup = () => {
           }
         }
 
-        await apiClient.auth.requestSignupOtp({
+        const response = await apiClient.auth.requestSignupOtp({
           name: name || email.split("@")[0],
           email,
           password,
@@ -71,7 +71,12 @@ const Signup = () => {
             : {}),
         });
         setOtpRequested(true);
-        setInfo("OTP sent. Enter the 6-digit code to complete signup.");
+        if (response.otp) {
+          setOtp(response.otp);
+          setInfo("Email OTP is unavailable right now. Using fallback OTP from server response.");
+        } else {
+          setInfo("OTP sent. Enter the 6-digit code to complete signup.");
+        }
       } else {
         if (!/^\d{6}$/.test(otp)) {
           setError("Enter a valid 6-digit OTP");
