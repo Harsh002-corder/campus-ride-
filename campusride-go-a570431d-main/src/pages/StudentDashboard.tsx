@@ -820,10 +820,11 @@ const StudentDashboard = () => {
                     <motion.button
                       whileTap={{ scale: 0.9, rotate: 180 }}
                       onClick={handleSwapLocations}
-                      className="p-2.5 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary transition-colors shrink-0"
+                      className="h-10 w-10 sm:h-11 sm:w-11 self-center rounded-xl bg-primary/20 hover:bg-primary/30 text-primary transition-colors shrink-0 inline-flex items-center justify-center"
                       title="Swap locations"
+                      aria-label="Swap pickup and drop-off"
                     >
-                      <ArrowUpDown className="w-4 h-4" />
+                      <ArrowUpDown className="w-4 h-4 sm:w-5 sm:h-5" />
                     </motion.button>
                     <StopTypeahead
                       placeholder="Drop-off location"
