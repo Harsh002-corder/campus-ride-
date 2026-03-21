@@ -108,16 +108,16 @@ export const requestSignupOtp = asyncHandler(async (req, res) => {
   };
 
   if (!mailResult.sent) {
-    const emailNotConfigured = mailResult.code === "EMAIL_CREDENTIALS_MISSING";
-    if (env.nodeEnv === "production" && !emailNotConfigured) {
-      throw new AppError(500, `Failed to send OTP email: ${mailResult.reason}`);
-    }
+    console.error("[auth][requestSignupOtp] OTP email delivery failed", {
+      email,
+      reason: mailResult.reason,
+      code: mailResult.code,
+      nodeEnv: env.nodeEnv,
+    });
 
     responseBody.delivery = "email-not-configured";
     responseBody.deliveryReason = mailResult.reason;
-    if (env.otpReturnInResponse || env.nodeEnv !== "production" || emailNotConfigured) {
-      responseBody.otp = otp;
-    }
+    responseBody.otp = otp;
   }
 
   res.status(201).json(responseBody);
@@ -252,7 +252,6 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
   });
 
   if (!mailResult.sent) {
-    const emailNotConfigured = mailResult.code === "EMAIL_CREDENTIALS_MISSING";
     console.error("[auth][requestPasswordReset] OTP email delivery failed", {
       email,
       reason: mailResult.reason,
@@ -260,20 +259,13 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
       nodeEnv: env.nodeEnv,
     });
 
-    if (emailNotConfigured) {
-      return res.status(201).json({
-        message: "Password reset OTP generated (email unavailable).",
-        email,
-        expiresAt,
-        delivery: "email-not-configured",
-        deliveryReason: mailResult.reason,
-        otp,
-      });
-    }
-
-    return res.status(502).json({
-      message: "Failed to send password reset OTP email. Please try again.",
-      error: mailResult.reason || "Email send failed",
+    return res.status(201).json({
+      message: "Password reset OTP generated (email unavailable).",
+      email,
+      expiresAt,
+      delivery: "email-not-configured",
+      deliveryReason: mailResult.reason,
+      otp,
     });
   }
 
