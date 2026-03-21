@@ -5,8 +5,32 @@ import { setupPwaServiceWorker } from "@/pwa";
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60_000;
 const SW_RELOAD_FALLBACK_MS = 8_000;
 
+async function disablePwaForLocalDev() {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+    }
+
+    console.info("[PWA] Disabled and cleared service worker caches for local development.");
+  } catch (error) {
+    console.warn("[PWA] Failed to clear local dev service workers.", error);
+  }
+}
+
 export function usePwaUpdater() {
   useEffect(() => {
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    if (import.meta.env.DEV || isLocalhost) {
+      void disablePwaForLocalDev();
+      return;
+    }
+
     let updateInterval: number | undefined;
     let refreshing = false;
 
