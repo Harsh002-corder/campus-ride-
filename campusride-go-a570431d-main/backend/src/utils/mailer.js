@@ -50,28 +50,27 @@ function getTransporter() {
   }
 
   if (!hasEmailCredentials()) {
-    logMail("warn", "Email credentials are missing", {
-      hasEmailUser: Boolean(env.emailUser),
-      hasEmailPass: Boolean(env.emailPass),
-      nodeEnv: env.nodeEnv,
-    });
-    return null;
+    const missing = getMissingEmailEnvVars();
+    throw new Error(`Email credentials are not configured: missing ${missing.join(", ")}`);
   }
 
   transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    service: "gmail",
+    secure: true,
+    port: 465,
     auth: {
       user: env.emailUser,
       pass: env.emailPass,
     },
+    connectionTimeout: MAIL_TIMEOUT_MS,
+    greetingTimeout: MAIL_TIMEOUT_MS,
+    socketTimeout: MAIL_TIMEOUT_MS,
   });
 
   logMail("info", "SMTP transporter initialized", {
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    service: "gmail",
+    port: 465,
+    secure: true,
     nodeEnv: env.nodeEnv,
   });
 
@@ -79,13 +78,15 @@ function getTransporter() {
 }
 
 export async function verifyEmailTransport() {
-  const transport = getTransporter();
-  if (!transport) {
+  let transport;
+  try {
+    transport = getTransporter();
+  } catch (error) {
     return {
       ok: false,
       configured: false,
       code: "EMAIL_CREDENTIALS_MISSING",
-      message: "Email credentials are not configured",
+      message: error instanceof Error ? error.message : "Email credentials are not configured",
     };
   }
 
@@ -108,11 +109,14 @@ export async function verifyEmailTransport() {
 }
 
 async function sendWithTransport(mailOptions) {
-  const transport = getTransporter();
-  if (!transport) {
-    const missing = getMissingEmailEnvVars();
-    const reason = `Email credentials are not configured: missing ${missing.join(", ")}`;
-    logMail("error", reason, {
+  let transport;
+  try {
+    transport = getTransporter();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Email credentials are not configured";
+    logMail("warn", "Email credentials are missing", {
+      hasEmailUser: Boolean(env.emailUser),
+      hasEmailPass: Boolean(env.emailPass),
       nodeEnv: env.nodeEnv,
     });
     return {
