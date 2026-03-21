@@ -2,11 +2,21 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { setupPwaServiceWorker } from "@/pwa";
 
-const UPDATE_CHECK_INTERVAL_MS = 60_000;
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60_000;
+const SW_RELOAD_FALLBACK_MS = 8_000;
 
 export function usePwaUpdater() {
   useEffect(() => {
     let updateInterval: number | undefined;
+    let refreshing = false;
+
+    const onControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+
+    navigator.serviceWorker?.addEventListener("controllerchange", onControllerChange);
 
     const updateSW = setupPwaServiceWorker({
       onRegisteredSW(_swScriptUrl, registration) {
@@ -21,11 +31,14 @@ export function usePwaUpdater() {
           duration: 1600,
         });
 
-        // Force immediate activation, then reload to avoid stale UI.
+        // Force immediate activation.
         void updateSW(true);
+
+        // Fallback reload for browsers that miss controllerchange.
         window.setTimeout(() => {
+          if (refreshing) return;
           window.location.reload();
-        }, 900);
+        }, SW_RELOAD_FALLBACK_MS);
       },
       onOfflineReady() {
         toast.success("CampusRide is ready for offline use.");
@@ -37,6 +50,7 @@ export function usePwaUpdater() {
 
     return () => {
       if (updateInterval) window.clearInterval(updateInterval);
+      navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 }

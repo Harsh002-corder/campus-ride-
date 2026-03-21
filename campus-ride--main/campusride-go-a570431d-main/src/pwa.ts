@@ -1,5 +1,9 @@
 import { registerSW } from "virtual:pwa-register";
 
+const DEV_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
+const PROD_UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const SW_RELOAD_FALLBACK_MS = 8000;
+
 const SW_MIGRATION_KEY = "campusride_sw_migration_20260311";
 
 const getNeedsSwMigration = () => {
@@ -53,7 +57,7 @@ async function setupPwa() {
 
   let refreshing = false;
 
-  // Auto-reload when new SW takes over (after user accepts update)
+  // Auto-reload when new SW takes over.
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
     refreshing = true;
@@ -65,8 +69,11 @@ async function setupPwa() {
     const updateServiceWorker = registerSW({
       immediate: true,
       onNeedRefresh() {
-        // Emit custom event with updater callback so UI can trigger skipWaiting.
-        console.log("[PWA] Update available, notifying user");
+        // Immediately activate waiting SW so users get updates without reinstalling.
+        console.log("[PWA] Update available, applying automatically");
+        void updateServiceWorker(true);
+
+        // Keep the existing event for backward-compatible UI hooks.
         window.dispatchEvent(new CustomEvent("pwa-update-available", {
           detail: {
             applyUpdate: () => {
@@ -74,12 +81,17 @@ async function setupPwa() {
             },
           },
         }));
+
+        // Fallback reload if controllerchange is missed by some browsers.
+        window.setTimeout(() => {
+          if (refreshing) return;
+          window.location.reload();
+        }, SW_RELOAD_FALLBACK_MS);
       },
       onRegisteredSW(_swUrl, registration) {
         if (!registration) return;
 
-        // Check for updates more frequently during development/testing
-        const checkInterval = import.meta.env.DEV ? 60 * 1000 : 60 * 60 * 1000;
+        const checkInterval = import.meta.env.DEV ? DEV_UPDATE_CHECK_INTERVAL_MS : PROD_UPDATE_CHECK_INTERVAL_MS;
         window.setInterval(() => {
           void registration.update();
         }, checkInterval);
