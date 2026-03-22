@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Users, Navigation, Wallet, TrendingUp, Activity,
-  ArrowUpRight, Car,
+  ArrowUpRight, Car, Bell, Smartphone,
 } from "lucide-react";
 import {
   Bar,
@@ -37,6 +37,19 @@ interface Metrics {
   averageFare: number;
 }
 
+interface PushHealth {
+  windowHours: number;
+  usersWithPushToken: number;
+  totalPushTokens: number;
+  delivery: {
+    attempts: number;
+    sentCount: number;
+    failedCount: number;
+    invalidTokenCount: number;
+  };
+  notificationsByType: Array<{ type: string; count: number }>;
+}
+
 const card = (i: number) => ({
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -51,6 +64,7 @@ const AdminOverview = () => {
   const [peakBookingHours, setPeakBookingHours] = useState<Array<{ hour: number; bookings: number }>>([]);
   const [driverPerformance, setDriverPerformance] = useState<Array<{ driverName: string; completedRides: number; avgRating: number; revenue: number }>>([]);
   const [scheduledQueue, setScheduledQueue] = useState<Array<{ id: string; status: "pending" | "activated" | "cancelled" | "failed"; triggerAt: string; pickup?: { label?: string } | null; drop?: { label?: string } | null; passengers: number; student?: { name: string } | null; errorMessage?: string | null }>>([]);
+  const [pushHealth, setPushHealth] = useState<PushHealth | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -68,6 +82,7 @@ const AdminOverview = () => {
         setBookingTrend(analytics.bookingTrend || []);
         setPeakBookingHours(analytics.peakBookingHours || []);
         setDriverPerformance(analytics.driverPerformance || []);
+        setPushHealth(analytics.pushHealth || null);
         setScheduledQueue(scheduled.queue || []);
       } catch (error) {
         if (!mounted) return;
@@ -146,6 +161,59 @@ const AdminOverview = () => {
 
         <motion.div {...card(5)} className="card-glass">
           <div className="flex items-center gap-2 mb-4">
+            <Bell className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold font-display">Push Health ({pushHealth?.windowHours || 24}h)</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="rounded-xl bg-muted/30 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Users With Token</p>
+              <p className="text-xl font-bold mt-1">{pushHealth?.usersWithPushToken || 0}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Tokens</p>
+              <p className="text-xl font-bold mt-1">{pushHealth?.totalPushTokens || 0}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Push Sent</p>
+              <p className="text-xl font-bold mt-1 text-green-400">{pushHealth?.delivery.sentCount || 0}</p>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Push Failed</p>
+              <p className="text-xl font-bold mt-1 text-destructive">{pushHealth?.delivery.failedCount || 0}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3 mb-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Delivery Attempts</span>
+              <span className="font-semibold">{pushHealth?.delivery.attempts || 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-muted-foreground">Invalid Tokens</span>
+              <span className="font-semibold">{pushHealth?.delivery.invalidTokenCount || 0}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-[130px] overflow-y-auto pr-1">
+            {(pushHealth?.notificationsByType || []).length === 0 ? (
+              <div className="text-sm text-muted-foreground">No recent notification activity</div>
+            ) : (
+              (pushHealth?.notificationsByType || []).map((item) => (
+                <div key={item.type} className="flex items-center justify-between rounded-lg bg-muted/20 px-2.5 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs truncate">{item.type.replace(/_/g, " ")}</span>
+                  </div>
+                  <span className="text-xs font-semibold">{item.count}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div {...card(6)} className="card-glass">
+          <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold font-display">Driver Performance</h2>
           </div>
@@ -165,7 +233,7 @@ const AdminOverview = () => {
         </motion.div>
       </div>
 
-      <motion.div {...card(6)} className="card-glass">
+      <motion.div {...card(7)} className="card-glass">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold font-display">Booking Trend (7 Days)</h2>
@@ -198,7 +266,7 @@ const AdminOverview = () => {
         </div>
       </motion.div>
 
-      <motion.div {...card(7)} className="card-glass">
+      <motion.div {...card(8)} className="card-glass">
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold font-display">Scheduled Rides Queue</h2>

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Notification, User } from "../models/index.js";
+import { Notification, PushDeliveryLog, User } from "../models/index.js";
 import { emitUserNotification } from "./socket.js";
 import { getFirebaseAdminMessaging } from "./firebaseAdmin.js";
 
@@ -37,9 +37,28 @@ function toTokenList(user) {
 }
 
 async function sendMulticastWithRetry({ tokens, title, body, data }) {
+  const attemptedCount = tokens.length;
   const messaging = getFirebaseAdminMessaging();
-  if (!messaging || !tokens.length) {
-    return { ok: false, sentCount: 0, invalidTokens: [] };
+  if (!tokens.length) {
+    return {
+      ok: false,
+      attemptedCount,
+      sentCount: 0,
+      failedCount: 0,
+      invalidTokens: [],
+      errorMessage: "No push tokens available",
+    };
+  }
+
+  if (!messaging) {
+    return {
+      ok: false,
+      attemptedCount,
+      sentCount: 0,
+      failedCount: attemptedCount,
+      invalidTokens: [],
+      errorMessage: "Firebase messaging unavailable",
+    };
   }
 
   const payload = {
@@ -68,13 +87,27 @@ async function sendMulticastWithRetry({ tokens, title, body, data }) {
     } catch (error) {
       if (attempt >= PUSH_RETRY_ATTEMPTS) {
         console.error("[push] sendEachForMulticast failed", { error: error?.message || error });
-        return { ok: false, sentCount: 0, invalidTokens: [] };
+        return {
+          ok: false,
+          attemptedCount,
+          sentCount: 0,
+          failedCount: attemptedCount,
+          invalidTokens: [],
+          errorMessage: error?.message || "Push delivery failed",
+        };
       }
     }
   }
 
   if (!response) {
-    return { ok: false, sentCount: 0, invalidTokens: [] };
+    return {
+      ok: false,
+      attemptedCount,
+      sentCount: 0,
+      failedCount: attemptedCount,
+      invalidTokens: [],
+      errorMessage: "Push delivery returned no response",
+    };
   }
 
   const invalidTokens = [];
@@ -87,10 +120,31 @@ async function sendMulticastWithRetry({ tokens, title, body, data }) {
   });
 
   return {
-    ok: true,
+    ok: response.successCount > 0,
+    attemptedCount,
     sentCount: response.successCount,
+    failedCount: response.failureCount,
     invalidTokens,
+    errorMessage: response.successCount > 0 ? null : "All push tokens failed",
   };
+}
+
+async function createPushDeliveryLog({ userId, notificationId = null, type = "generic", rideId = null, tokenCount = 0, sentCount = 0, failedCount = 0, invalidTokenCount = 0, errorMessage = null }) {
+  const status = failedCount === 0 ? "success" : sentCount > 0 ? "partial" : "failed";
+
+  await PushDeliveryLog.create({
+    userId: userId ? new mongoose.Types.ObjectId(userId) : null,
+    notificationId: notificationId ? new mongoose.Types.ObjectId(notificationId) : null,
+    type,
+    rideId,
+    tokenCount,
+    sentCount,
+    failedCount,
+    invalidTokenCount,
+    status,
+    errorMessage,
+    createdAt: new Date(),
+  });
 }
 
 async function removeInvalidUserTokens(userId, invalidTokens) {
@@ -117,22 +171,38 @@ async function removeInvalidUserTokens(userId, invalidTokens) {
 
 export async function sendNotification(userId, title, body, data = {}) {
   if (!userId || !title || !body) {
-    return { ok: false, sentCount: 0 };
+    return { ok: false, attemptedCount: 0, sentCount: 0, failedCount: 0 };
   }
 
   const user = await User.findById(userId).select("fcmToken fcmTokens").lean();
   if (!user) {
-    return { ok: false, sentCount: 0 };
+    return { ok: false, attemptedCount: 0, sentCount: 0, failedCount: 0 };
   }
 
   const tokens = toTokenList(user);
   if (!tokens.length) {
-    return { ok: false, sentCount: 0 };
+    return { ok: false, attemptedCount: 0, sentCount: 0, failedCount: 0 };
   }
 
   const result = await sendMulticastWithRetry({ tokens, title, body, data });
   if (result.invalidTokens?.length) {
     await removeInvalidUserTokens(userId, result.invalidTokens);
+  }
+
+  try {
+    await createPushDeliveryLog({
+      userId,
+      notificationId: data?.notificationId || null,
+      type: data?.type || "generic",
+      rideId: data?.rideId || null,
+      tokenCount: result.attemptedCount || tokens.length,
+      sentCount: result.sentCount || 0,
+      failedCount: result.failedCount || 0,
+      invalidTokenCount: result.invalidTokens?.length || 0,
+      errorMessage: result.errorMessage || null,
+    });
+  } catch (error) {
+    console.error("[push] failed to persist push delivery log", error?.message || error);
   }
 
   return result;

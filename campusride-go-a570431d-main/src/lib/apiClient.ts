@@ -366,6 +366,18 @@ export const apiClient = {
           totalRevenue: number;
           averageFare: number;
         };
+        pushHealth?: {
+          windowHours: number;
+          usersWithPushToken: number;
+          totalPushTokens: number;
+          delivery: {
+            attempts: number;
+            sentCount: number;
+            failedCount: number;
+            invalidTokenCount: number;
+          };
+          notificationsByType: Array<{ type: string; count: number }>;
+        };
         cancellations: Array<{ id: string; cancelReason: string | null; cancelledBy: string | null; cancelledAt: string | null }>;
         bookingTrend: Array<{ day: string; count: number }>;
         peakBookingHours: Array<{ hour: number; bookings: number }>;

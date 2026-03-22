@@ -1,8 +1,10 @@
 import { ROLES, RIDE_STATUS } from "../constants/roles.js";
-import { Cancellation, Ride, ScheduledRide, User } from "../models/index.js";
+import { Cancellation, Notification, PushDeliveryLog, Ride, ScheduledRide, User } from "../models/index.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
+  const last24h = new Date(Date.now() - (24 * 60 * 60 * 1000));
+
   const [
     totalUsers,
     totalStudents,
@@ -15,6 +17,10 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
     completedRides,
     cancelledRides,
     cancellations,
+    usersWithPushToken,
+    totalPushTokensAgg,
+    recentNotificationsByType,
+    recentPushDeliveryAgg,
   ] = await Promise.all([
     User.countDocuments({}),
     User.countDocuments({ role: ROLES.STUDENT }),
@@ -27,6 +33,67 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
     Ride.countDocuments({ status: RIDE_STATUS.COMPLETED }),
     Ride.countDocuments({ status: RIDE_STATUS.CANCELLED }),
     Ride.find({ status: RIDE_STATUS.CANCELLED }).sort({ cancelledAt: -1 }).limit(100).lean(),
+    User.countDocuments({
+      $or: [
+        { fcmToken: { $exists: true, $ne: null } },
+        { "fcmTokens.0": { $exists: true } },
+      ],
+    }),
+    User.aggregate([
+      {
+        $project: {
+          tokenCount: {
+            $add: [
+              {
+                $size: {
+                  $ifNull: ["$fcmTokens", []],
+                },
+              },
+              {
+                $cond: [{ $ifNull: ["$fcmToken", false] }, 1, 0],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPushTokens: { $sum: "$tokenCount" },
+        },
+      },
+    ]),
+    Notification.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last24h },
+        },
+      },
+      {
+        $group: {
+          _id: "$type",
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 8 },
+    ]),
+    PushDeliveryLog.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last24h },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          attempts: { $sum: 1 },
+          sentCount: { $sum: "$sentCount" },
+          failedCount: { $sum: "$failedCount" },
+          invalidTokenCount: { $sum: "$invalidTokenCount" },
+        },
+      },
+    ]),
   ]);
 
   const [driverPerformanceAgg, revenueAgg, peakHoursAgg] = await Promise.all([
@@ -96,6 +163,13 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
   }));
 
   const revenue = revenueAgg[0] || { totalRevenue: 0, avgFare: 0 };
+  const pushTokensTotal = totalPushTokensAgg[0]?.totalPushTokens || 0;
+  const pushDelivery = recentPushDeliveryAgg[0] || {
+    attempts: 0,
+    sentCount: 0,
+    failedCount: 0,
+    invalidTokenCount: 0,
+  };
   const cancellationRate = totalRides > 0 ? Number(((cancelledRides / totalRides) * 100).toFixed(2)) : 0;
 
   const cancellationReasonAgg = await Cancellation.aggregate([
@@ -124,6 +198,21 @@ export const getDashboardAnalytics = asyncHandler(async (_req, res) => {
       cancellationRate,
       totalRevenue: Number((revenue.totalRevenue || 0).toFixed(2)),
       averageFare: Number((revenue.avgFare || 0).toFixed(2)),
+    },
+    pushHealth: {
+      windowHours: 24,
+      usersWithPushToken,
+      totalPushTokens: pushTokensTotal,
+      delivery: {
+        attempts: pushDelivery.attempts || 0,
+        sentCount: pushDelivery.sentCount || 0,
+        failedCount: pushDelivery.failedCount || 0,
+        invalidTokenCount: pushDelivery.invalidTokenCount || 0,
+      },
+      notificationsByType: recentNotificationsByType.map((item) => ({
+        type: item._id || "unknown",
+        count: item.count || 0,
+      })),
     },
     driverPerformance: driverPerformanceAgg.map((item) => ({
       driverId: item._id?.toString() || null,
