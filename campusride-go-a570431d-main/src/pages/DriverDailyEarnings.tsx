@@ -251,8 +251,25 @@ const DriverDailyEarnings = () => {
               ) : rows.length === 0 ? (
                 <div className="py-14 text-center text-sm text-muted-foreground">No completed rides found in the selected range.</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[680px] text-sm">
+                <>
+                  <div className="space-y-3 md:hidden">
+                    {rows.map((row) => (
+                      <div key={row.date} className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold break-words">{row.dateLabel}</p>
+                          <span className="text-xs font-medium text-muted-foreground">{row.completedRides} rides</span>
+                        </div>
+                        <div className="mt-2 space-y-1 text-xs">
+                          <p className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Gross Fare</span><span className="font-medium break-words text-right">{row.totalFareLabel}</span></p>
+                          <p className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Platform Fee</span><span className="font-medium break-words text-right">{row.platformLabel}</span></p>
+                          <p className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Net Earning</span><span className="font-semibold text-primary break-words text-right">{row.netLabel}</span></p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden md:block overflow-x-auto max-w-full">
+                    <table className="w-full min-w-[680px] text-sm">
                     <thead>
                       <tr className="border-b border-border/60 text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
                         <th className="py-3 pr-4 font-medium">Date</th>
@@ -273,8 +290,9 @@ const DriverDailyEarnings = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
-                </div>
+                    </table>
+                  </div>
+                </>
               )}
             </motion.section>
           </div>

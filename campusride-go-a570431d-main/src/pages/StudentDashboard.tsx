@@ -952,7 +952,7 @@ const StudentDashboard = () => {
                       whileTap={{ scale: 0.97 }}
                       onClick={handleFindRide}
                       disabled={booking || !rideBookingEnabled}
-                      className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm whitespace-nowrap w-full sm:w-auto sm:flex-1 disabled:opacity-70"
+                      className="btn-primary-gradient px-6 py-3 rounded-xl font-semibold text-sm w-full sm:w-auto sm:flex-1 disabled:opacity-70"
                     >
                       {!rideBookingEnabled ? "Booking Paused" : booking ? "Finding..." : "Find Ride"}
                     </motion.button>
@@ -1087,7 +1087,7 @@ const StudentDashboard = () => {
                         Code: {activeRide.verificationCode}
                       </span>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                     {callDriverHref ? (
                       <a
                         href={callDriverHref}
@@ -1124,21 +1124,21 @@ const StudentDashboard = () => {
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCancelDialogOpen(true)}
-                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors flex items-center gap-1"
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors flex items-center gap-1 w-full sm:w-auto justify-center"
                     >
                       <XCircle className="w-3.5 h-3.5" /> Cancel
                     </motion.button>
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => navigate("/ride-tracking")}
-                      className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold"
+                      className="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold w-full sm:w-auto"
                     >
                       Track Ride
                     </motion.button>
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => handleShareTracking(activeRide.shareTrackingUrl)}
-                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary/20 text-primary hover:bg-primary/30 transition-colors w-full sm:w-auto"
                     >
                       Share Live
                     </motion.button>
@@ -1217,7 +1217,7 @@ const StudentDashboard = () => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="fixed bottom-8 right-8 z-50"
+            className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50"
           >
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -1235,7 +1235,7 @@ const StudentDashboard = () => {
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg"
+              className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg max-w-[10rem] text-center break-words"
             >
               Track Ride
               <span className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-foreground" />

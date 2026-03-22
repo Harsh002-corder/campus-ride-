@@ -12,6 +12,7 @@ const PageTransition = ({ children }: { children: ReactNode }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="responsive-surface"
     >
       {children}
     </motion.div>

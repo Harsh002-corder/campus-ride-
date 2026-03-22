@@ -86,13 +86,13 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden">
+      <PopoverContent align="end" className="w-[calc(100vw-1rem)] sm:w-96 max-w-full sm:max-w-[calc(100vw-2rem)] p-0 overflow-hidden">
         <div className="px-4 py-3 border-b border-border/60 bg-muted/20">
           <p className="text-sm font-semibold">Notifications</p>
           <p className="text-xs text-muted-foreground">{unreadCount} unread</p>
         </div>
 
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-[min(70vh,24rem)] overflow-y-auto">
           {loading && <div className="p-4 text-xs text-muted-foreground">Loading notifications...</div>}
           {!loading && items.length === 0 && <div className="p-4 text-xs text-muted-foreground">No notifications yet.</div>}
 
@@ -106,12 +106,12 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
                 !item.readAt && "bg-primary/5",
               )}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium">{item.title}</p>
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <p className="text-sm font-medium truncate pr-1">{item.title}</p>
                 {!item.readAt && <span className="w-2 h-2 rounded-full bg-primary mt-1" />}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{item.body}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1 break-words line-clamp-2">{item.body}</p>
+              <p className="text-[11px] text-muted-foreground mt-1 truncate">{new Date(item.createdAt).toLocaleString()}</p>
             </button>
           ))}
         </div>

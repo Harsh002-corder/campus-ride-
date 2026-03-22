@@ -63,7 +63,7 @@ const JarviouWidget = () => {
       <motion.button
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full btn-primary-gradient shadow-lg flex items-center justify-center"
+        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50 w-14 h-14 rounded-full btn-primary-gradient shadow-lg flex items-center justify-center"
         aria-label="Open Jarviou Assistant"
       >
         {isOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
@@ -75,18 +75,18 @@ const JarviouWidget = () => {
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="fixed bottom-24 right-5 z-50 w-[340px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border/60 bg-background/95 backdrop-blur p-3 shadow-2xl"
+            className="fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 w-auto max-w-full rounded-2xl border border-border/60 bg-background/95 backdrop-blur p-3 shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-5 sm:w-[340px]"
           >
             <div className="px-1 pb-2 border-b border-border/60">
               <h3 className="font-semibold">Jarviou Assistant</h3>
               <p className="text-xs text-muted-foreground">Smart campus ride helper</p>
             </div>
 
-            <div className="h-72 overflow-y-auto py-3 space-y-2">
+            <div className="h-[min(52vh,18rem)] overflow-y-auto py-3 space-y-2">
               {messages.map((entry) => (
                 <div
                   key={entry.id}
-                  className={`text-sm px-3 py-2 rounded-xl ${entry.sender === "user" ? "bg-primary text-primary-foreground ml-8" : "bg-muted mr-8"}`}
+                  className={`text-sm px-3 py-2 rounded-xl break-words ${entry.sender === "user" ? "bg-primary text-primary-foreground ml-8" : "bg-muted mr-8"}`}
                 >
                   {entry.text}
                 </div>

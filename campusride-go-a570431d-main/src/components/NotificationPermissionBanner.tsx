@@ -16,7 +16,7 @@ const NotificationPermissionBanner = ({ show, onEnable }: NotificationPermission
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed left-3 right-3 top-3 z-[90] sm:left-auto sm:right-6 sm:top-6 sm:w-[28rem]"
+      className="fixed left-3 right-3 top-3 z-[90] max-w-full sm:left-auto sm:right-6 sm:top-6 sm:w-[28rem]"
     >
       <div className="rounded-2xl border border-amber-400/30 bg-amber-100/95 px-4 py-3 shadow-xl backdrop-blur-md dark:bg-amber-900/70">
         <div className="flex items-start gap-3">

@@ -27,12 +27,12 @@ export default function NewRideRequestPopup({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -14 }}
           transition={{ duration: 0.2 }}
-          className="fixed top-20 right-4 md:right-6 z-50 w-[min(92vw,380px)] card-glass border border-primary/40"
+          className="fixed inset-x-0 bottom-0 z-50 w-full rounded-t-2xl border border-primary/40 border-b-0 bg-background/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl backdrop-blur sm:inset-x-auto sm:bottom-auto sm:top-20 sm:right-4 sm:w-[min(92vw,380px)] sm:rounded-2xl sm:border-b"
         >
           <div className="flex items-start justify-between gap-3 mb-2">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-primary font-semibold">New Ride Request</p>
-              <p className="text-sm font-medium">{studentName}</p>
+              <p className="text-sm font-medium truncate">{studentName}</p>
             </div>
             <button
               type="button"
@@ -43,10 +43,10 @@ export default function NewRideRequestPopup({
             </button>
           </div>
 
-          <p className="text-xs text-muted-foreground mb-1">
+          <p className="text-xs text-muted-foreground mb-1 break-words">
             Pickup: {ride.pickup?.label || "-"}
           </p>
-          <p className="text-xs text-muted-foreground mb-1">
+          <p className="text-xs text-muted-foreground mb-1 break-words">
             Destination: {ride.drop?.label || "-"}
           </p>
           <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
@@ -54,7 +54,7 @@ export default function NewRideRequestPopup({
           </p>
 
           {["pending", "requested"].includes(ride.status) && (
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 disabled={busy}

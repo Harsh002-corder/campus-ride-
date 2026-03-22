@@ -44,7 +44,7 @@ const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, allo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
         >
           <motion.div
@@ -52,7 +52,7 @@ const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, allo
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.85, opacity: 0, y: 30 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="card-glass border border-border w-full max-w-md relative overflow-hidden"
+            className="card-glass border border-border w-full max-w-full sm:max-w-md relative overflow-hidden rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
           >
             {/* Close button */}
             {allowClose && (
@@ -85,24 +85,24 @@ const RideCompletionPopup = ({ open, onClose, onSubmit, submitting = false, allo
                   <div className="w-14 h-14 rounded-2xl btn-primary-gradient flex items-center justify-center mx-auto mb-3">
                     <CheckCircle className="w-7 h-7 text-primary-foreground" />
                   </div>
-                  <h3 className="text-xl font-bold font-display">Ride Completed! 🎉</h3>
+                  <h3 className="text-xl font-bold font-display break-words">Ride Completed! 🎉</h3>
                   <p className="text-sm text-muted-foreground mt-1">How was your experience?</p>
                   {!allowClose && <p className="text-xs text-primary mt-1">Rating is required to close this popup.</p>}
                 </div>
 
                 {/* Ride Info */}
-                <div className="bg-muted/30 rounded-xl p-4 mb-5 space-y-2">
+                <div className="bg-muted/30 rounded-xl p-4 mb-5 space-y-2 max-w-full">
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-green-400 shrink-0" />
                     <span className="text-muted-foreground">From:</span>
-                    <span className="font-medium text-foreground">{ride.from}</span>
+                    <span className="font-medium text-foreground break-words">{ride.from}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Navigation className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-muted-foreground">To:</span>
-                    <span className="font-medium text-foreground">{ride.to}</span>
+                    <span className="font-medium text-foreground break-words">{ride.to}</span>
                   </div>
-                  <div className="flex items-center gap-3 pt-2 border-t border-border">
+                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" /> {ride.duration}
                     </div>
