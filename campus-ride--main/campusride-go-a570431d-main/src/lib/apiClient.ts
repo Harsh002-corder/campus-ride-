@@ -98,6 +98,7 @@ export interface RideDto {
   sharedLinkToken?: string | null;
   requestedAt: string | null;
   acceptedAt: string | null;
+  arrivedAt?: string | null;
   ongoingAt: string | null;
   completedAt: string | null;
   scheduledFor?: string | null;
@@ -427,6 +428,9 @@ export const apiClient = {
     accept(rideId: string) {
       return request(`/rides/${rideId}/accept`, { method: "POST" });
     },
+    arrive(rideId: string) {
+      return request(`/rides/${rideId}/arrive`, { method: "POST" });
+    },
     reject(rideId: string) {
       return request(`/rides/${rideId}/reject`, { method: "POST" });
     },
@@ -660,8 +664,28 @@ export const apiClient = {
     my() {
       return request<{ notifications: Array<{ id: string; title: string; body: string; type: string; readAt: string | null; createdAt: string }> }>("/notifications/my");
     },
+    myHistory(limit = 10) {
+      return request<{ notifications: Array<{ id: string; title: string; body: string; type: string; readAt: string | null; createdAt: string }> }>(`/notifications/my?limit=${Math.max(1, Math.min(100, limit))}`);
+    },
     markRead(notificationId: string) {
       return request(`/notifications/${notificationId}/read`, { method: "PATCH" });
+    },
+    registerToken(token: string) {
+      return request<{ ok: boolean }>("/notifications/token", {
+        method: "POST",
+        body: JSON.stringify({ token, platform: "web" }),
+      });
+    },
+    removeToken(token: string) {
+      return request<{ ok: boolean }>("/notifications/token", {
+        method: "DELETE",
+        body: JSON.stringify({ token }),
+      });
+    },
+    test() {
+      return request<{ ok: boolean; notification?: { id: string; title: string; body: string } }>("/notifications/test", {
+        method: "POST",
+      });
     },
   },
   issues: {

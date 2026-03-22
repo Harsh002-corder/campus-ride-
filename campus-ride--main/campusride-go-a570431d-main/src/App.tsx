@@ -11,6 +11,8 @@ import ThemeProvider from "@/contexts/ThemeProvider";
 import InstallAppButton from "@/components/InstallAppButton";
 import MotionToggle from "@/components/MotionToggle";
 import { usePwaUpdate } from "@/hooks/usePwaUpdate";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import NotificationPermissionBanner from "@/components/NotificationPermissionBanner";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -94,6 +96,19 @@ const PwaUpdateNotifier = () => {
   return null;
 };
 
+const PushNotificationManager = () => {
+  const { permission, canUsePush, requestPermission } = usePushNotifications();
+
+  return (
+    <NotificationPermissionBanner
+      show={canUsePush && permission !== "granted"}
+      onEnable={() => {
+        void requestPermission();
+      }}
+    />
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -107,6 +122,7 @@ const App = () => (
               <InstallAppButton />
               <MotionToggle />
               <PwaUpdateNotifier />
+              <PushNotificationManager />
               <Suspense fallback={null}>
                 <JarviouWidget />
               </Suspense>

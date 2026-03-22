@@ -38,7 +38,7 @@ const toQueueRides = (rides: RideDto[]) => rides
   .slice()
   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-type RideActionType = "accept" | "decline" | "start" | "complete" | "cancel";
+type RideActionType = "accept" | "decline" | "arrive" | "start" | "complete" | "cancel";
 
 type TodayEarningsSummary = {
   totalEarnings: number;
@@ -155,6 +155,8 @@ const DriverDashboard = () => {
         return "Denying...";
       case "start":
         return "Starting...";
+      case "arrive":
+        return "Arriving...";
       case "complete":
         return "Completing...";
       case "cancel":
@@ -646,6 +648,28 @@ const DriverDashboard = () => {
       }
       await loadData();
       toast.error("Could not start ride", error);
+    } finally {
+      setRideActionBusy(rideId, false);
+      setRideActionType(rideId, null);
+    }
+  };
+
+  const markArrived = async (rideId: string) => {
+    setRideActionBusy(rideId, true);
+    setRideActionType(rideId, "arrive");
+    const nowIso = new Date().toISOString();
+    patchMyRide(rideId, (ride) => ({
+      ...ride,
+      arrivedAt: ride.arrivedAt || nowIso,
+      updatedAt: nowIso,
+    }));
+
+    try {
+      await apiClient.rides.arrive(rideId);
+      toast.success("Arrival updated", "Student has been notified that you arrived.");
+    } catch (error) {
+      await loadData();
+      toast.error("Could not mark arrival", error);
     } finally {
       setRideActionBusy(rideId, false);
       setRideActionType(rideId, null);
@@ -1144,6 +1168,7 @@ const DriverDashboard = () => {
                           queuePosition={index + 1}
                           isLatest={index === 0}
                           actionLabel={getRideActionLabel(ride.id)}
+                          onArrive={markArrived}
                           onStart={startRide}
                           onCancel={openCancelDialog}
                           onComplete={completeRide}

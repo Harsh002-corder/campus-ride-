@@ -191,18 +191,21 @@ setCatchHandler(async ({ event }) => {
 
 self.addEventListener("push", (event) => {
   const payload = event.data?.json?.() ?? {};
-  const title = payload.title || "Campus Ride";
-  const body = payload.body || "Ride update available.";
-  const data = payload.data || {};
+  const notification = payload.notification || {};
+  const data = payload.data || payload || {};
+  const rideId = data.rideId || null;
+  const targetUrl = data.url || (rideId ? `/rides/${rideId}` : "/rides");
+  const title = notification.title || payload.title || "Campus Ride";
+  const body = notification.body || payload.body || "Ride update available.";
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "/icons/favicon-192.png",
     badge: "/icons/favicon-192.png",
     data: {
-      url: data.url || "/rides",
+      url: targetUrl,
       type: data.type || "ride-update",
-      rideId: data.rideId || null,
+      rideId,
     },
     tag: data.tag || data.type || "campusride-notification",
   }));
@@ -217,8 +220,16 @@ self.addEventListener("notificationclick", (event) => {
     const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
 
     for (const client of windowClients) {
-      if ("focus" in client) {
-        await client.navigate(targetUrl);
+      if ("focus" in client && "url" in client) {
+        const currentUrl = new URL(client.url);
+        const nextUrl = new URL(targetUrl, self.location.origin);
+
+        if (currentUrl.origin === nextUrl.origin) {
+          await client.navigate(nextUrl.pathname + nextUrl.search + nextUrl.hash);
+          await client.focus();
+          return;
+        }
+
         await client.focus();
         return;
       }

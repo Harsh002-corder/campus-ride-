@@ -30,7 +30,7 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.notifications.my();
+      const response = await apiClient.notifications.myHistory(10);
       setItems(response.notifications || []);
     } finally {
       setLoading(false);
@@ -116,6 +116,11 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
     await Promise.allSettled(unreadIds.map((id) => apiClient.notifications.markRead(id)));
   };
 
+  const sendTestNotification = async () => {
+    await apiClient.notifications.test();
+    await loadNotifications();
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -161,16 +166,25 @@ const NotificationBell = ({ className }: NotificationBellProps) => {
         <div className="px-4 py-3 border-b border-border/60 bg-muted/20">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">Notifications</p>
-            <button
-              type="button"
-              onClick={() => void markAllRead()}
-              className="text-[11px] font-semibold text-primary disabled:text-muted-foreground"
-              disabled={unreadCount === 0}
-            >
-              Mark all read
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void sendTestNotification()}
+                className="text-[11px] font-semibold text-primary"
+              >
+                Test notification
+              </button>
+              <button
+                type="button"
+                onClick={() => void markAllRead()}
+                className="text-[11px] font-semibold text-primary disabled:text-muted-foreground"
+                disabled={unreadCount === 0}
+              >
+                Mark all read
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">{unreadCount} unread</p>
+          <p className="text-xs text-muted-foreground">{unreadCount} unread • showing last 10</p>
         </div>
 
         <div className="max-h-96 overflow-y-auto">

@@ -10,6 +10,7 @@ type RideCardProps = {
   queuePosition: number;
   isLatest?: boolean;
   actionLabel?: string;
+  onArrive: (rideId: string) => void;
   onStart: (rideId: string) => void;
   onCancel: (rideId: string) => void;
   onComplete: (rideId: string) => void;
@@ -25,6 +26,7 @@ export default function RideCard({
   queuePosition,
   isLatest,
   actionLabel,
+  onArrive,
   onStart,
   onCancel,
   onComplete,
@@ -47,6 +49,7 @@ export default function RideCard({
     : undefined;
 
   const isInProgress = ["in_progress", "ongoing"].includes(ride.status);
+  const isArriving = actionLabel === "Arriving...";
   const isStarting = actionLabel === "Starting...";
   const isCompleting = actionLabel === "Completing...";
   const isCancelling = actionLabel === "Cancelling...";
@@ -152,6 +155,19 @@ export default function RideCard({
       )}
 
       <div className="flex gap-2">
+        <motion.button
+          {...tapSoft}
+          whileHover={{ y: -1 }}
+          onClick={() => onArrive(ride.id)}
+          disabled={busy || ride.status !== "accepted"}
+          className="flex-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+        >
+          <motion.span animate={isArriving ? { y: [0, -1.5, 0] } : { y: 0 }} transition={isArriving ? { duration: 0.7, repeat: Infinity, ease: "easeInOut" } : { duration: 0.15 }}>
+            <Map className="w-3.5 h-3.5" />
+          </motion.span>
+          {isArriving ? "Arriving..." : ride.arrivedAt ? "Arrived" : "Mark Arrived"}
+        </motion.button>
+
         <motion.button
           {...tapSoft}
           whileHover={{ y: -1 }}

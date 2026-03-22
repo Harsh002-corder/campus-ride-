@@ -52,6 +52,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.11.0",
     "framer-motion": "^12.34.0",
     "input-otp": "^1.4.2",
     "leaflet": "^1.9.4",
@@ -95,8 +96,7 @@
     "vite": "^5.4.19",
     "vite-plugin-pwa": "^0.21.1",
     "vitest": "^3.2.4"
-  }
-  ,
+  },
   "overrides": {
     "@radix-ui/react-slot": "1.2.4"
   }
