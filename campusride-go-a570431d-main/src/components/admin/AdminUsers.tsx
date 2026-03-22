@@ -140,7 +140,58 @@ const AdminUsers = () => {
       </div>
 
       <div className="card-glass overflow-hidden !p-0">
-        <div className="overflow-x-auto">
+        <div className="md:hidden p-3 space-y-2">
+          {filtered.map((user) => (
+            <div key={user.id} className="rounded-xl border border-border/50 bg-muted/20 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                    {user.name?.charAt(0) || "U"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 capitalize">{user.role}</p>
+                  </div>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${
+                  user.isActive ? "bg-green-500/20 text-green-400" : "bg-destructive/20 text-destructive"
+                }`}>
+                  {user.isActive ? "active" : "inactive"}
+                </span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Rides: {ridesByStudent.get(user.id) || 0}</span>
+                <span>Joined: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}</span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button onClick={() => handleEmailUser(user)} className="h-9 rounded-lg bg-muted/50 hover:bg-muted transition-colors inline-flex items-center justify-center" title="Email user">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => toggleBlockUser(user)}
+                  disabled={busyUserId === user.id}
+                  className="h-9 rounded-lg bg-muted/50 hover:bg-muted transition-colors disabled:opacity-60 inline-flex items-center justify-center"
+                  title={user.isActive ? "Block" : "Unblock"}
+                >
+                  <Ban className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => deleteUser(user)}
+                  disabled={busyUserId === user.id}
+                  className="h-9 rounded-lg bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-60 inline-flex items-center justify-center"
+                  title="Delete user"
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto max-w-full">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">

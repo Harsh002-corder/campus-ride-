@@ -147,12 +147,12 @@ const AdminRides = () => {
                     "bg-destructive/20 text-destructive"
                   }`}>{ride.status}</span>
                 </div>
-                <p className="font-medium text-sm mt-1">{ride.pickup?.label || "—"} → {ride.drop?.label || "—"}</p>
-                <p className="text-xs text-muted-foreground">Student: {ride.student?.name || ride.studentId?.slice(-6) || "—"} · Driver: {ride.driver?.name || ride.driverId?.slice(-6) || "—"}</p>
+                <p className="font-medium text-sm mt-1 break-words">{ride.pickup?.label || "—"} → {ride.drop?.label || "—"}</p>
+                <p className="text-xs text-muted-foreground break-words">Student: {ride.student?.name || ride.studentId?.slice(-6) || "—"} · Driver: {ride.driver?.name || ride.driverId?.slice(-6) || "—"}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {ride.passengers || 1}</p>
                 {ride.cancellationReasonKey && <p className="text-xs text-muted-foreground">Cancellation reason: {ride.cancellationReasonKey}</p>}
                 {ride.studentRating && (
-                  <p className="text-xs text-primary mt-1">Rating: {ride.studentRating}/5 {ride.studentFeedback ? `· ${ride.studentFeedback}` : ""}</p>
+                  <p className="text-xs text-primary mt-1 break-words">Rating: {ride.studentRating}/5 {ride.studentFeedback ? `· ${ride.studentFeedback}` : ""}</p>
                 )}
               </div>
             </div>

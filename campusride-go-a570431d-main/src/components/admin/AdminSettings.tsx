@@ -312,14 +312,14 @@ const AdminSettings = () => {
             const enabled = value === true;
             return (
               <div key={field.key} className="py-3 border-b border-border/50 last:border-0">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-foreground">{field.label}</p>
                     <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
                     <p className="text-[10px] text-muted-foreground mt-1">Key: {field.key}</p>
                   </div>
 
-                  <div className="shrink-0 min-w-[160px]">
+                  <div className="w-full sm:w-auto sm:min-w-[160px]">
                     {field.type === "boolean" && (
                       <button
                         type="button"

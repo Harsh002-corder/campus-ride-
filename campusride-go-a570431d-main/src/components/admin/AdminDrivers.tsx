@@ -122,7 +122,7 @@ const AdminDrivers = () => {
         <p className="text-sm text-muted-foreground">{loading ? "Loading drivers..." : `${drivers.length} registered drivers`}</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Online", value: online, color: "text-green-400" },
           { label: "On Ride", value: onRide, color: "text-primary" },
@@ -139,15 +139,15 @@ const AdminDrivers = () => {
         {drivers.map((driver, i) => {
           const verification = verificationByDriver.get(driver.id);
           return (
-            <motion.div key={driver.id} {...card(i + 3)} className="card-glass">
+            <motion.div key={driver.id} {...card(i + 3)} className="card-glass max-w-full">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
                   {driver.name?.charAt(0) || "D"}
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{driver.name}</p>
-                  <p className="text-xs text-muted-foreground">{driver.email}</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{driver.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{driver.email}</p>
                 </div>
               </div>
               <span className={`w-2.5 h-2.5 rounded-full ${
@@ -189,18 +189,18 @@ const AdminDrivers = () => {
               <span className={`font-semibold ${driver.isActive ? "text-green-400" : "text-destructive"}`}>{driver.isActive ? "active" : "inactive"}</span>
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-col sm:flex-row items-center gap-2">
               <button
                 onClick={() => updateDriverApproval(driver.id, "approved")}
                 disabled={updatingDriverId === driver.id || driver.driverApprovalStatus === "approved"}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:opacity-60"
+                className="w-full flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:opacity-60"
               >
                 {updatingDriverId === driver.id ? "Updating..." : "Approve"}
               </button>
               <button
                 onClick={() => updateDriverApproval(driver.id, "rejected")}
                 disabled={updatingDriverId === driver.id || driver.driverApprovalStatus === "rejected"}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 disabled:opacity-60"
+                className="w-full flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-destructive/20 text-destructive hover:bg-destructive/30 disabled:opacity-60"
               >
                 {updatingDriverId === driver.id ? "Updating..." : "Reject"}
               </button>
