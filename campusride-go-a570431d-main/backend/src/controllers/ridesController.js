@@ -10,7 +10,11 @@ import { generateUniqueRideCode } from "../utils/rideCode.js";
 import { emitNewRideRequest, emitRideUpdate } from "../services/socket.js";
 import { findBestDriverForRide } from "../services/matchingService.js";
 import { estimateRideFare } from "../services/fareService.js";
-import { createRideStatusNotifications } from "../services/notificationService.js";
+import {
+  createRideArrivedNotification,
+  createRideStatusNotifications,
+  notifyDriversNewRideRequest,
+} from "../services/notificationService.js";
 import { generateRideInvoiceBuffer } from "../services/pdfInvoiceService.js";
 import { recomputeDriverPerformance } from "../services/driverPerformanceService.js";
 import { CAMPUS_BOUNDARY_POLYGON, distanceInMeters, pointInPolygon } from "../utils/geoFence.js";
@@ -404,6 +408,7 @@ export const bookRide = asyncHandler(async (req, res) => {
 
   if (!isScheduled) {
     emitNewRideRequest(serialized, onlineDriverIds);
+    await notifyDriversNewRideRequest(serialized, onlineDriverIds);
   }
   emitRideUpdate(serialized);
   await createRideStatusNotifications(serialized);
@@ -747,6 +752,44 @@ export const startRide = asyncHandler(async (req, res) => {
 
   const rideId = new mongoose.Types.ObjectId(req.params.rideId);
   const ride = await startAcceptedRide({ rideId, driverId: req.user.id, requireVerification: false });
+  res.json({ ride });
+});
+
+export const arriveRide = asyncHandler(async (req, res) => {
+  if (req.user.role !== ROLES.DRIVER) {
+    throw new AppError(403, "Only drivers can mark arrival");
+  }
+
+  const rideId = new mongoose.Types.ObjectId(req.params.rideId);
+  const now = new Date();
+
+  const updatedRide = await Ride.findOneAndUpdate(
+    {
+      _id: rideId,
+      status: RIDE_STATUS.ACCEPTED,
+      driverId: new mongoose.Types.ObjectId(req.user.id),
+    },
+    {
+      $set: {
+        arrivedAt: now,
+        updatedAt: now,
+      },
+    },
+    { new: true, lean: true },
+  );
+
+  if (!updatedRide) {
+    throw new AppError(409, "Ride must be accepted before marking arrival");
+  }
+
+  const populated = await Ride.findById(updatedRide._id)
+    .populate("studentId", "name email phone")
+    .populate("driverId", "name email phone")
+    .lean();
+
+  const ride = serializeRide(populated);
+  emitRideUpdate(ride);
+  await createRideArrivedNotification(ride);
   res.json({ ride });
 });
 
@@ -1239,15 +1282,16 @@ function getTimingInsights(ride) {
 function buildRideTimeline(ride) {
   const startedAt = ride.ongoingAt || null;
   const acceptedAt = ride.acceptedAt || null;
+  const arrivedAt = ride.arrivedAt || null;
   const bookedAt = ride.requestedAt || ride.createdAt || null;
   const completedAt = ride.completedAt || null;
   const cancelledAt = ride.cancelledAt || null;
-  const arrivingReached = Boolean(acceptedAt);
+  const arrivingReached = Boolean(arrivedAt || acceptedAt);
 
   return [
     { key: "booked", label: "Booked", reached: Boolean(bookedAt), timestamp: bookedAt },
     { key: "accepted", label: "Accepted", reached: Boolean(acceptedAt), timestamp: acceptedAt },
-    { key: "arriving", label: "Driver Arriving", reached: arrivingReached, timestamp: acceptedAt },
+    { key: "arriving", label: "Driver Arriving", reached: arrivingReached, timestamp: arrivedAt || acceptedAt },
     { key: "started", label: "Started", reached: Boolean(startedAt), timestamp: startedAt },
     {
       key: ride.status === RIDE_STATUS.CANCELLED ? "cancelled" : "completed",
@@ -1327,6 +1371,7 @@ function serializeRide(ride) {
     sharedLinkToken: sharedLinkToken,
     requestedAt: ride.requestedAt || null,
     acceptedAt: ride.acceptedAt || null,
+    arrivedAt: ride.arrivedAt || null,
     ongoingAt: ride.ongoingAt || null,
     completedAt: ride.completedAt || null,
     scheduledFor: ride.scheduledFor || null,

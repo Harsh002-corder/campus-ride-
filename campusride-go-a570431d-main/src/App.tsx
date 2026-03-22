@@ -8,7 +8,10 @@ import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ThemeProvider from "@/contexts/ThemeProvider";
 import { useRideRealtime } from "@/hooks/useRideRealtime";
+import { useRealtimeRideAlerts } from "@/hooks/useRealtimeRideAlerts";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import OfflineFallback from "@/components/pwa/OfflineFallback";
+import NotificationPermissionBanner from "@/components/NotificationPermissionBanner";
 
 const Index = lazy(() => import("./pages/Index"));
 const Login = lazy(() => import("./pages/Login"));
@@ -86,7 +89,21 @@ const AnimatedRoutes = () => {
 
 const RealtimeBootstrap = () => {
   useRideRealtime();
+  useRealtimeRideAlerts();
   return null;
+};
+
+const PushNotificationManager = () => {
+  const { permission, canUsePush, requestPermission } = usePushNotifications();
+
+  return (
+    <NotificationPermissionBanner
+      show={canUsePush && permission !== "granted"}
+      onEnable={() => {
+        void requestPermission();
+      }}
+    />
+  );
 };
 
 const DeferredUtilities = () => {
@@ -125,6 +142,7 @@ const App = () => (
           <BrowserRouter>
             <RealtimeBootstrap />
             <AnimatedRoutes />
+            <PushNotificationManager />
             <DeferredUtilities />
           </BrowserRouter>
         </AuthProvider>

@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: [
         "campusride-icon.ico",
@@ -53,57 +56,8 @@ export default defineConfig(({ mode }) => ({
           },
         ],
       },
-      workbox: {
-        // Use SPA shell for route reloads; offline page should not replace normal navigations.
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,json,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.destination === "script" || request.destination === "style",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "static-assets-v2",
-              networkTimeoutSeconds: 3,
-              expiration: {
-                maxEntries: 120,
-                maxAgeSeconds: 60 * 60 * 24 * 7,
-              },
-            },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/") || url.href.includes("/api/"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache-v2",
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: ({ request }) => request.destination === "image",
-            handler: "CacheFirst",
-            options: {
-              cacheName: "images-cache-v2",
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
       },
       devOptions: {
         enabled: false,

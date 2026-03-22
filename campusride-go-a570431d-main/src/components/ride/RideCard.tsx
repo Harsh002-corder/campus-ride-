@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CheckCircle, Map, MessageCircle, Phone, Play, Users, XCircle } from "lucide-react";
+import { CheckCircle, LocateFixed, Map, MessageCircle, Phone, Play, Users, XCircle } from "lucide-react";
 import type { RideDto } from "@/lib/apiClient";
 
 type RideCardProps = {
@@ -9,6 +9,7 @@ type RideCardProps = {
   queuePosition: number;
   isLatest?: boolean;
   actionLabel?: string;
+  onArrive: (rideId: string) => void;
   onStart: (rideId: string) => void;
   onCancel: (rideId: string) => void;
   onComplete: (rideId: string) => void;
@@ -24,6 +25,7 @@ export default function RideCard({
   queuePosition,
   isLatest,
   actionLabel,
+  onArrive,
   onStart,
   onCancel,
   onComplete,
@@ -39,7 +41,9 @@ export default function RideCard({
     : undefined;
 
   const isInProgress = ["in_progress", "ongoing"].includes(ride.status);
+  const canArrive = ride.status === "accepted";
   const isStarting = actionLabel === "Starting...";
+  const isArriving = actionLabel === "Arriving...";
   const isCompleting = actionLabel === "Completing...";
   const isCancelling = actionLabel === "Cancelling...";
   const createdAtText = new Date(ride.createdAt).toLocaleString();
@@ -98,6 +102,15 @@ export default function RideCard({
       )}
 
       <div className="flex gap-2">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onArrive(ride.id)}
+          disabled={busy || !canArrive}
+          className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+        >
+          <LocateFixed className="w-3.5 h-3.5" /> {isArriving ? "Arriving..." : "Mark Arrived"}
+        </motion.button>
+
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => onStart(ride.id)}

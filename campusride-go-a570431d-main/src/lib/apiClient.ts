@@ -96,6 +96,7 @@ export interface RideDto {
   sharedLinkToken?: string | null;
   requestedAt: string | null;
   acceptedAt: string | null;
+  arrivedAt?: string | null;
   ongoingAt: string | null;
   completedAt: string | null;
   scheduledFor?: string | null;
@@ -272,6 +273,9 @@ export const apiClient = {
     accept(rideId: string) {
       return request(`/rides/${rideId}/accept`, { method: "POST" });
     },
+    arrive(rideId: string) {
+      return request(`/rides/${rideId}/arrive`, { method: "POST" });
+    },
     reject(rideId: string) {
       return request(`/rides/${rideId}/reject`, { method: "POST" });
     },
@@ -443,6 +447,21 @@ export const apiClient = {
     },
     markRead(notificationId: string) {
       return request(`/notifications/${notificationId}/read`, { method: "PATCH" });
+    },
+    registerToken(token: string, platform = "web") {
+      return request("/notifications/token", {
+        method: "POST",
+        body: JSON.stringify({ token, platform }),
+      });
+    },
+    removeToken(token: string) {
+      return request("/notifications/token", {
+        method: "DELETE",
+        body: JSON.stringify({ token }),
+      });
+    },
+    test() {
+      return request("/notifications/test", { method: "POST" });
     },
   },
   issues: {
