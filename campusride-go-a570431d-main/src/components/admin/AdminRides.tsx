@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Navigation, Search, Clock, Users } from "lucide-react";
+import { Navigation, Search, Clock, Users, RefreshCw } from "lucide-react";
 import { apiClient, type RideDto } from "@/lib/apiClient";
 import { useAppToast } from "@/hooks/use-app-toast";
 
@@ -13,24 +13,29 @@ const AdminRides = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [driverIdFilter, setDriverIdFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+
+  const loadRides = async (mounted = true) => {
+    setLoading(true);
+    try {
+      const response = await apiClient.admin.rides({
+        status: filter === "all" ? undefined : filter,
+        reasonKey: reasonFilter === "all" ? undefined : reasonFilter,
+        driverId: driverIdFilter === "all" ? undefined : driverIdFilter,
+        from: fromDate || undefined,
+        to: toDate || undefined,
+      });
+      if (mounted) setRides(response.rides || []);
+    } catch (error) {
+      if (mounted) toast.error("Unable to load rides", error, "Please refresh and try again.");
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
-      try {
-        const response = await apiClient.admin.rides({
-          status: filter === "all" ? undefined : filter,
-          reasonKey: reasonFilter === "all" ? undefined : reasonFilter,
-          driverId: driverIdFilter === "all" ? undefined : driverIdFilter,
-          from: fromDate || undefined,
-          to: toDate || undefined,
-        });
-        if (mounted) setRides(response.rides || []);
-      } catch (error) {
-        if (mounted) toast.error("Unable to load rides", error, "Please refresh and try again.");
-      }
-    };
-    load();
+    void loadRides(mounted);
     return () => {
       mounted = false;
     };
@@ -38,7 +43,7 @@ const AdminRides = () => {
 
   const filtered = useMemo(() => {
     return rides.filter((ride) => {
-      const haystack = `${ride.pickup?.label || ""} ${ride.drop?.label || ""} ${ride.studentId || ""} ${ride.driverId || ""}`.toLowerCase();
+      const haystack = `${ride.pickup?.label || ""} ${ride.drop?.label || ""} ${ride.studentId || ""} ${ride.driverId || ""} ${ride.student?.name || ""} ${ride.driver?.name || ""}`.toLowerCase();
       const matchSearch = haystack.includes(search.toLowerCase());
       const matchFilter = filter === "all"
         || ride.status === filter
@@ -61,7 +66,7 @@ const AdminRides = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-display mb-1">Ride Management</h1>
-        <p className="text-sm text-muted-foreground">{rides.length} rides loaded</p>
+        <p className="text-sm text-muted-foreground">{loading ? "Loading rides..." : `${rides.length} rides loaded`}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -86,6 +91,13 @@ const AdminRides = () => {
               {f} ({statusCounts[f]})
             </button>
           ))}
+          <button
+            onClick={() => void loadRides(true)}
+            disabled={loading}
+            className="px-3 py-2 rounded-xl text-xs font-medium bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-60 flex items-center gap-1"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
         </div>
       </div>
 
@@ -110,6 +122,9 @@ const AdminRides = () => {
       </div>
 
       <div className="space-y-3">
+        {!loading && filtered.length === 0 && (
+          <div className="card-glass text-sm text-muted-foreground">No rides found for your current filters.</div>
+        )}
         {filtered.map((ride, i) => (
           <motion.div
             key={ride.id}
@@ -143,7 +158,7 @@ const AdminRides = () => {
             </div>
             <div className="flex items-center gap-4 sm:text-right">
               <div>
-                <p className="font-bold text-sm">—</p>
+                <p className="font-bold text-sm">₹{Number(ride.fareBreakdown?.totalFare || 0).toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {new Date(ride.updatedAt || ride.createdAt).toLocaleString()}
                 </p>

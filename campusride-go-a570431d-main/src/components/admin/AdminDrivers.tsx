@@ -26,18 +26,24 @@ const AdminDrivers = () => {
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
   const [rides, setRides] = useState<RideDto[]>([]);
   const [updatingDriverId, setUpdatingDriverId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [verifications, setVerifications] = useState<Array<{ id: string; driverId: string | null; status: "pending" | "approved" | "rejected"; reviewNotes: string; documents: Array<{ type: string; url: string; fileName: string }> }>>([]);
 
   const loadData = useCallback(async () => {
-    const [usersResponse, ridesResponse, verificationsResponse] = await Promise.all([
-      apiClient.users.list("driver") as Promise<{ users: DriverRow[] }>,
-      apiClient.rides.my(),
-      apiClient.admin.verifications(),
-    ]);
+    setLoading(true);
+    try {
+      const [usersResponse, ridesResponse, verificationsResponse] = await Promise.all([
+        apiClient.users.list("driver") as Promise<{ users: DriverRow[] }>,
+        apiClient.admin.rides(),
+        apiClient.admin.verifications(),
+      ]);
 
-    setDrivers(usersResponse.users || []);
-    setRides(ridesResponse.rides || []);
-    setVerifications(verificationsResponse.verifications || []);
+      setDrivers(usersResponse.users || []);
+      setRides(ridesResponse.rides || []);
+      setVerifications(verificationsResponse.verifications || []);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -113,7 +119,7 @@ const AdminDrivers = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-display mb-1">Driver Management</h1>
-        <p className="text-sm text-muted-foreground">{drivers.length} registered drivers</p>
+        <p className="text-sm text-muted-foreground">{loading ? "Loading drivers..." : `${drivers.length} registered drivers`}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

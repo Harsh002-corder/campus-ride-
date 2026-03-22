@@ -19,15 +19,23 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [rides, setRides] = useState<RideDto[]>([]);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const loadData = async (mounted = true) => {
-    const [usersResponse, ridesResponse] = await Promise.all([
-      apiClient.users.list() as Promise<{ users: UserRow[] }>,
-      apiClient.rides.my(),
-    ]);
-    if (!mounted) return;
-    setUsers(usersResponse.users || []);
-    setRides(ridesResponse.rides || []);
+    setLoading(true);
+    try {
+      const [usersResponse, ridesResponse] = await Promise.all([
+        apiClient.users.list() as Promise<{ users: UserRow[] }>,
+        apiClient.admin.rides(),
+      ]);
+      if (!mounted) return;
+      setUsers(usersResponse.users || []);
+      setRides(ridesResponse.rides || []);
+    } finally {
+      if (mounted) {
+        setLoading(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -104,12 +112,21 @@ const AdminUsers = () => {
     return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
   }), [users, search]);
 
+  const handleEmailUser = (user: UserRow) => {
+    if (!user.email) {
+      toast.info("Email unavailable", "Selected user has no email address.");
+      return;
+    }
+
+    window.location.href = `mailto:${encodeURIComponent(user.email)}?subject=${encodeURIComponent("CampusRide Account Update")}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-display mb-1">User Management</h1>
-          <p className="text-sm text-muted-foreground">{users.length} registered users</p>
+          <p className="text-sm text-muted-foreground">{loading ? "Loading users..." : `${users.length} registered users`}</p>
         </div>
         <div className="relative max-w-xs w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -167,7 +184,7 @@ const AdminUsers = () => {
                   <td className="p-4 hidden lg:table-cell text-sm text-muted-foreground">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Email">
+                      <button onClick={() => handleEmailUser(user)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Email user">
                         <Mail className="w-4 h-4 text-muted-foreground" />
                       </button>
                       <button
