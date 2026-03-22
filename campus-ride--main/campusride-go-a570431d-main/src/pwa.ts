@@ -4,7 +4,7 @@ const DEV_UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 const PROD_UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const SW_RELOAD_FALLBACK_MS = 8000;
 
-const SW_MIGRATION_KEY = "campusride_sw_migration_20260311";
+const SW_MIGRATION_KEY = "campusride_sw_migration_20260322";
 
 const getNeedsSwMigration = () => {
   try {

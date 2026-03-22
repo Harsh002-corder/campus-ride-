@@ -10,7 +10,7 @@ import { CacheFirst, NetworkFirst, NetworkOnly, StaleWhileRevalidate } from "wor
 declare let self: ServiceWorkerGlobalScope;
 
 // Version this cache name with each deployment to ensure old caches are cleaned up
-const CAMPUSRIDE_CACHE_VERSION = "campusride-v20260311";
+const CAMPUSRIDE_CACHE_VERSION = "campusride-v20260322";
 const CACHE_NAMES = {
   STATIC_ASSETS: `${CAMPUSRIDE_CACHE_VERSION}-static-assets`,
   MAP_UI: `${CAMPUSRIDE_CACHE_VERSION}-map-ui`,
