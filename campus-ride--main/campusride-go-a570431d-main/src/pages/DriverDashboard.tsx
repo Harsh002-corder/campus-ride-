@@ -15,7 +15,7 @@ import NotificationBell from "@/components/NotificationBell";
 import ProfileDialog from "@/components/ProfileDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import { apiClient, type AuthUser, type RideDto } from "@/lib/apiClient";
-import { buildTodayEarningsFromRides } from "@/lib/driverEarnings";
+import { buildDailyEarningsFromRides, buildTodayEarningsFromRides } from "@/lib/driverEarnings";
 import { getSocketClient } from "@/lib/socketClient";
 import {
   Navigation, Wallet, Users, LogOut, Power,
@@ -489,6 +489,8 @@ const DriverDashboard = () => {
   const animatedCompletionRate = useCountUp(stats.completionRate, 900, true);
   const animatedCancellationRate = useCountUp(stats.cancellationRate, 900, true);
   const animatedTodayEarnings = useCountUp(Math.round(todayEarnings.netDriverEarnings), 900, true);
+  const dailyEarningsOverview = useMemo(() => buildDailyEarningsFromRides(myRides, 30), [myRides]);
+  const animatedDailyEarnings = useCountUp(Math.round(dailyEarningsOverview.summary.netDriverEarnings), 900, true);
 
   const tapSoft = {
     whileTap: { scale: 0.97 },
@@ -519,7 +521,7 @@ const DriverDashboard = () => {
     }, 1125);
   }, [navigate]);
 
-  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings" | "today-earnings") => {
+  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings" | "today-earnings" | "daily-earnings") => {
     if (key === "total" || key === "today") {
       navigate("/rides", { state: { tab: "all" } });
       return;
@@ -541,6 +543,11 @@ const DriverDashboard = () => {
 
     if (key === "today-earnings") {
       navigate("/driver-dashboard/today-earnings");
+      return;
+    }
+
+    if (key === "daily-earnings") {
+      navigate("/driver-dashboard/daily-earnings");
     }
   };
 
@@ -1039,7 +1046,7 @@ const DriverDashboard = () => {
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-7 gap-4">
               {[
                 { key: "total", icon: Wallet, label: "Total Rides", value: String(animatedTotal), change: "all time" },
                 { key: "today", icon: Navigation, label: "Rides Today", value: String(animatedToday), change: "today" },
@@ -1047,13 +1054,14 @@ const DriverDashboard = () => {
                 { key: "completed", icon: Star, label: "Completed", value: String(animatedCompleted), change: "finished" },
                 { key: "earnings", icon: Wallet, label: "Earnings", value: `₹${estimatedEarnings}`, change: "net total" },
                 { key: "today-earnings", icon: TrendingUp, label: "Today Earnings", value: `₹${animatedTodayEarnings}`, change: `${todayEarnings.completedRides} completed` },
+                { key: "daily-earnings", icon: Calendar, label: "Daily Earnings", value: `₹${animatedDailyEarnings}`, change: `${dailyEarningsOverview.days.length} days` },
               ].map((s, i) => (
                 <motion.div
                   key={s.label}
                   {...card(i + 1)}
                   whileHover={{ y: -4, scale: 1.01 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "today-earnings")}
+                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "today-earnings" | "daily-earnings")}
                   className="card-glass cursor-pointer hover:bg-muted/40 transition-colors hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
                 >
                   <div className="flex items-center gap-3 mb-4">

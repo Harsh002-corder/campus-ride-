@@ -21,6 +21,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const DriverDashboard = lazy(() => import("./pages/DriverDashboard"));
 const DriverTodayEarnings = lazy(() => import("./pages/DriverTodayEarnings"));
+const DriverDailyEarnings = lazy(() => import("./pages/DriverDailyEarnings"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SubAdminDashboard = lazy(() => import("./pages/SubAdminDashboard"));
@@ -75,6 +76,7 @@ const AnimatedRoutes = () => {
           <Route path="/student-dashboard" element={<RequireAuth allowedRoles={["student"]}><StudentDashboard /></RequireAuth>} />
           <Route path="/driver-dashboard" element={<RequireAuth allowedRoles={["driver"]}><DriverDashboard /></RequireAuth>} />
           <Route path="/driver-dashboard/today-earnings" element={<RequireAuth allowedRoles={["driver"]}><DriverTodayEarnings /></RequireAuth>} />
+          <Route path="/driver-dashboard/daily-earnings" element={<RequireAuth allowedRoles={["driver"]}><DriverDailyEarnings /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth allowedRoles={["admin", "sub_admin"]}><AdminDashboard /></RequireAuth>} />
           <Route path="/sub-admin-dashboard" element={<RequireAuth allowedRoles={["sub_admin"]}><SubAdminDashboard /></RequireAuth>} />
           <Route path="/super-admin-dashboard" element={<RequireAuth allowedRoles={["super_admin"]}><SuperAdminDashboard /></RequireAuth>} />
