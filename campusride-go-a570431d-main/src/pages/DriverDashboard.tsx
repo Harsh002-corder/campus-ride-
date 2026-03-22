@@ -17,7 +17,7 @@ import { getSocketClient } from "@/lib/socketClient";
 import { useRideRealtimeStore } from "@/stores/rideRealtimeStore";
 import {
   Navigation, Wallet, Users, LogOut, Power,
-  TrendingUp, ChevronRight, Star,
+  TrendingUp, ChevronRight, Star, CalendarDays,
   UserCircle2,
 } from "lucide-react";
 
@@ -348,7 +348,39 @@ const DriverDashboard = () => {
     return stats.completed * ratePerCompletedRide;
   }, [stats.completed]);
 
-  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings") => {
+  const dailyEarningsOverview = useMemo(() => {
+    const now = new Date();
+    const rangeStart = new Date(now);
+    rangeStart.setDate(rangeStart.getDate() - 29);
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const summary = myRides
+      .filter((ride) => ride.status === "completed")
+      .reduce((acc, ride) => {
+        const completedAt = ride.completedAt || ride.updatedAt || ride.createdAt;
+        if (!completedAt) return acc;
+
+        const completedDate = new Date(completedAt);
+        if (completedDate < rangeStart) return acc;
+
+        const totalFare = Number(ride.fareBreakdown?.totalFare || 0);
+        const platformFee = Number(ride.fareBreakdown?.platformFee || 0);
+
+        return {
+          net: acc.net + Math.max(0, totalFare - platformFee),
+          rides: acc.rides + 1,
+          days: acc.days.add(completedDate.toISOString().slice(0, 10)),
+        };
+      }, { net: 0, rides: 0, days: new Set<string>() });
+
+    return {
+      netDriverEarnings: Number(summary.net.toFixed(2)),
+      completedRides: summary.rides,
+      daysWithRides: summary.days.size,
+    };
+  }, [myRides]);
+
+  const handleStatCardClick = (key: "total" | "today" | "active" | "completed" | "earnings" | "daily-earnings") => {
     if (key === "total" || key === "today") {
       navigate("/rides", { state: { tab: "all" } });
       return;
@@ -365,6 +397,11 @@ const DriverDashboard = () => {
 
     if (key === "completed" || key === "earnings") {
       navigate("/rides", { state: { tab: "completed" } });
+      return;
+    }
+
+    if (key === "daily-earnings") {
+      navigate("/driver-dashboard/daily-earnings");
     }
   };
 
@@ -811,18 +848,19 @@ const DriverDashboard = () => {
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
               {[
                 { key: "total", icon: Wallet, label: "Total Rides", value: String(stats.total), change: "all time" },
                 { key: "today", icon: Navigation, label: "Rides Today", value: String(stats.today), change: "today" },
                 { key: "active", icon: Users, label: "Active", value: String(stats.active), change: "in progress" },
                 { key: "completed", icon: Star, label: "Completed", value: String(stats.completed), change: "finished" },
                 { key: "earnings", icon: Wallet, label: "Earnings", value: `₹${estimatedEarnings}`, change: "estimated" },
+                { key: "daily-earnings", icon: CalendarDays, label: "Daily Earnings", value: `₹${dailyEarningsOverview.netDriverEarnings}`, change: `${dailyEarningsOverview.daysWithRides} days` },
               ].map((s, i) => (
                 <motion.div
                   key={s.label}
                   {...card(i + 1)}
-                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings")}
+                  onClick={() => handleStatCardClick(s.key as "total" | "today" | "active" | "completed" | "earnings" | "daily-earnings")}
                   className="card-glass cursor-pointer"
                 >
                   <div className="flex items-center gap-3 mb-3">

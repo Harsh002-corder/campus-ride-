@@ -16,6 +16,7 @@ const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const DriverDashboard = lazy(() => import("./pages/DriverDashboard"));
+const DriverDailyEarnings = lazy(() => import("./pages/DriverDailyEarnings"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const RideTracking = lazy(() => import("./pages/RideTracking"));
@@ -69,6 +70,7 @@ const AnimatedRoutes = () => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/student-dashboard" element={<RequireAuth allowedRoles={["student"]}><StudentDashboard /></RequireAuth>} />
           <Route path="/driver-dashboard" element={<RequireAuth allowedRoles={["driver"]}><DriverDashboard /></RequireAuth>} />
+          <Route path="/driver-dashboard/daily-earnings" element={<RequireAuth allowedRoles={["driver"]}><DriverDailyEarnings /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
           <Route path="/ride-tracking" element={<RequireAuth><RideTracking /></RequireAuth>} />
           <Route path="/ride-tracking/:id" element={<RequireAuth><RideTracking /></RequireAuth>} />
