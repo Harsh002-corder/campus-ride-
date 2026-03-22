@@ -46,6 +46,11 @@ type GpsVerificationState = {
   message: string;
 };
 
+type GpsPromptState = {
+  open: boolean;
+  reason: string;
+};
+
 const MAX_PICKUP_GPS_DISTANCE_METERS = 200;
 const ALLOW_ANYWHERE_BOOKING_FOR_TESTING = false;
 
@@ -127,7 +132,9 @@ function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy: num
         });
       },
       (error) => {
-        reject(new Error(error.message || "Unable to get your current location."));
+        const locationError = new Error(error.message || "Unable to get your current location.") as Error & { code?: number };
+        locationError.code = error.code;
+        reject(locationError);
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 },
     );
@@ -168,6 +175,10 @@ const StudentDashboard = () => {
   const [issueCategory, setIssueCategory] = useState<RideIssueDto["category"]>("route_issue");
   const [issueDescription, setIssueDescription] = useState("");
   const [submittingIssue, setSubmittingIssue] = useState(false);
+  const [gpsPrompt, setGpsPrompt] = useState<GpsPromptState>({
+    open: false,
+    reason: "Enable location (GPS) on your device to book rides.",
+  });
   const [gpsVerification, setGpsVerification] = useState<GpsVerificationState>({
     state: "idle",
     message: "Select pickup to verify GPS",
@@ -381,6 +392,21 @@ const StudentDashboard = () => {
     setGpsVerification({ state: "idle", message: "Select pickup to verify GPS" });
   };
 
+  const promptEnableGps = useCallback((error?: unknown) => {
+    const locationError = error as (Error & { code?: number }) | undefined;
+    let reason = "Enable location (GPS) on your device to continue booking rides.";
+
+    if (locationError?.code === 1) {
+      reason = "Location permission is denied. Allow location access in browser settings and turn on device GPS.";
+    } else if (locationError?.code === 2) {
+      reason = "Your device location is unavailable. Turn on GPS and move to an open area for better signal.";
+    } else if (locationError?.code === 3) {
+      reason = "Location request timed out. Turn on GPS and try again.";
+    }
+
+    setGpsPrompt({ open: true, reason });
+  }, []);
+
   const handleFindRide = async () => {
     if (!rideBookingEnabled) {
       toast.info("Ride booking disabled", "Admin has temporarily paused ride booking.");
@@ -415,6 +441,7 @@ const StudentDashboard = () => {
       gpsLocation = await getCurrentPosition();
     } catch (error) {
       setGpsVerification({ state: "failed", message: "GPS access required for booking" });
+      promptEnableGps(error);
       toast.error("Unable to verify your location", error, "Enable location access to book rides.");
       return;
     }
@@ -519,6 +546,7 @@ const StudentDashboard = () => {
       gpsLocation = await getCurrentPosition();
     } catch (error) {
       setGpsVerification({ state: "failed", message: "GPS access required for booking" });
+      promptEnableGps(error);
       toast.error("Unable to verify your location", error, "Enable location access to book rides.");
       return;
     }
@@ -727,6 +755,59 @@ const StudentDashboard = () => {
             <DialogClose asChild>
               <button className="btn-primary-gradient px-4 py-2 rounded-md">Got it</button>
             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={gpsPrompt.open}
+        onOpenChange={(open) => setGpsPrompt((prev) => ({ ...prev, open }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-primary" />
+              Enable Device GPS
+            </DialogTitle>
+            <DialogDescription>
+              Location access is required to verify your pickup point and book a ride.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <p className="text-sm text-primary font-medium mb-1">GPS Required</p>
+              <p className="text-xs text-muted-foreground">{gpsPrompt.reason}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">How to fix:</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>1. Turn on device location/GPS.</li>
+                <li>2. Allow location permission for this website.</li>
+                <li>3. Tap Try Again after enabling GPS.</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setGpsPrompt((prev) => ({ ...prev, open: false }))}
+              className="px-4 py-2 rounded-xl text-sm bg-muted/50 hover:bg-muted text-muted-foreground transition-colors"
+            >
+              Not now
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setGpsPrompt((prev) => ({ ...prev, open: false }));
+                void handleReverifyGps();
+              }}
+              className="px-4 py-2 rounded-xl text-sm bg-primary hover:bg-primary/90 text-primary-foreground transition-colors font-medium"
+            >
+              Try Again
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
