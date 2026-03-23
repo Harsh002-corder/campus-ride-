@@ -63,10 +63,10 @@ const JarviouWidget = () => {
       <motion.button
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 z-50 h-10 w-10 sm:h-11 sm:w-11 rounded-full btn-primary-gradient shadow-lg flex items-center justify-center"
+        className="fixed bottom-3 left-3 right-auto sm:bottom-4 sm:left-4 z-50 !h-9 !w-9 sm:!h-10 sm:!w-10 min-w-0 p-0 rounded-full bg-primary text-primary-foreground border border-primary/40 shadow-lg inline-flex items-center justify-center"
         aria-label="Open Jarviou Assistant"
       >
-        {isOpen ? <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+        {isOpen ? <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <MessageCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
       </motion.button>
 
       <AnimatePresence>
