@@ -63,10 +63,10 @@ const JarviouWidget = () => {
       <motion.button
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50 w-14 h-14 rounded-full btn-primary-gradient shadow-lg flex items-center justify-center"
+        className="fixed bottom-3 left-3 sm:bottom-4 sm:left-4 z-50 h-10 w-10 sm:h-11 sm:w-11 rounded-full btn-primary-gradient shadow-lg flex items-center justify-center"
         aria-label="Open Jarviou Assistant"
       >
-        {isOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+        {isOpen ? <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
       </motion.button>
 
       <AnimatePresence>
@@ -75,7 +75,7 @@ const JarviouWidget = () => {
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 w-auto max-w-full rounded-2xl border border-border/60 bg-background/95 backdrop-blur p-3 shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-5 sm:w-[340px]"
+            className="fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 w-auto max-w-full rounded-2xl border border-border/60 bg-background/95 backdrop-blur p-3 shadow-2xl sm:inset-x-auto sm:bottom-20 sm:left-4 sm:w-[340px]"
           >
             <div className="px-1 pb-2 border-b border-border/60">
               <h3 className="font-semibold">Jarviou Assistant</h3>
