@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Download, Menu, X } from "lucide-react";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import BrandIcon from "@/components/BrandIcon";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -10,7 +11,22 @@ const navLinks = ["Home", "Features", "How It Works", "Drivers", "Contact"];
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showIosHint, setShowIosHint] = useState(false);
   const { handleBookRide } = useAuthRedirect();
+  const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
+
+  const showInstallButton = !isStandalone && (canInstall || isIOS);
+
+  const handleInstallClick = () => {
+    if (canInstall) {
+      void promptInstall();
+      return;
+    }
+
+    if (isIOS) {
+      setShowIosHint((prev) => !prev);
+    }
+  };
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -50,6 +66,16 @@ const Navbar = () => {
 
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
+          {showInstallButton && (
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-muted/60 text-foreground hover:bg-muted transition-colors inline-flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download App
+            </button>
+          )}
           <motion.button whileTap={{ scale: 0.95 }} onClick={handleBookRide} className="btn-primary-gradient px-6 py-2.5 rounded-xl text-sm font-semibold">
             Book Ride
           </motion.button>
@@ -88,13 +114,34 @@ const Navbar = () => {
                   {link}
                 </a>
               ))}
+              {showInstallButton && (
+                <button
+                  type="button"
+                  onClick={handleInstallClick}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-muted/60 text-foreground hover:bg-muted transition-colors inline-flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download App
+                </button>
+              )}
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setMobileOpen(false); handleBookRide(); }} className="btn-primary-gradient px-6 py-2.5 rounded-xl text-sm font-semibold mt-2">
                 Book Ride
               </motion.button>
+              {isIOS && showIosHint && (
+                <div className="rounded-2xl border border-border bg-background/90 px-3 py-2 text-xs text-foreground">
+                  Tap Share in Safari, then choose Add to Home Screen.
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isIOS && showIosHint && (
+        <div className="hidden md:block mt-2 mx-auto max-w-md rounded-2xl border border-border bg-background/90 px-4 py-2 text-xs text-foreground text-center">
+          Install on iPhone: tap Share in Safari, then Add to Home Screen.
+        </div>
+      )}
     </motion.nav>
   );
 };
