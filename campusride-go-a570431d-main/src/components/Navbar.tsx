@@ -15,7 +15,7 @@ const Navbar = () => {
   const { handleBookRide } = useAuthRedirect();
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
 
-  const showInstallButton = !isStandalone && (canInstall || isIOS);
+  const showInstallButton = !isStandalone;
 
   const handleInstallClick = () => {
     if (canInstall) {
@@ -25,7 +25,10 @@ const Navbar = () => {
 
     if (isIOS) {
       setShowIosHint((prev) => !prev);
+      return;
     }
+
+    window.open("/manifest.webmanifest", "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
